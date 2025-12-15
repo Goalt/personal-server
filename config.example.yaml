@@ -1,0 +1,57 @@
+general:
+  domain: example.com
+  namespaces: [infra, hobby]
+backup:
+  webdav_host: https://webdav.example.com
+  webdav_username: username
+  webdav_password: password
+  sentry_dsn: https://public@sentry.example.com/1
+  cron: "*/30 * * * *"
+  passphrase: your-gpg-passphrase
+modules:
+  - name: cloudflare
+    namespace: infra
+    secrets:
+      cloudflare_api_token: your_cloudflare_api_token
+  - name: bitwarden
+    namespace: infra
+  - name: webdav
+    namespace: infra
+    secrets:
+      webdav_username: admin
+      webdav_password: secret_password
+  - name: hobby-pod
+    namespace: infra
+  - name: work-pod
+    namespace: infra
+  - name: drone
+    namespace: infra
+    secrets:
+      drone_gitea_client_id: your_client_id
+      drone_gitea_client_secret: your_client_secret
+      drone_rpc_secret: your_rpc_secret
+      drone_server_proto: https
+  - name: monitoring
+    namespace: infra
+    secrets:
+      sentry_dsn: https://public@sentry.example.com/1
+  - name: postgres
+    namespace: infra
+    secrets:
+      admin_postgres_user: postgres
+      admin_postgres_password: secret_password
+  - name: pgadmin
+    namespace: infra
+    secrets:
+      pgadmin_default_email: admin@example.com
+      pgadmin_admin_password: secret_password
+  - name: gitea
+    namespace: infra
+    secrets:
+      gitea_db_user: gitea
+      gitea_db_password: secret_password
+  - name: ssh-login-notifier
+    namespace: infra
+    secrets:
+      sentry_dsn: https://public@sentry.example.com/1
+

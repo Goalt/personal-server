@@ -1,0 +1,27 @@
+{
+	"name": "personal-server-dev",
+	"dockerComposeFile": [
+		"docker-compose.yml"
+	],
+	"service": "personal-server-dev",
+	"workspaceFolder": "/workspace",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"eamodio.gitlens",
+				"GitHub.copilot",
+				"mtxr.sqltools",
+				"well-ar.plantuml",
+				"mtxr.sqltools-driver-mysql",
+				"mtxr.sqltools-driver-pg",
+				"ms-kubernetes-tools.vscode-kubernetes-tools",
+				"netcorext.uuid-generator",
+				"humao.rest-client",
+				"tooltitudeteam.tooltitude",
+				"766b.go-outliner"
+			]
+		}
+	},
+	
+	"remoteUser": "vscode"
+}

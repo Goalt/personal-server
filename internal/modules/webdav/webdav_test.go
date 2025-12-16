@@ -386,12 +386,22 @@ func TestWebdavModule_PrepareDeploymentContainer(t *testing.T) {
 
 	_, _, _, _, deployment := module.prepare()
 
-	// Verify container count
-	if len(deployment.Spec.Template.Spec.Containers) != 1 {
-		t.Fatalf("Container count = %d, want 1", len(deployment.Spec.Template.Spec.Containers))
+	// Verify container count - should have webdav and backup-helper
+	if len(deployment.Spec.Template.Spec.Containers) != 2 {
+		t.Fatalf("Container count = %d, want 2", len(deployment.Spec.Template.Spec.Containers))
 	}
 
-	container := deployment.Spec.Template.Spec.Containers[0]
+	// Find the webdav container
+	var container *corev1.Container
+	for i := range deployment.Spec.Template.Spec.Containers {
+		if deployment.Spec.Template.Spec.Containers[i].Name == "webdav" {
+			container = &deployment.Spec.Template.Spec.Containers[i]
+			break
+		}
+	}
+	if container == nil {
+		t.Fatal("webdav container not found")
+	}
 
 	// Test container name
 	if container.Name != "webdav" {
@@ -465,6 +475,64 @@ func TestWebdavModule_PrepareDeploymentContainer(t *testing.T) {
 	}
 }
 
+func TestWebdavModule_PrepareDeploymentBackupHelperContainer(t *testing.T) {
+	module := &WebdavModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		ModuleConfig: config.Module{
+			Name:      "webdav",
+			Namespace: "test-namespace",
+		},
+	}
+
+	_, _, _, _, deployment := module.prepare()
+
+	// Find the backup-helper container
+	var backupHelper *corev1.Container
+	for i := range deployment.Spec.Template.Spec.Containers {
+		if deployment.Spec.Template.Spec.Containers[i].Name == "backup-helper" {
+			backupHelper = &deployment.Spec.Template.Spec.Containers[i]
+			break
+		}
+	}
+	if backupHelper == nil {
+		t.Fatal("backup-helper container not found")
+	}
+
+	// Test container image
+	if backupHelper.Image != "busybox:latest" {
+		t.Errorf("backup-helper image = %s, want busybox:latest", backupHelper.Image)
+	}
+
+	// Test command
+	expectedCommand := []string{"sh", "-c", "while true; do sleep 3600; done"}
+	if len(backupHelper.Command) != len(expectedCommand) {
+		t.Errorf("backup-helper command length = %d, want %d", len(backupHelper.Command), len(expectedCommand))
+	} else {
+		for i, cmd := range expectedCommand {
+			if backupHelper.Command[i] != cmd {
+				t.Errorf("backup-helper command[%d] = %s, want %s", i, backupHelper.Command[i], cmd)
+			}
+		}
+	}
+
+	// Test volume mounts - should have data volume with write access
+	if len(backupHelper.VolumeMounts) != 1 {
+		t.Fatalf("backup-helper volume mounts count = %d, want 1", len(backupHelper.VolumeMounts))
+	}
+	vm := backupHelper.VolumeMounts[0]
+	if vm.Name != "webdav-data" {
+		t.Errorf("backup-helper volume mount name = %s, want webdav-data", vm.Name)
+	}
+	if vm.MountPath != "/data" {
+		t.Errorf("backup-helper volume mount path = %s, want /data", vm.MountPath)
+	}
+	if vm.ReadOnly {
+		t.Error("backup-helper volume mount should not be read-only")
+	}
+}
+
 func TestWebdavModule_PrepareDeploymentContainerSecurityContext(t *testing.T) {
 	module := &WebdavModule{
 		GeneralConfig: config.GeneralConfig{
@@ -478,7 +546,17 @@ func TestWebdavModule_PrepareDeploymentContainerSecurityContext(t *testing.T) {
 
 	_, _, _, _, deployment := module.prepare()
 
-	container := deployment.Spec.Template.Spec.Containers[0]
+	// Find the webdav container
+	var container *corev1.Container
+	for i := range deployment.Spec.Template.Spec.Containers {
+		if deployment.Spec.Template.Spec.Containers[i].Name == "webdav" {
+			container = &deployment.Spec.Template.Spec.Containers[i]
+			break
+		}
+	}
+	if container == nil {
+		t.Fatal("webdav container not found")
+	}
 
 	// Test security context
 	if container.SecurityContext == nil {

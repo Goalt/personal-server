@@ -266,6 +266,10 @@ users:
 `
 
 	configMap := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "webdav-config",
 			Namespace: m.ModuleConfig.Namespace,
@@ -281,6 +285,10 @@ users:
 
 	// Prepare Secret
 	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "webdav-secrets",
 			Namespace: m.ModuleConfig.Namespace,
@@ -299,6 +307,10 @@ users:
 	// Prepare PVC
 	storageQuantity := resource.MustParse("20Gi")
 	pvc := &corev1.PersistentVolumeClaim{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "PersistentVolumeClaim",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "webdav-data-pvc",
 			Namespace: m.ModuleConfig.Namespace,
@@ -321,6 +333,10 @@ users:
 
 	// Prepare Service
 	service := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "webdav-service",
 			Namespace: m.ModuleConfig.Namespace,
@@ -355,6 +371,10 @@ users:
 	allowPrivilegeEscalation := false
 
 	deployment := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "webdav",
 			Namespace: m.ModuleConfig.Namespace,
@@ -429,6 +449,32 @@ users:
 								{
 									Name:      "webdav-data",
 									MountPath: "/data",
+								},
+							},
+							SecurityContext: &corev1.SecurityContext{
+								RunAsNonRoot:             &runAsNonRoot,
+								RunAsUser:                &runAsUser,
+								RunAsGroup:               &runAsGroup,
+								AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+								ReadOnlyRootFilesystem:   &readOnlyRootFilesystem,
+								Capabilities: &corev1.Capabilities{
+									Drop: []corev1.Capability{"ALL"},
+								},
+							},
+						},
+						{
+							Name:  "backup-helper",
+							Image: "busybox:latest",
+							Command: []string{
+								"sh",
+								"-c",
+								"while true; do sleep 3600; done",
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "webdav-data",
+									MountPath: "/data",
+									ReadOnly:  false,
 								},
 							},
 							SecurityContext: &corev1.SecurityContext{
@@ -744,15 +790,22 @@ func (m *WebdavModule) Backup(ctx context.Context, destDir string) error {
 	dataBackupFile := filepath.Join(backupDir, fmt.Sprintf("webdav_data_%s.tar.gz", timestamp))
 
 	kubectlCmd := "kubectl"
+	kubectlArgs := []string{}
 	if _, err := os.Stat("/snap/bin/microk8s"); err == nil {
-		kubectlCmd = "/snap/bin/microk8s kubectl"
+		kubectlCmd = "/snap/bin/microk8s"
+		kubectlArgs = append(kubectlArgs, "kubectl")
 	}
 
-	// Command: tar czf - -C /data .
-	cmdStr := fmt.Sprintf("%s exec -n %s %s -- tar czf - -C /data .", kubectlCmd, m.ModuleConfig.Namespace, podName)
+	// Use the backup-helper sidecar container which has tar
+	m.log.Info("📦 Creating archive using backup-helper container...\n")
 
-	cmdParts := strings.Fields(cmdStr)
-	cmd := exec.CommandContext(ctx, cmdParts[0], cmdParts[1:]...)
+	// kubectl exec -n <namespace> <pod> -c backup-helper -- tar czf - -C /data .
+	execArgs := append(kubectlArgs, "exec", "-n", m.ModuleConfig.Namespace, podName,
+		"-c", "backup-helper",
+		"--",
+		"tar", "czf", "-", "-C", "/data", ".")
+
+	execCmd := exec.CommandContext(ctx, kubectlCmd, execArgs...)
 
 	outFile, err := os.Create(dataBackupFile)
 	if err != nil {
@@ -760,11 +813,11 @@ func (m *WebdavModule) Backup(ctx context.Context, destDir string) error {
 	}
 	defer outFile.Close()
 
-	cmd.Stdout = outFile
-	cmd.Stderr = os.Stderr
+	execCmd.Stdout = outFile
+	execCmd.Stderr = os.Stderr
 
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to archive data: %w", err)
+	if err := execCmd.Run(); err != nil {
+		return fmt.Errorf("failed to create archive: %w", err)
 	}
 
 	fileInfo, err := outFile.Stat()
@@ -876,22 +929,31 @@ func (m *WebdavModule) Restore(ctx context.Context, args []string) error {
 	m.log.Info("💾 Restoring data...\n")
 
 	kubectlCmd := "kubectl"
+	kubectlArgs := []string{}
 	if _, err := os.Stat("/snap/bin/microk8s"); err == nil {
-		kubectlCmd = "/snap/bin/microk8s kubectl"
+		kubectlCmd = "/snap/bin/microk8s"
+		kubectlArgs = append(kubectlArgs, "kubectl")
 	}
 
-	// 1. Clean existing data
-	cleanCmdStr := fmt.Sprintf("%s exec -n %s %s -- rm -rf /data/*", kubectlCmd, m.ModuleConfig.Namespace, podName)
-	cleanCmdParts := strings.Fields(cleanCmdStr)
-	cleanCmd := exec.CommandContext(ctx, cleanCmdParts[0], cleanCmdParts[1:]...)
+	// 1. Clean existing data using backup-helper container
+	m.log.Info("🗑️  Cleaning existing data...\n")
+	cleanArgs := append(kubectlArgs, "exec", "-n", m.ModuleConfig.Namespace, podName,
+		"-c", "backup-helper",
+		"--",
+		"sh", "-c", "rm -rf /data/*")
+	cleanCmd := exec.CommandContext(ctx, kubectlCmd, cleanArgs...)
+	cleanCmd.Stderr = os.Stderr
 	if err := cleanCmd.Run(); err != nil {
 		m.log.Warn("Warning during clean: %v\n", err)
 	}
 
-	// 2. Restore from tar
-	restoreCmdStr := fmt.Sprintf("%s exec -i -n %s %s -- tar xzf - -C /data", kubectlCmd, m.ModuleConfig.Namespace, podName)
-	restoreCmdParts := strings.Fields(restoreCmdStr)
-	restoreCmd := exec.CommandContext(ctx, restoreCmdParts[0], restoreCmdParts[1:]...)
+	// 2. Restore from tar using backup-helper container (it has tar and write access)
+	m.log.Info("📦 Restoring from archive...\n")
+	restoreArgs := append(kubectlArgs, "exec", "-i", "-n", m.ModuleConfig.Namespace, podName,
+		"-c", "backup-helper",
+		"--",
+		"tar", "xzf", "-", "-C", "/data")
+	restoreCmd := exec.CommandContext(ctx, kubectlCmd, restoreArgs...)
 
 	inFile, err := os.Open(dataBackupFile)
 	if err != nil {

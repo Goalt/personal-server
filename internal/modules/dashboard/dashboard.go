@@ -195,6 +195,8 @@ func (m *DashboardModule) prepare() (*corev1.ServiceAccount, *rbacv1.ClusterRole
 	}
 
 	// Prepare ClusterRoleBinding
+	// Note: Uses cluster-admin role for full cluster access in personal server environment.
+	// For production use, consider using a more restricted role like 'view' or a custom role.
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "kubernetes-dashboard",

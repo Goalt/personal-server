@@ -5,6 +5,7 @@ import (
 	"github.com/Goalt/personal-server/internal/logger"
 	"github.com/Goalt/personal-server/internal/modules/bitwarden"
 	"github.com/Goalt/personal-server/internal/modules/cloudflare"
+	"github.com/Goalt/personal-server/internal/modules/dashboard"
 	"github.com/Goalt/personal-server/internal/modules/drone"
 	"github.com/Goalt/personal-server/internal/modules/gitea"
 	"github.com/Goalt/personal-server/internal/modules/hobbypod"
@@ -59,6 +60,9 @@ func DefaultRegistry(log logger.Logger) *Registry {
 	})
 	r.Register("ssh-login-notifier", func(g config.GeneralConfig, m config.Module, log logger.Logger) Module {
 		return sshlogin.New(g, m, log)
+	})
+	r.Register("dashboard", func(g config.GeneralConfig, m config.Module, log logger.Logger) Module {
+		return dashboard.New(g, m, log)
 	})
 
 	return r

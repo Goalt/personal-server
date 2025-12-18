@@ -299,6 +299,7 @@ personal-server <module> restore <backup-file>
 - **postgres**: PostgreSQL database
 - **pgadmin**: PostgreSQL administration interface
 - **ssh-login-notifier**: SSH login notification service
+- **dashboard**: Kubernetes Dashboard UI
 
 ### Examples
 

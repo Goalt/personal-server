@@ -54,4 +54,6 @@ modules:
     namespace: infra
     secrets:
       sentry_dsn: https://public@sentry.example.com/1
+  - name: dashboard
+    namespace: infra
 

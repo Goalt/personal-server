@@ -243,6 +243,7 @@ func (a *App) printUsage() {
 	a.logger.Println("  postgres <subcommand>         Manage Postgres configurations")
 	a.logger.Println("  pgadmin <subcommand>          Manage pgadmin configurations")
 	a.logger.Println("  ssh-login-notifier <subcommand>  Manage SSH login notification configurations")
+	a.logger.Println("  dashboard <subcommand>        Manage Kubernetes Dashboard configurations")
 }
 
 func (a *App) printVersion() {

@@ -11,6 +11,69 @@ A comprehensive Go application for managing Kubernetes-based personal infrastruc
 - **Scheduled Backups**: Support for automated backups with configurable cron schedules
 - **Encrypted Backups**: GPG encryption support for secure backup storage
 
+## 🖥️ System Setup
+
+This section covers the initial setup of a fresh Ubuntu system for running Personal Server with MicroK8s.
+
+### 1. Initial System Configuration
+
+```bash
+# Disable swap (required for Kubernetes)
+sudo swapoff -a
+sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+
+# Update system and install snapd
+sudo apt update && sudo apt upgrade -y
+sudo apt install snapd git gpg make -y
+```
+
+### 2. Install MicroK8s
+
+```bash
+# Install MicroK8s
+sudo snap install microk8s --classic
+
+# Add user to microk8s group
+sudo usermod -a -G microk8s $USER
+sudo chown -f -R $USER ~/.kube
+newgrp microk8s
+
+# Enable required add-ons
+microk8s enable dns dashboard storage ingress registry:size=20Gi
+
+# Create kubectl alias for convenience
+echo 'alias kubectl="microk8s kubectl"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+### 3. Install VS Code CLI (Remote Tunnels)
+
+The VS Code CLI allows you to connect to your server remotely via secure tunnels. Follow the installation steps from the [official documentation](https://code.visualstudio.com/docs/remote/tunnels):
+
+```bash
+# Download and install the VS Code CLI
+curl -L 'https://code.visualstudio.com/sha/download?build=stable&os=cli-linux-x64' --output vscode_cli.tar.gz
+tar -xf vscode_cli.tar.gz
+
+# Move to a directory in your PATH
+sudo mv code /usr/local/bin/
+
+# Start a tunnel (you'll need to authenticate with GitHub)
+code tunnel
+```
+
+### 4. Configure Security (Optional but Recommended)
+
+```bash
+# Configure firewall (only SSH access)
+# WARNING: These commands will briefly reset firewall rules. 
+# Ensure you have console access in case SSH is interrupted.
+sudo ufw --force reset
+sudo iptables -F && sudo iptables -X
+sudo ufw allow 22
+sudo ufw --force enable
+```
+
 ## 📋 Prerequisites
 
 - Go 1.25.3 or later

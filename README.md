@@ -52,7 +52,7 @@ The VS Code CLI allows you to connect to your server remotely via secure tunnels
 
 ```bash
 # Download and install the VS Code CLI
-curl -Lk 'https://code.visualstudio.com/sha/download?build=stable&os=cli-alpine-x64' --output vscode_cli.tar.gz
+curl -L 'https://code.visualstudio.com/sha/download?build=stable&os=cli-linux-x64' --output vscode_cli.tar.gz
 tar -xf vscode_cli.tar.gz
 
 # Move to a directory in your PATH
@@ -66,6 +66,8 @@ code tunnel
 
 ```bash
 # Configure firewall (only SSH access)
+# WARNING: These commands will briefly reset firewall rules. 
+# Ensure you have console access in case SSH is interrupted.
 sudo ufw --force reset
 sudo iptables -F && sudo iptables -X
 sudo ufw allow 22

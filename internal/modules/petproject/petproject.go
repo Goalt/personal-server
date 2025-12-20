@@ -251,7 +251,7 @@ func (m *PetProjectModule) Status(ctx context.Context) error {
 	if err != nil {
 		m.log.Error("  Error listing pods: %v\n", err)
 	} else if len(pods.Items) == 0 {
-		m.log.Println("  No pods found with label app=%s", deploymentName)
+		m.log.Info("  No pods found with label app=%s\n", deploymentName)
 	} else {
 		m.log.Info("  %-40s %-10s %-10s %-10s\n", "NAME", "READY", "STATUS", "AGE")
 		for _, pod := range pods.Items {

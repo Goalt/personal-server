@@ -10,9 +10,13 @@ import (
 // ModuleFactory creates a module from config
 type ModuleFactory func(general config.GeneralConfig, modCfg config.Module, log logger.Logger) Module
 
+// PetProjectFactory creates a pet project module from config
+type PetProjectFactory func(general config.GeneralConfig, projectCfg config.PetProject, log logger.Logger) Module
+
 // Registry holds module factories indexed by command name
 type Registry struct {
-	factories map[string]ModuleFactory
+	factories            map[string]ModuleFactory
+	petProjectFactories  map[string]PetProjectFactory
 	// requiresModuleConfig tracks which modules need module-specific config
 	requiresModuleConfig map[string]bool
 	logger               logger.Logger
@@ -22,6 +26,7 @@ type Registry struct {
 func NewRegistry(log logger.Logger) *Registry {
 	return &Registry{
 		factories:            make(map[string]ModuleFactory),
+		petProjectFactories:  make(map[string]PetProjectFactory),
 		requiresModuleConfig: make(map[string]bool),
 		logger:               log,
 	}
@@ -41,11 +46,17 @@ func (r *Registry) RegisterSimple(name string, factory func(config.GeneralConfig
 	r.requiresModuleConfig[name] = false
 }
 
+// RegisterPetProject adds a pet project factory
+func (r *Registry) RegisterPetProject(name string, factory PetProjectFactory) {
+	r.petProjectFactories[name] = factory
+}
+
 // Get creates a module by name
 func (r *Registry) Get(name string, cfg *config.Config) (Module, error) {
 	factory, ok := r.factories[name]
 	if !ok {
-		return nil, fmt.Errorf("unknown module: %s", name)
+		// Check if it's a pet project
+		return r.GetPetProject(name, cfg)
 	}
 
 	var modCfg config.Module
@@ -58,6 +69,27 @@ func (r *Registry) Get(name string, cfg *config.Config) (Module, error) {
 	}
 
 	return factory(cfg.General, modCfg, r.logger), nil
+}
+
+// GetPetProject creates a pet project module by name
+func (r *Registry) GetPetProject(name string, cfg *config.Config) (Module, error) {
+	// Try to find a pet project with this name
+	projectCfg, err := cfg.GetPetProject(name)
+	if err != nil {
+		return nil, fmt.Errorf("unknown module or pet project: %s", name)
+	}
+
+	// Check if there's a specific factory registered for this pet project
+	if factory, ok := r.petProjectFactories[name]; ok {
+		return factory(cfg.General, projectCfg, r.logger), nil
+	}
+
+	// Use the default pet project factory if no specific factory is registered
+	if defaultFactory, ok := r.petProjectFactories["_default"]; ok {
+		return defaultFactory(cfg.General, projectCfg, r.logger), nil
+	}
+
+	return nil, fmt.Errorf("no pet project factory registered")
 }
 
 // Commands returns all registered command names

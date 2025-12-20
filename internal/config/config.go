@@ -14,6 +14,14 @@ type Module struct {
 	Secrets   map[string]string `yaml:"secrets"`
 }
 
+// PetProject represents a pet project configuration
+type PetProject struct {
+	Name        string            `yaml:"name"`
+	Namespace   string            `yaml:"namespace"`
+	Image       string            `yaml:"image"`
+	Environment map[string]string `yaml:"environment"`
+}
+
 type GeneralConfig struct {
 	Domain     string   `yaml:"domain"`
 	Namespaces []string `yaml:"namespaces"`
@@ -31,10 +39,11 @@ type BackupConfig struct {
 
 // Config represents the application configuration
 type Config struct {
-	Path    string        `yaml:"-"`
-	General GeneralConfig `yaml:"general"`
-	Backup  BackupConfig  `yaml:"backup"`
-	Modules []Module      `yaml:"modules"`
+	Path        string        `yaml:"-"`
+	General     GeneralConfig `yaml:"general"`
+	Backup      BackupConfig  `yaml:"backup"`
+	Modules     []Module      `yaml:"modules"`
+	PetProjects []PetProject  `yaml:"pet-projects"`
 }
 
 // LoadConfig loads and parses the configuration file
@@ -70,4 +79,14 @@ func (c *Config) GetModule(name string) (Module, error) {
 		}
 	}
 	return Module{}, fmt.Errorf("module not found: %s", name)
+}
+
+// GetPetProject retrieves a pet project by name
+func (c *Config) GetPetProject(name string) (PetProject, error) {
+	for _, project := range c.PetProjects {
+		if project.Name == name {
+			return project, nil
+		}
+	}
+	return PetProject{}, fmt.Errorf("pet project not found: %s", name)
 }

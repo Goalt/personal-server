@@ -340,3 +340,166 @@ func TestGetModule_MultipleModules(t *testing.T) {
 		t.Errorf("Expected namespace to be 'ns2', got '%s'", module.Namespace)
 	}
 }
+
+func TestLoadConfig_WithPetProjects(t *testing.T) {
+	// Create a temporary config file with pet-projects
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+
+	configContent := `general:
+  domain: example.com
+  namespaces: [infra, hobby]
+modules:
+  - name: cloudflare
+    namespace: infra
+pet-projects:
+  - name: myapp
+    namespace: hobby
+    image: nginx:latest
+    environment:
+      PORT: "8080"
+      ENV: "production"
+  - name: api
+    namespace: hobby
+    image: node:18
+    environment:
+      NODE_ENV: "development"
+`
+
+	err := os.WriteFile(configFile, []byte(configContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test config file: %v", err)
+	}
+
+	// Load the config
+	config, err := LoadConfig(configFile)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	// Verify pet-projects
+	if len(config.PetProjects) != 2 {
+		t.Errorf("Expected 2 pet-projects, got %d", len(config.PetProjects))
+	}
+
+	// Verify first pet project
+	if config.PetProjects[0].Name != "myapp" {
+		t.Errorf("Expected first pet project name to be 'myapp', got '%s'", config.PetProjects[0].Name)
+	}
+
+	if config.PetProjects[0].Namespace != "hobby" {
+		t.Errorf("Expected first pet project namespace to be 'hobby', got '%s'", config.PetProjects[0].Namespace)
+	}
+
+	if config.PetProjects[0].Image != "nginx:latest" {
+		t.Errorf("Expected first pet project image to be 'nginx:latest', got '%s'", config.PetProjects[0].Image)
+	}
+
+	if len(config.PetProjects[0].Environment) != 2 {
+		t.Errorf("Expected 2 environment variables in first pet project, got %d", len(config.PetProjects[0].Environment))
+	}
+
+	if config.PetProjects[0].Environment["PORT"] != "8080" {
+		t.Errorf("Expected PORT to be '8080', got '%s'", config.PetProjects[0].Environment["PORT"])
+	}
+
+	if config.PetProjects[0].Environment["ENV"] != "production" {
+		t.Errorf("Expected ENV to be 'production', got '%s'", config.PetProjects[0].Environment["ENV"])
+	}
+
+	// Verify second pet project
+	if config.PetProjects[1].Name != "api" {
+		t.Errorf("Expected second pet project name to be 'api', got '%s'", config.PetProjects[1].Name)
+	}
+
+	if config.PetProjects[1].Image != "node:18" {
+		t.Errorf("Expected second pet project image to be 'node:18', got '%s'", config.PetProjects[1].Image)
+	}
+}
+
+func TestGetPetProject_Success(t *testing.T) {
+	// Create a config with pet projects
+	config := &Config{
+		PetProjects: []PetProject{
+			{
+				Name:      "myapp",
+				Namespace: "hobby",
+				Image:     "nginx:latest",
+				Environment: map[string]string{
+					"PORT": "8080",
+				},
+			},
+			{
+				Name:      "api",
+				Namespace: "hobby",
+				Image:     "node:18",
+				Environment: map[string]string{
+					"NODE_ENV": "production",
+				},
+			},
+		},
+	}
+
+	// Test getting an existing pet project
+	project, err := config.GetPetProject("myapp")
+	if err != nil {
+		t.Fatalf("GetPetProject failed: %v", err)
+	}
+
+	if project.Name != "myapp" {
+		t.Errorf("Expected pet project name to be 'myapp', got '%s'", project.Name)
+	}
+
+	if project.Namespace != "hobby" {
+		t.Errorf("Expected namespace to be 'hobby', got '%s'", project.Namespace)
+	}
+
+	if project.Image != "nginx:latest" {
+		t.Errorf("Expected image to be 'nginx:latest', got '%s'", project.Image)
+	}
+
+	if project.Environment["PORT"] != "8080" {
+		t.Errorf("Expected PORT to be '8080', got '%s'", project.Environment["PORT"])
+	}
+}
+
+func TestGetPetProject_NotFound(t *testing.T) {
+	// Create a config with pet projects
+	config := &Config{
+		PetProjects: []PetProject{
+			{
+				Name:      "myapp",
+				Namespace: "hobby",
+			},
+		},
+	}
+
+	// Test getting a non-existent pet project
+	_, err := config.GetPetProject("nonexistent")
+	if err == nil {
+		t.Error("Expected error for non-existent pet project, got nil")
+	}
+
+	expectedMsg := "pet project not found: nonexistent"
+	if err != nil && err.Error() != expectedMsg {
+		t.Errorf("Expected error message '%s', got '%s'", expectedMsg, err.Error())
+	}
+}
+
+func TestGetPetProject_EmptyConfig(t *testing.T) {
+	// Create an empty config
+	config := &Config{
+		PetProjects: []PetProject{},
+	}
+
+	// Test getting a pet project from empty config
+	_, err := config.GetPetProject("anyproject")
+	if err == nil {
+		t.Error("Expected error for empty config, got nil")
+	}
+
+	expectedMsg := "pet project not found: anyproject"
+	if err != nil && err.Error() != expectedMsg {
+		t.Errorf("Expected error message '%s', got '%s'", expectedMsg, err.Error())
+	}
+}

@@ -10,6 +10,7 @@ import (
 	"github.com/Goalt/personal-server/internal/modules/hobbypod"
 	"github.com/Goalt/personal-server/internal/modules/monitoring"
 	"github.com/Goalt/personal-server/internal/modules/namespace"
+	"github.com/Goalt/personal-server/internal/modules/petproject"
 	"github.com/Goalt/personal-server/internal/modules/pgadmin"
 	"github.com/Goalt/personal-server/internal/modules/postgres"
 	"github.com/Goalt/personal-server/internal/modules/sshlogin"
@@ -59,6 +60,11 @@ func DefaultRegistry(log logger.Logger) *Registry {
 	})
 	r.Register("ssh-login-notifier", func(g config.GeneralConfig, m config.Module, log logger.Logger) Module {
 		return sshlogin.New(g, m, log)
+	})
+
+	// Register default pet project factory
+	r.RegisterPetProject("_default", func(g config.GeneralConfig, p config.PetProject, log logger.Logger) Module {
+		return petproject.New(g, p, log)
 	})
 
 	return r

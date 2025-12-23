@@ -5,6 +5,7 @@ A comprehensive Go application for managing Kubernetes-based personal infrastruc
 ## ✨ Features
 
 - **Modular Architecture**: Manage multiple services through a unified interface
+- **Pet Projects Support**: Deploy custom containerized applications with simple configuration
 - **Kubernetes Integration**: Generate and apply Kubernetes configurations for various services
 - **Backup & Restore**: Automated backup and restore capabilities for critical services
 - **Configuration Management**: YAML-based configuration for easy customization
@@ -244,6 +245,21 @@ modules:
     namespace: infra
     secrets:
       sentry_dsn: your_sentry_dsn
+
+pet-projects:
+  - name: myapp
+    namespace: hobby
+    image: nginx:latest
+    environment:
+      PORT: "8080"
+      ENV: "production"
+  
+  - name: api-service
+    namespace: hobby
+    image: node:18-alpine
+    environment:
+      NODE_ENV: "development"
+      API_PORT: "3000"
 ```
 
 ## 🚀 Usage
@@ -283,6 +299,9 @@ personal-server <module> backup
 
 # Restore module data (if supported)
 personal-server <module> restore <backup-file>
+
+# Rollout operations (if supported)
+personal-server <module> rollout <restart|status|history|undo>
 ```
 
 ### Available Modules
@@ -299,6 +318,42 @@ personal-server <module> restore <backup-file>
 - **postgres**: PostgreSQL database
 - **pgadmin**: PostgreSQL administration interface
 - **ssh-login-notifier**: SSH login notification service
+
+### Pet Projects
+
+Pet projects allow you to deploy custom containerized applications easily. Just define them in the `pet-projects` section of your config:
+
+```yaml
+pet-projects:
+  - name: myapp
+    namespace: hobby
+    image: nginx:latest
+    environment:
+      PORT: "8080"
+      ENV: "production"
+```
+
+Then use the same commands as modules:
+
+```bash
+# Generate Kubernetes configurations
+personal-server myapp generate
+
+# Deploy the pet project
+personal-server myapp apply
+
+# Check status
+personal-server myapp status
+
+# Rollout operations
+personal-server myapp rollout restart  # Restart the deployment
+personal-server myapp rollout status   # Check rollout status
+personal-server myapp rollout history  # View rollout history
+personal-server myapp rollout undo     # Undo last rollout
+
+# Clean up
+personal-server myapp clean
+```
 
 ### Examples
 

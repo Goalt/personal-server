@@ -161,7 +161,7 @@ func (a *App) Run(ctx context.Context, args []string) error {
 
 func (a *App) handleModuleCommand(ctx context.Context, args []string, module modules.Module) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: %s <subcommand>\nAvailable subcommands: generate, apply, clean, status, backup, restore, add-db, remove-db, notify, test", module.Name())
+		return fmt.Errorf("usage: %s <subcommand>\nAvailable subcommands: generate, apply, clean, status, backup, restore, add-db, remove-db, notify, test, rollout", module.Name())
 	}
 
 	subcommand := args[0]
@@ -210,8 +210,13 @@ func (a *App) handleModuleCommand(ctx context.Context, args []string, module mod
 			return tester.Test(ctx)
 		}
 		return fmt.Errorf("module '%s' does not support test", module.Name())
+	case "rollout":
+		if rollouter, ok := module.(modules.Rollouter); ok {
+			return rollouter.Rollout(ctx, args[1:])
+		}
+		return fmt.Errorf("module '%s' does not support rollout", module.Name())
 	default:
-		return fmt.Errorf("unknown subcommand: %s\nAvailable subcommands: generate, apply, clean, status, backup, restore, add-db, remove-db, notify, test", subcommand)
+		return fmt.Errorf("unknown subcommand: %s\nAvailable subcommands: generate, apply, clean, status, backup, restore, add-db, remove-db, notify, test, rollout", subcommand)
 	}
 }
 

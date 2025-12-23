@@ -45,3 +45,8 @@ type Tester interface {
 type Notifier interface {
 	Notify(ctx context.Context, user, ip, sshConnection string) error
 }
+
+// Rollouter defines the interface for modules that support rollout operations
+type Rollouter interface {
+	Rollout(ctx context.Context, args []string) error
+}

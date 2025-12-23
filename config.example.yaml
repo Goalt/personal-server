@@ -54,4 +54,17 @@ modules:
     namespace: infra
     secrets:
       sentry_dsn: https://public@sentry.example.com/1
+pet-projects:
+  - name: myapp
+    namespace: hobby
+    image: nginx:latest
+    environment:
+      PORT: "8080"
+      ENV: "production"
+  - name: api-service
+    namespace: hobby
+    image: node:18-alpine
+    environment:
+      NODE_ENV: "development"
+      API_PORT: "3000"
 

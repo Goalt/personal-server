@@ -167,3 +167,37 @@ func TestPrepareDeploymentWithoutEnvironment(t *testing.T) {
 		t.Errorf("Expected 0 environment variables, got %d", len(container.Env))
 	}
 }
+
+func TestRollout(t *testing.T) {
+	// This test would require a Kubernetes cluster
+	// For now, we'll skip it.
+	t.Skip("Skipping integration test")
+}
+
+func TestRolloutValidation(t *testing.T) {
+	generalConfig := config.GeneralConfig{
+		Domain:     "example.com",
+		Namespaces: []string{"hobby"},
+	}
+
+	projectConfig := config.PetProject{
+		Name:      "testapp",
+		Namespace: "hobby",
+		Image:     "nginx:latest",
+	}
+
+	log := logger.Default()
+	module := New(generalConfig, projectConfig, log)
+
+	// Test with no args
+	err := module.Rollout(nil, []string{})
+	if err == nil {
+		t.Error("Expected error when no args provided, got nil")
+	}
+
+	// Test with invalid operation
+	err = module.Rollout(nil, []string{"invalid"})
+	if err == nil {
+		t.Error("Expected error for invalid operation, got nil")
+	}
+}

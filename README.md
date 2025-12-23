@@ -299,6 +299,9 @@ personal-server <module> backup
 
 # Restore module data (if supported)
 personal-server <module> restore <backup-file>
+
+# Rollout operations (if supported)
+personal-server <module> rollout <restart|status|history|undo>
 ```
 
 ### Available Modules
@@ -341,6 +344,12 @@ personal-server myapp apply
 
 # Check status
 personal-server myapp status
+
+# Rollout operations
+personal-server myapp rollout restart  # Restart the deployment
+personal-server myapp rollout status   # Check rollout status
+personal-server myapp rollout history  # View rollout history
+personal-server myapp rollout undo     # Undo last rollout
 
 # Clean up
 personal-server myapp clean

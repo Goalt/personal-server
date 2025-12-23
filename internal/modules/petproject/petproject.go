@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/Goalt/personal-server/internal/config"
@@ -277,5 +279,57 @@ func (m *PetProjectModule) Status(ctx context.Context) error {
 	}
 
 	m.log.Println()
+	return nil
+}
+
+// Rollout performs kubectl rollout operations on the pet project deployment
+func (m *PetProjectModule) Rollout(ctx context.Context, args []string) error {
+	deploymentName := fmt.Sprintf("pet-%s", m.ProjectConfig.Name)
+
+	if len(args) == 0 {
+		return fmt.Errorf("usage: %s rollout <restart|status|history|undo>\nAvailable rollout commands: restart, status, history, undo", m.ProjectConfig.Name)
+	}
+
+	operation := args[0]
+
+	// Validate operation
+	validOps := map[string]bool{
+		"restart": true,
+		"status":  true,
+		"history": true,
+		"undo":    true,
+	}
+	if !validOps[operation] {
+		return fmt.Errorf("unknown rollout operation: %s\nAvailable rollout commands: restart, status, history, undo", operation)
+	}
+
+	kubectlCmd := "kubectl"
+	if _, err := os.Stat("/snap/bin/microk8s"); err == nil {
+		kubectlCmd = "/snap/bin/microk8s kubectl"
+	}
+
+	m.log.Info("🔄 Executing rollout %s for pet project '%s'...\n", operation, m.ProjectConfig.Name)
+
+	// Build kubectl rollout command
+	cmdStr := fmt.Sprintf("%s rollout %s deployment/%s -n %s", kubectlCmd, operation, deploymentName, m.ProjectConfig.Namespace)
+	cmdParts := strings.Fields(cmdStr)
+	cmd := exec.CommandContext(ctx, cmdParts[0], cmdParts[1:]...)
+
+	// Capture output for status, history operations
+	if operation == "status" || operation == "history" {
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("rollout %s failed: %w\nOutput: %s", operation, err, string(output))
+		}
+		m.log.Info("%s", string(output))
+		m.log.Success("✅ Rollout %s completed successfully\n", operation)
+	} else {
+		// For restart and undo, just execute
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("rollout %s failed: %w", operation, err)
+		}
+		m.log.Success("✅ Rollout %s completed successfully\n", operation)
+	}
+
 	return nil
 }

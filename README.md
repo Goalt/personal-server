@@ -331,7 +331,17 @@ pet-projects:
     environment:
       PORT: "8080"
       ENV: "production"
+    service:                # Optional: Create a Kubernetes Service
+      ports:
+        - name: http
+          port: 80
+          targetPort: 8080
 ```
+
+The `service` attribute is optional. When provided, it creates a Kubernetes Service that exposes your application on the specified ports. Each port requires:
+- `name`: A descriptive name for the port (e.g., "http", "https")
+- `port`: The port on which the service will be exposed
+- `targetPort`: The port your container is listening on
 
 Then use the same commands as modules:
 

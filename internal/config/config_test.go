@@ -503,3 +503,101 @@ func TestGetPetProject_EmptyConfig(t *testing.T) {
 		t.Errorf("Expected error message '%s', got '%s'", expectedMsg, err.Error())
 	}
 }
+
+func TestLoadConfig_WithPetProjectsService(t *testing.T) {
+	// Create a temporary config file with pet-projects including service configuration
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+
+	configContent := `general:
+  domain: example.com
+  namespaces: [infra, hobby]
+modules:
+  - name: cloudflare
+    namespace: infra
+pet-projects:
+  - name: myapp
+    namespace: hobby
+    image: nginx:latest
+    environment:
+      PORT: "8080"
+      ENV: "production"
+    service:
+      ports:
+        - name: http
+          port: 80
+          targetPort: 8080
+        - name: https
+          port: 443
+          targetPort: 8443
+  - name: api
+    namespace: hobby
+    image: node:18
+    environment:
+      NODE_ENV: "development"
+`
+
+	err := os.WriteFile(configFile, []byte(configContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test config file: %v", err)
+	}
+
+	// Load the config
+	config, err := LoadConfig(configFile)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	// Verify pet-projects
+	if len(config.PetProjects) != 2 {
+		t.Errorf("Expected 2 pet-projects, got %d", len(config.PetProjects))
+	}
+
+	// Verify first pet project with service
+	if config.PetProjects[0].Name != "myapp" {
+		t.Errorf("Expected first pet project name to be 'myapp', got '%s'", config.PetProjects[0].Name)
+	}
+
+	if config.PetProjects[0].Service == nil {
+		t.Fatal("Expected first pet project to have service configuration")
+	}
+
+	if len(config.PetProjects[0].Service.Ports) != 2 {
+		t.Errorf("Expected 2 service ports in first pet project, got %d", len(config.PetProjects[0].Service.Ports))
+	}
+
+	// Verify first port
+	if config.PetProjects[0].Service.Ports[0].Name != "http" {
+		t.Errorf("Expected first port name to be 'http', got '%s'", config.PetProjects[0].Service.Ports[0].Name)
+	}
+
+	if config.PetProjects[0].Service.Ports[0].Port != 80 {
+		t.Errorf("Expected first port to be 80, got %d", config.PetProjects[0].Service.Ports[0].Port)
+	}
+
+	if config.PetProjects[0].Service.Ports[0].TargetPort != 8080 {
+		t.Errorf("Expected first targetPort to be 8080, got %d", config.PetProjects[0].Service.Ports[0].TargetPort)
+	}
+
+	// Verify second port
+	if config.PetProjects[0].Service.Ports[1].Name != "https" {
+		t.Errorf("Expected second port name to be 'https', got '%s'", config.PetProjects[0].Service.Ports[1].Name)
+	}
+
+	if config.PetProjects[0].Service.Ports[1].Port != 443 {
+		t.Errorf("Expected second port to be 443, got %d", config.PetProjects[0].Service.Ports[1].Port)
+	}
+
+	if config.PetProjects[0].Service.Ports[1].TargetPort != 8443 {
+		t.Errorf("Expected second targetPort to be 8443, got %d", config.PetProjects[0].Service.Ports[1].TargetPort)
+	}
+
+	// Verify second pet project without service
+	if config.PetProjects[1].Name != "api" {
+		t.Errorf("Expected second pet project name to be 'api', got '%s'", config.PetProjects[1].Name)
+	}
+
+	if config.PetProjects[1].Service != nil {
+		t.Error("Expected second pet project to have no service configuration")
+	}
+}

@@ -14,12 +14,25 @@ type Module struct {
 	Secrets   map[string]string `yaml:"secrets"`
 }
 
+// ServicePort represents a service port configuration
+type ServicePort struct {
+	Name       string `yaml:"name"`
+	Port       int32  `yaml:"port"`
+	TargetPort int32  `yaml:"targetPort"`
+}
+
+// ServiceConfig represents service configuration for a pet project
+type ServiceConfig struct {
+	Ports []ServicePort `yaml:"ports"`
+}
+
 // PetProject represents a pet project configuration
 type PetProject struct {
 	Name        string            `yaml:"name"`
 	Namespace   string            `yaml:"namespace"`
 	Image       string            `yaml:"image"`
 	Environment map[string]string `yaml:"environment"`
+	Service     *ServiceConfig    `yaml:"service,omitempty"`
 }
 
 type GeneralConfig struct {

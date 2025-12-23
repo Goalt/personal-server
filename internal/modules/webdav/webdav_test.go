@@ -1,10 +1,14 @@
 package webdav
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/Goalt/personal-server/internal/config"
+	"github.com/Goalt/personal-server/internal/logger"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -645,5 +649,47 @@ func TestWebdavModule_PrepareDeploymentVolumes(t *testing.T) {
 	}
 	if !dataVolumeFound {
 		t.Error("Deployment missing webdav-data volume")
+	}
+}
+
+func TestGenerate(t *testing.T) {
+	tempDir := t.TempDir()
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	defer os.Chdir(originalWd)
+
+	module := &WebdavModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		ModuleConfig: config.Module{
+			Name:      "webdav",
+			Namespace: "infra",
+		},
+		log: logger.Default(),
+	}
+
+	ctx := context.Background()
+	if err := module.Generate(ctx); err != nil {
+		t.Fatalf("Generate() failed: %v", err)
+	}
+
+	expectedFiles := []string{
+		"configs/webdav/pvc.yaml",
+		"configs/webdav/service.yaml",
+		"configs/webdav/deployment.yaml",
+	}
+
+	for _, file := range expectedFiles {
+		filePath := filepath.Join(tempDir, file)
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			t.Errorf("expected file %s was not generated", file)
+		}
 	}
 }

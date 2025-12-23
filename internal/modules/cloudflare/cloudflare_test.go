@@ -1,11 +1,16 @@
 package cloudflare
 
 import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/Goalt/personal-server/internal/config"
 	"github.com/Goalt/personal-server/internal/k8s"
+	"github.com/Goalt/personal-server/internal/logger"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -364,6 +369,74 @@ func TestGetMapKeys(t *testing.T) {
 	for expectedKey := range m {
 		if !keySet[expectedKey] {
 			t.Errorf("getMapKeys missing key: %s", expectedKey)
+		}
+	}
+}
+
+func TestGenerate(t *testing.T) {
+	// Create a temporary directory for output
+	tempDir := t.TempDir()
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+
+	// Change to temp directory so Generate creates files there
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	defer os.Chdir(originalWd)
+
+	// Create module with test configuration
+	module := &CloudflareModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		ModuleConfig: config.Module{
+			Name:      "cloudflare",
+			Namespace: "infra",
+			Secrets: map[string]string{
+				"cloudflare_api_token": "test-token-123",
+			},
+		},
+		log: logger.Default(),
+	}
+
+	// Run Generate
+	ctx := context.Background()
+	if err := module.Generate(ctx); err != nil {
+		t.Fatalf("Generate() failed: %v", err)
+	}
+
+	// Verify all expected files exist
+	expectedFiles := []string{
+		"configs/cloudflare/secret.yaml",
+		"configs/cloudflare/deployment.yaml",
+	}
+
+	for _, file := range expectedFiles {
+		filePath := filepath.Join(tempDir, file)
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			t.Errorf("expected file %s was not generated", file)
+		}
+	}
+
+	// Verify deployment contains expected content
+	deploymentPath := filepath.Join(tempDir, "configs/cloudflare/deployment.yaml")
+	deploymentContent, err := os.ReadFile(deploymentPath)
+	if err != nil {
+		t.Fatalf("failed to read deployment.yaml: %v", err)
+	}
+	deploymentStr := string(deploymentContent)
+
+	expectedStrings := []string{
+		"cloudflared-deployment",
+		"infra",
+		"cloudflare/cloudflared",
+	}
+	for _, expected := range expectedStrings {
+		if !strings.Contains(deploymentStr, expected) {
+			t.Errorf("deployment.yaml missing expected content: %s", expected)
 		}
 	}
 }

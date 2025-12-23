@@ -1,9 +1,14 @@
 package monitoring
 
 import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Goalt/personal-server/internal/config"
+	"github.com/Goalt/personal-server/internal/logger"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -420,5 +425,76 @@ func TestMonitoringModule_PrepareMissingSentryDSN(t *testing.T) {
 	expectedErr := "sentry_dsn not found in configuration"
 	if err.Error() != expectedErr {
 		t.Errorf("prepare() error = %s, want %s", err.Error(), expectedErr)
+	}
+}
+
+func TestGenerate(t *testing.T) {
+	// Create a temporary directory for output
+	tempDir := t.TempDir()
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+
+	// Change to temp directory so Generate creates files there
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	defer os.Chdir(originalWd)
+
+	// Create module with test configuration
+	module := &MonitoringModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		ModuleConfig: config.Module{
+			Name:      "monitoring",
+			Namespace: "infra",
+			Secrets: map[string]string{
+				"sentry_dsn": "https://test@sentry.io/123",
+			},
+		},
+		log: logger.Default(),
+	}
+
+	// Run Generate
+	ctx := context.Background()
+	if err := module.Generate(ctx); err != nil {
+		t.Fatalf("Generate() failed: %v", err)
+	}
+
+	// Verify all expected files exist
+	expectedFiles := []string{
+		"configs/monitoring/serviceaccount.yaml",
+		"configs/monitoring/clusterrole.yaml",
+		"configs/monitoring/clusterrolebinding.yaml",
+		"configs/monitoring/secret.yaml",
+		"configs/monitoring/deployment.yaml",
+	}
+
+	for _, file := range expectedFiles {
+		filePath := filepath.Join(tempDir, file)
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			t.Errorf("expected file %s was not generated", file)
+		}
+	}
+
+	// Verify deployment contains expected content
+	deploymentPath := filepath.Join(tempDir, "configs/monitoring/deployment.yaml")
+	deploymentContent, err := os.ReadFile(deploymentPath)
+	if err != nil {
+		t.Fatalf("failed to read deployment.yaml: %v", err)
+	}
+	deploymentStr := string(deploymentContent)
+
+	expectedStrings := []string{
+		"monitor-sentry-kubernetes",
+		"infra",
+		"sentry-kubernetes",
+	}
+	for _, expected := range expectedStrings {
+		if !strings.Contains(deploymentStr, expected) {
+			t.Errorf("deployment.yaml missing expected content: %s", expected)
+		}
 	}
 }

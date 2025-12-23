@@ -1,6 +1,9 @@
 package petproject
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/Goalt/personal-server/internal/config"
@@ -115,9 +118,117 @@ func TestPrepareDeployment(t *testing.T) {
 }
 
 func TestGenerate(t *testing.T) {
-	// This test would require setting up a temporary directory
-	// and verifying file creation. For now, we'll skip it.
-	t.Skip("Skipping integration test")
+	// Create a temporary directory for output
+	tempDir := t.TempDir()
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+
+	// Change to temp directory so Generate creates files there
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	defer os.Chdir(originalWd)
+
+	// Create module with test configuration
+	generalConfig := config.GeneralConfig{
+		Domain:     "example.com",
+		Namespaces: []string{"hobby"},
+	}
+
+	projectConfig := config.PetProject{
+		Name:      "testapp",
+		Namespace: "hobby",
+		Image:     "nginx:latest",
+		Environment: map[string]string{
+			"ENV": "test",
+		},
+		Service: &config.ServiceConfig{
+			Ports: []config.ServicePort{
+				{
+					Name:       "http",
+					Port:       80,
+					TargetPort: 8080,
+				},
+			},
+		},
+	}
+
+	log := logger.Default()
+	module := New(generalConfig, projectConfig, log)
+
+	// Run Generate
+	ctx := context.Background()
+	if err := module.Generate(ctx); err != nil {
+		t.Fatalf("Generate() failed: %v", err)
+	}
+
+	// Verify deployment file exists
+	deploymentPath := filepath.Join(tempDir, "configs", "pet-projects", "testapp", "deployment.yaml")
+	if _, err := os.Stat(deploymentPath); os.IsNotExist(err) {
+		t.Errorf("deployment.yaml was not generated")
+	}
+
+	// Verify service file exists
+	servicePath := filepath.Join(tempDir, "configs", "pet-projects", "testapp", "service.yaml")
+	if _, err := os.Stat(servicePath); os.IsNotExist(err) {
+		t.Errorf("service.yaml was not generated")
+	}
+
+	// Read and verify deployment file contains expected content
+	deploymentContent, err := os.ReadFile(deploymentPath)
+	if err != nil {
+		t.Fatalf("failed to read deployment.yaml: %v", err)
+	}
+	deploymentStr := string(deploymentContent)
+
+	// Check for key content in deployment
+	expectedStrings := []string{
+		"pet-testapp",
+		"nginx:latest",
+		"hobby",
+		"managed-by: personal-server",
+	}
+	for _, expected := range expectedStrings {
+		if !contains(deploymentStr, expected) {
+			t.Errorf("deployment.yaml missing expected content: %s", expected)
+		}
+	}
+
+	// Read and verify service file contains expected content
+	serviceContent, err := os.ReadFile(servicePath)
+	if err != nil {
+		t.Fatalf("failed to read service.yaml: %v", err)
+	}
+	serviceStr := string(serviceContent)
+
+	// Check for key content in service
+	expectedServiceStrings := []string{
+		"pet-testapp",
+		"http",
+		"port: 80",
+		"targetPort: 8080",
+	}
+	for _, expected := range expectedServiceStrings {
+		if !contains(serviceStr, expected) {
+			t.Errorf("service.yaml missing expected content: %s", expected)
+		}
+	}
+}
+
+// contains checks if a string contains a substring
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || containsSubstring(s, substr)))
+}
+
+func containsSubstring(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
 
 func TestApply(t *testing.T) {

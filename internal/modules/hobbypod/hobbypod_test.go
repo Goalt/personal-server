@@ -1,9 +1,13 @@
 package hobbypod
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/Goalt/personal-server/internal/config"
+	"github.com/Goalt/personal-server/internal/logger"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -303,5 +307,46 @@ func TestHobbyPodModule_PrepareDeploymentVolumes(t *testing.T) {
 
 	if volume.PersistentVolumeClaim.ClaimName != "hobby-storage-pvc" {
 		t.Errorf("Volume PVC claim name = %s, want hobby-storage-pvc", volume.PersistentVolumeClaim.ClaimName)
+	}
+}
+
+func TestGenerate(t *testing.T) {
+	tempDir := t.TempDir()
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	defer os.Chdir(originalWd)
+
+	module := &HobbyPodModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		ModuleConfig: config.Module{
+			Name:      "hobbypod",
+			Namespace: "hobby",
+		},
+		log: logger.Default(),
+	}
+
+	ctx := context.Background()
+	if err := module.Generate(ctx); err != nil {
+		t.Fatalf("Generate() failed: %v", err)
+	}
+
+	expectedFiles := []string{
+		"configs/hobbypod/pvc.yaml",
+		"configs/hobbypod/deployment.yaml",
+	}
+
+	for _, file := range expectedFiles {
+		filePath := filepath.Join(tempDir, file)
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			t.Errorf("expected file %s was not generated", file)
+		}
 	}
 }

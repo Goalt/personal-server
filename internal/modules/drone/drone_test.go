@@ -1,11 +1,15 @@
 package drone
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/Goalt/personal-server/internal/config"
 	"github.com/Goalt/personal-server/internal/k8s"
+	"github.com/Goalt/personal-server/internal/logger"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -469,5 +473,58 @@ func TestFormatAge(t *testing.T) {
 				t.Errorf("k8s.FormatAge(%v) = %s, want %s", tt.duration, result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestGenerate(t *testing.T) {
+	// Create a temporary directory for output
+	tempDir := t.TempDir()
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+
+	// Change to temp directory so Generate creates files there
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	defer os.Chdir(originalWd)
+
+	// Create module with test configuration
+	module := &DroneModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		ModuleConfig: config.Module{
+			Name:      "drone",
+			Namespace: "infra",
+			Secrets: map[string]string{
+				"drone_gitea_client_secret": "test-secret",
+			},
+		},
+		log: logger.Default(),
+	}
+
+	// Run Generate
+	ctx := context.Background()
+	if err := module.Generate(ctx); err != nil {
+		t.Fatalf("Generate() failed: %v", err)
+	}
+
+	// Verify all expected files exist
+	expectedFiles := []string{
+		"configs/drone/secret.yaml",
+		"configs/drone/role.yaml",
+		"configs/drone/rolebinding.yaml",
+		"configs/drone/deployment.yaml",
+		"configs/drone/runner-deployment.yaml",
+		"configs/drone/service.yaml",
+	}
+
+	for _, file := range expectedFiles {
+		filePath := filepath.Join(tempDir, file)
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			t.Errorf("expected file %s was not generated", file)
+		}
 	}
 }

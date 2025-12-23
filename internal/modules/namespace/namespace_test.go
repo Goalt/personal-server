@@ -1,9 +1,14 @@
 package namespace
 
 import (
+	"context"
+	_ "embed"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/Goalt/personal-server/internal/config"
+	"github.com/Goalt/personal-server/internal/logger"
 )
 
 func TestNamespaceModule_Name(t *testing.T) {
@@ -172,5 +177,67 @@ func TestNamespaceModule_PrepareObjectMetaComplete(t *testing.T) {
 	// Verify managed-by label
 	if ns.ObjectMeta.Labels["managed-by"] != "personal-server" {
 		t.Errorf("Namespace ObjectMeta.Labels[managed-by] = %s, want personal-server", ns.ObjectMeta.Labels["managed-by"])
+	}
+}
+
+//go:embed testdata/infra.yaml
+var expectedInfraYAML string
+
+//go:embed testdata/hobby.yaml
+var expectedHobbyYAML string
+
+func TestGenerate(t *testing.T) {
+	// Create a temporary directory for output
+	tempDir := t.TempDir()
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+
+	// Change to temp directory so Generate creates files there
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	defer os.Chdir(originalWd)
+
+	// Create module with test configuration
+	module := &NamespaceModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain:     "example.com",
+			Namespaces: []string{"infra", "hobby"},
+		},
+		log: logger.Default(),
+	}
+
+	// Run Generate
+	ctx := context.Background()
+	if err := module.Generate(ctx); err != nil {
+		t.Fatalf("Generate() failed: %v", err)
+	}
+
+	// Verify generated files exist and match expected content
+	testCases := []struct {
+		name     string
+		filename string
+		expected string
+	}{
+		{"infra namespace", "configs/namespace/infra.yaml", expectedInfraYAML},
+		{"hobby namespace", "configs/namespace/hobby.yaml", expectedHobbyYAML},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Read generated file
+			generatedPath := filepath.Join(tempDir, tc.filename)
+			generatedContent, err := os.ReadFile(generatedPath)
+			if err != nil {
+				t.Fatalf("failed to read generated file %s: %v", tc.filename, err)
+			}
+
+			// Compare with expected
+			if string(generatedContent) != tc.expected {
+				t.Errorf("Generated YAML does not match expected.\nGenerated:\n%s\n\nExpected:\n%s", string(generatedContent), tc.expected)
+			}
+		})
 	}
 }

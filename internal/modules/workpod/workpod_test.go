@@ -1,9 +1,13 @@
 package workpod
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/Goalt/personal-server/internal/config"
+	"github.com/Goalt/personal-server/internal/logger"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -196,5 +200,46 @@ func TestWorkPodModule_Prepare(t *testing.T) {
 				t.Errorf("RestartPolicy = %s, want Always", deployment.Spec.Template.Spec.RestartPolicy)
 			}
 		})
+	}
+}
+
+func TestGenerate(t *testing.T) {
+	tempDir := t.TempDir()
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	defer os.Chdir(originalWd)
+
+	module := &WorkPodModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		ModuleConfig: config.Module{
+			Name:      "workpod",
+			Namespace: "hobby",
+		},
+		log: logger.Default(),
+	}
+
+	ctx := context.Background()
+	if err := module.Generate(ctx); err != nil {
+		t.Fatalf("Generate() failed: %v", err)
+	}
+
+	expectedFiles := []string{
+		"configs/workpod/pvc.yaml",
+		"configs/workpod/deployment.yaml",
+	}
+
+	for _, file := range expectedFiles {
+		filePath := filepath.Join(tempDir, file)
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			t.Errorf("expected file %s was not generated", file)
+		}
 	}
 }

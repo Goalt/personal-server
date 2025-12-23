@@ -1,0 +1,7 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        managed-by: personal-server
+    name: infra
+spec: {}
+status: {}

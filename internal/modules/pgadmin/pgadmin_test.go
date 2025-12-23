@@ -1,9 +1,13 @@
 package pgadmin
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/Goalt/personal-server/internal/config"
+	"github.com/Goalt/personal-server/internal/logger"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -353,6 +357,52 @@ func TestPgadminModule_PrepareDeploymentContainer(t *testing.T) {
 			} else if env.ValueFrom.SecretKeyRef.Name != "pgadmin-secrets" {
 				t.Errorf("%s secret name = %s, want pgadmin-secrets", env.Name, env.ValueFrom.SecretKeyRef.Name)
 			}
+		}
+	}
+}
+
+func TestGenerate(t *testing.T) {
+	tempDir := t.TempDir()
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	defer os.Chdir(originalWd)
+
+	module := &PgadminModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		ModuleConfig: config.Module{
+			Name:      "pgadmin",
+			Namespace: "infra",
+			Secrets: map[string]string{
+				"pgadmin_default_email":  "admin@example.com",
+				"pgadmin_admin_password": "testpass123",
+			},
+		},
+		log: logger.Default(),
+	}
+
+	ctx := context.Background()
+	if err := module.Generate(ctx); err != nil {
+		t.Fatalf("Generate() failed: %v", err)
+	}
+
+	expectedFiles := []string{
+		"configs/pgadmin/secret.yaml",
+		"configs/pgadmin/service.yaml",
+		"configs/pgadmin/deployment.yaml",
+	}
+
+	for _, file := range expectedFiles {
+		filePath := filepath.Join(tempDir, file)
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			t.Errorf("expected file %s was not generated", file)
 		}
 	}
 }

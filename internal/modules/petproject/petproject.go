@@ -207,6 +207,7 @@ func (m *PetProjectModule) prepareService() *corev1.Service {
 			Name:       port.Name,
 			Port:       port.Port,
 			TargetPort: intstr.FromInt(int(port.TargetPort)),
+			Protocol:   corev1.ProtocolTCP,
 		})
 	}
 

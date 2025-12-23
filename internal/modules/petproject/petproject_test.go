@@ -5,6 +5,7 @@ import (
 
 	"github.com/Goalt/personal-server/internal/config"
 	"github.com/Goalt/personal-server/internal/logger"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func TestNew(t *testing.T) {
@@ -282,6 +283,10 @@ func TestPrepareService(t *testing.T) {
 		t.Errorf("Expected first targetPort to be 8080, got %d", service.Spec.Ports[0].TargetPort.IntVal)
 	}
 
+	if service.Spec.Ports[0].Protocol != corev1.ProtocolTCP {
+		t.Errorf("Expected first port protocol to be TCP, got %s", service.Spec.Ports[0].Protocol)
+	}
+
 	// Check second port
 	if service.Spec.Ports[1].Name != "https" {
 		t.Errorf("Expected second port name to be 'https', got '%s'", service.Spec.Ports[1].Name)
@@ -293,6 +298,10 @@ func TestPrepareService(t *testing.T) {
 
 	if service.Spec.Ports[1].TargetPort.IntVal != 8443 {
 		t.Errorf("Expected second targetPort to be 8443, got %d", service.Spec.Ports[1].TargetPort.IntVal)
+	}
+
+	if service.Spec.Ports[1].Protocol != corev1.ProtocolTCP {
+		t.Errorf("Expected second port protocol to be TCP, got %s", service.Spec.Ports[1].Protocol)
 	}
 }
 

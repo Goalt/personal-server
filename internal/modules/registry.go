@@ -15,8 +15,8 @@ type PetProjectFactory func(general config.GeneralConfig, projectCfg config.PetP
 
 // Registry holds module factories indexed by command name
 type Registry struct {
-	factories            map[string]ModuleFactory
-	petProjectFactories  map[string]PetProjectFactory
+	factories           map[string]ModuleFactory
+	petProjectFactories map[string]PetProjectFactory
 	// requiresModuleConfig tracks which modules need module-specific config
 	requiresModuleConfig map[string]bool
 	logger               logger.Logger

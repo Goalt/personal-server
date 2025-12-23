@@ -5,6 +5,7 @@ import (
 
 	"github.com/Goalt/personal-server/internal/config"
 	"github.com/Goalt/personal-server/internal/logger"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func TestNew(t *testing.T) {
@@ -199,5 +200,155 @@ func TestRolloutValidation(t *testing.T) {
 	err = module.Rollout(nil, []string{"invalid"})
 	if err == nil {
 		t.Error("Expected error for invalid operation, got nil")
+	}
+}
+
+func TestPrepareService(t *testing.T) {
+	generalConfig := config.GeneralConfig{
+		Domain:     "example.com",
+		Namespaces: []string{"hobby"},
+	}
+
+	projectConfig := config.PetProject{
+		Name:      "myapp",
+		Namespace: "hobby",
+		Image:     "nginx:latest",
+		Service: &config.ServiceConfig{
+			Ports: []config.ServicePort{
+				{
+					Name:       "http",
+					Port:       80,
+					TargetPort: 8080,
+				},
+				{
+					Name:       "https",
+					Port:       443,
+					TargetPort: 8443,
+				},
+			},
+		},
+	}
+
+	log := logger.Default()
+	module := New(generalConfig, projectConfig, log)
+
+	service := module.prepareService()
+
+	if service == nil {
+		t.Fatal("Expected service to be created, got nil")
+	}
+
+	expectedName := "pet-myapp"
+	if service.Name != expectedName {
+		t.Errorf("Expected service name to be '%s', got '%s'", expectedName, service.Name)
+	}
+
+	if service.Namespace != "hobby" {
+		t.Errorf("Expected namespace to be 'hobby', got '%s'", service.Namespace)
+	}
+
+	// Check labels
+	if service.Labels["type"] != "pet-project" {
+		t.Errorf("Expected type label to be 'pet-project', got '%s'", service.Labels["type"])
+	}
+
+	if service.Labels["managed-by"] != "personal-server" {
+		t.Errorf("Expected managed-by label to be 'personal-server', got '%s'", service.Labels["managed-by"])
+	}
+
+	if service.Labels["app"] != expectedName {
+		t.Errorf("Expected app label to be '%s', got '%s'", expectedName, service.Labels["app"])
+	}
+
+	// Check selector
+	if service.Spec.Selector["app"] != expectedName {
+		t.Errorf("Expected selector app to be '%s', got '%s'", expectedName, service.Spec.Selector["app"])
+	}
+
+	// Check ports
+	if len(service.Spec.Ports) != 2 {
+		t.Fatalf("Expected 2 service ports, got %d", len(service.Spec.Ports))
+	}
+
+	// Check first port
+	if service.Spec.Ports[0].Name != "http" {
+		t.Errorf("Expected first port name to be 'http', got '%s'", service.Spec.Ports[0].Name)
+	}
+
+	if service.Spec.Ports[0].Port != 80 {
+		t.Errorf("Expected first port to be 80, got %d", service.Spec.Ports[0].Port)
+	}
+
+	if service.Spec.Ports[0].TargetPort.IntVal != 8080 {
+		t.Errorf("Expected first targetPort to be 8080, got %d", service.Spec.Ports[0].TargetPort.IntVal)
+	}
+
+	if service.Spec.Ports[0].Protocol != corev1.ProtocolTCP {
+		t.Errorf("Expected first port protocol to be TCP, got %s", service.Spec.Ports[0].Protocol)
+	}
+
+	// Check second port
+	if service.Spec.Ports[1].Name != "https" {
+		t.Errorf("Expected second port name to be 'https', got '%s'", service.Spec.Ports[1].Name)
+	}
+
+	if service.Spec.Ports[1].Port != 443 {
+		t.Errorf("Expected second port to be 443, got %d", service.Spec.Ports[1].Port)
+	}
+
+	if service.Spec.Ports[1].TargetPort.IntVal != 8443 {
+		t.Errorf("Expected second targetPort to be 8443, got %d", service.Spec.Ports[1].TargetPort.IntVal)
+	}
+
+	if service.Spec.Ports[1].Protocol != corev1.ProtocolTCP {
+		t.Errorf("Expected second port protocol to be TCP, got %s", service.Spec.Ports[1].Protocol)
+	}
+}
+
+func TestPrepareServiceWithoutConfig(t *testing.T) {
+	generalConfig := config.GeneralConfig{
+		Domain:     "example.com",
+		Namespaces: []string{"hobby"},
+	}
+
+	projectConfig := config.PetProject{
+		Name:      "myapp",
+		Namespace: "hobby",
+		Image:     "nginx:latest",
+		Service:   nil, // No service configuration
+	}
+
+	log := logger.Default()
+	module := New(generalConfig, projectConfig, log)
+
+	service := module.prepareService()
+
+	if service != nil {
+		t.Error("Expected service to be nil when no service configuration is provided")
+	}
+}
+
+func TestPrepareServiceWithEmptyPorts(t *testing.T) {
+	generalConfig := config.GeneralConfig{
+		Domain:     "example.com",
+		Namespaces: []string{"hobby"},
+	}
+
+	projectConfig := config.PetProject{
+		Name:      "myapp",
+		Namespace: "hobby",
+		Image:     "nginx:latest",
+		Service: &config.ServiceConfig{
+			Ports: []config.ServicePort{}, // Empty ports
+		},
+	}
+
+	log := logger.Default()
+	module := New(generalConfig, projectConfig, log)
+
+	service := module.prepareService()
+
+	if service != nil {
+		t.Error("Expected service to be nil when service has no ports")
 	}
 }

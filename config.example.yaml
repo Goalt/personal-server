@@ -61,10 +61,20 @@ pet-projects:
     environment:
       PORT: "8080"
       ENV: "production"
+    service:
+      ports:
+        - name: http
+          port: 80
+          targetPort: 8080
   - name: api-service
     namespace: hobby
     image: node:18-alpine
     environment:
       NODE_ENV: "development"
       API_PORT: "3000"
+    service:
+      ports:
+        - name: http
+          port: 3000
+          targetPort: 3000
 

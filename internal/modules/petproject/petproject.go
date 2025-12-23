@@ -17,6 +17,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 type PetProjectModule struct {
@@ -75,6 +76,14 @@ func (m *PetProjectModule) Generate(ctx context.Context) error {
 		return err
 	}
 
+	// Write Service if configured
+	service := m.prepareService()
+	if service != nil {
+		if err := writeYAML(service, "service"); err != nil {
+			return err
+		}
+	}
+
 	m.log.Info("\nCompleted: pet project '%s' configurations generated successfully\n", m.ProjectConfig.Name)
 	return nil
 }
@@ -112,6 +121,18 @@ func (m *PetProjectModule) Apply(ctx context.Context) error {
 		return fmt.Errorf("failed to create Deployment: %w", err)
 	}
 	m.log.Success("Created Deployment: %s\n", createdDeployment.Name)
+
+	// Apply Service if configured
+	service := m.prepareService()
+	if service != nil {
+		serviceName := fmt.Sprintf("pet-%s", m.ProjectConfig.Name)
+		m.log.Progress("Applying Service: %s\n", serviceName)
+		createdService, err := clientset.CoreV1().Services(m.ProjectConfig.Namespace).Create(ctx, service, metav1.CreateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to create Service: %w", err)
+		}
+		m.log.Success("Created Service: %s\n", createdService.Name)
+	}
 
 	m.log.Info("\nCompleted: pet project '%s' resources applied successfully\n", m.ProjectConfig.Name)
 	return nil
@@ -171,6 +192,47 @@ func (m *PetProjectModule) prepareDeployment() *appsv1.Deployment {
 	return deployment
 }
 
+func (m *PetProjectModule) prepareService() *corev1.Service {
+	// Only create service if configured
+	if m.ProjectConfig.Service == nil || len(m.ProjectConfig.Service.Ports) == 0 {
+		return nil
+	}
+
+	serviceName := fmt.Sprintf("pet-%s", m.ProjectConfig.Name)
+
+	// Convert config ports to Kubernetes ServicePort
+	ports := make([]corev1.ServicePort, 0, len(m.ProjectConfig.Service.Ports))
+	for _, port := range m.ProjectConfig.Service.Ports {
+		ports = append(ports, corev1.ServicePort{
+			Name:       port.Name,
+			Port:       port.Port,
+			TargetPort: intstr.FromInt(int(port.TargetPort)),
+			Protocol:   corev1.ProtocolTCP,
+		})
+	}
+
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serviceName,
+			Namespace: m.ProjectConfig.Namespace,
+			Labels: map[string]string{
+				"app":        serviceName,
+				"managed-by": "personal-server",
+				"type":       "pet-project",
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeClusterIP,
+			Selector: map[string]string{
+				"app": serviceName,
+			},
+			Ports: ports,
+		},
+	}
+
+	return service
+}
+
 func (m *PetProjectModule) Clean(ctx context.Context) error {
 	// Create Kubernetes client
 	clientset, err := k8s.CreateKubernetesClient()
@@ -200,6 +262,23 @@ func (m *PetProjectModule) Clean(ctx context.Context) error {
 		}
 	} else {
 		m.log.Success("Deleted Deployment: %s\n", deploymentName)
+	}
+
+	// Delete Service if configured
+	if m.ProjectConfig.Service != nil && len(m.ProjectConfig.Service.Ports) > 0 {
+		serviceName := fmt.Sprintf("pet-%s", m.ProjectConfig.Name)
+		m.log.Info("🗑️  Deleting Service: %s\n", serviceName)
+		err = clientset.CoreV1().Services(m.ProjectConfig.Namespace).Delete(ctx, serviceName, deleteOptions)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				m.log.Warn("Service '%s' not found (already deleted or never existed)\n", serviceName)
+			} else {
+				m.log.Error("Failed to delete Service: %v\n", err)
+				return err
+			}
+		} else {
+			m.log.Success("Deleted Service: %s\n", serviceName)
+		}
 	}
 
 	m.log.Info("\nCompleted: pet project '%s' resources deleted successfully\n", m.ProjectConfig.Name)
@@ -275,6 +354,31 @@ func (m *PetProjectModule) Status(ctx context.Context) error {
 				fmt.Sprintf("%d/%d", ready, total),
 				pod.Status.Phase,
 				k8s.FormatAge(age))
+		}
+	}
+
+	// Check Service if configured
+	if m.ProjectConfig.Service != nil && len(m.ProjectConfig.Service.Ports) > 0 {
+		m.log.Println("\nSERVICE:")
+		serviceName := fmt.Sprintf("pet-%s", m.ProjectConfig.Name)
+		service, err := clientset.CoreV1().Services(m.ProjectConfig.Namespace).Get(ctx, serviceName, metav1.GetOptions{})
+		if err != nil {
+			if errors.IsNotFound(err) {
+				m.log.Error("  Service '%s' not found\n", serviceName)
+			} else {
+				m.log.Error("  Error getting service: %v\n", err)
+			}
+		} else {
+			age := time.Since(service.CreationTimestamp.Time).Round(time.Second)
+			m.log.Info("  Name: %s\n", service.Name)
+			m.log.Info("  Namespace: %s\n", service.Namespace)
+			m.log.Info("  Type: %s\n", service.Spec.Type)
+			m.log.Info("  Age: %s\n", k8s.FormatAge(age))
+			m.log.Info("  Ports:\n")
+			for _, port := range service.Spec.Ports {
+				m.log.Info("    - %s: %d -> %s\n", port.Name, port.Port, port.TargetPort.String())
+			}
+			m.log.Success("  Status: Ready\n")
 		}
 	}
 

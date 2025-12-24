@@ -1,10 +1,11 @@
 package gitea
 
 import (
+	_ "embed"
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
+
 	"testing"
 
 	"github.com/Goalt/personal-server/internal/config"
@@ -493,6 +494,18 @@ func TestGiteaModule_PrepareMissingDBPassword(t *testing.T) {
 	}
 }
 
+//go:embed testdata/secret.yaml
+var expectedSecretYAML string
+
+//go:embed testdata/pvc.yaml
+var expectedPvcYAML string
+
+//go:embed testdata/service.yaml
+var expectedServiceYAML string
+
+//go:embed testdata/deployment.yaml
+var expectedDeploymentYAML string
+
 func TestGenerate(t *testing.T) {
 	// Create a temporary directory for output
 	tempDir := t.TempDir()
@@ -528,50 +541,31 @@ func TestGenerate(t *testing.T) {
 		t.Fatalf("Generate() failed: %v", err)
 	}
 
-	// Verify all expected files exist
-	expectedFiles := []string{
-		"configs/gitea/secret.yaml",
-		"configs/gitea/pvc.yaml",
-		"configs/gitea/service.yaml",
-		"configs/gitea/deployment.yaml",
+	// Verify generated files exist and match expected content
+	testCases := []struct {
+		name     string
+		filename string
+		expected string
+	}{
+		{"secret", "configs/gitea/secret.yaml", expectedSecretYAML},
+		{"pvc", "configs/gitea/pvc.yaml", expectedPvcYAML},
+		{"service", "configs/gitea/service.yaml", expectedServiceYAML},
+		{"deployment", "configs/gitea/deployment.yaml", expectedDeploymentYAML},
 	}
 
-	for _, file := range expectedFiles {
-		filePath := filepath.Join(tempDir, file)
-		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			t.Errorf("expected file %s was not generated", file)
-		}
-	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Read generated file
+			generatedPath := filepath.Join(tempDir, tc.filename)
+			generatedContent, err := os.ReadFile(generatedPath)
+			if err != nil {
+				t.Fatalf("failed to read generated file %s: %v", tc.filename, err)
+			}
 
-	// Verify deployment contains expected content
-	deploymentPath := filepath.Join(tempDir, "configs/gitea/deployment.yaml")
-	deploymentContent, err := os.ReadFile(deploymentPath)
-	if err != nil {
-		t.Fatalf("failed to read deployment.yaml: %v", err)
-	}
-	deploymentStr := string(deploymentContent)
-
-	expectedStrings := []string{
-		"gitea",
-		"infra",
-		"managed-by: personal-server",
-		"gitea/gitea",
-	}
-	for _, expected := range expectedStrings {
-		if !strings.Contains(deploymentStr, expected) {
-			t.Errorf("deployment.yaml missing expected content: %s", expected)
-		}
-	}
-
-	// Verify secret contains expected content
-	secretPath := filepath.Join(tempDir, "configs/gitea/secret.yaml")
-	secretContent, err := os.ReadFile(secretPath)
-	if err != nil {
-		t.Fatalf("failed to read secret.yaml: %v", err)
-	}
-	secretStr := string(secretContent)
-
-	if !strings.Contains(secretStr, "gitea-secrets") {
-		t.Errorf("secret.yaml missing expected name: gitea-secrets")
+			// Compare with expected
+			if string(generatedContent) != tc.expected {
+				t.Errorf("Generated YAML does not match expected.\nGenerated:\n%s\n\nExpected:\n%s", string(generatedContent), tc.expected)
+			}
+		})
 	}
 }

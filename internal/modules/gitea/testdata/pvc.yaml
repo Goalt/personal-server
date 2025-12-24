@@ -1,0 +1,15 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        app: gitea
+        managed-by: personal-server
+    name: gitea-data-pvc
+    namespace: infra
+spec:
+    accessModes:
+        - ReadWriteOnce
+    resources:
+        requests:
+            storage: 10Gi
+    storageClassName: microk8s-hostpath
+status: {}

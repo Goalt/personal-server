@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -171,7 +172,7 @@ func TestNamespaceE2E(t *testing.T) {
 
 		// Verify output contains namespace names
 		for _, ns := range testNamespaces {
-			if !contains(output, ns) {
+			if !strings.Contains(output, ns) {
 				t.Errorf("status output does not contain namespace: %s", ns)
 			}
 		}
@@ -203,14 +204,4 @@ func TestNamespaceE2E(t *testing.T) {
 			}
 		}
 	})
-}
-
-// contains checks if a string contains a substring
-func contains(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

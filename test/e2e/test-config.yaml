@@ -1,0 +1,13 @@
+general:
+  domain: e2e-test.local
+  namespaces:
+    - e2e-test-infra
+    - e2e-test-hobby
+
+backup:
+  webdav_host: https://webdav.example.com
+  webdav_username: test
+  webdav_password: test
+  sentry_dsn: ""
+  cron: "*/30 * * * *"
+  passphrase: ""

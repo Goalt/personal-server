@@ -447,11 +447,14 @@ personal-server/
 ### Running Tests
 
 ```bash
-# Run all tests
+# Run all unit tests
 make test
 
 # Run tests with coverage report
 make coverage
+
+# Run e2e tests (requires Kubernetes cluster)
+make e2e-test
 
 # Run specific module tests
 go test ./internal/modules/gitea/...
@@ -468,8 +471,12 @@ go test ./internal/modules/gitea/...
 
 ## 🧪 Testing
 
+The project includes both unit tests and end-to-end (e2e) tests.
+
+### Unit Tests
+
 ```bash
-# Run all tests
+# Run all unit tests
 go test ./...
 
 # Run tests with verbose output
@@ -478,6 +485,37 @@ go test -v ./...
 # Run tests with coverage
 go test -coverprofile=coverage.out ./...
 go tool cover -html=coverage.out
+```
+
+### E2E Tests
+
+E2E tests validate the complete functionality of the CLI against a real Kubernetes cluster.
+
+```bash
+# Run e2e tests (requires a running Kubernetes cluster)
+make e2e-test
+
+# Or run directly
+cd test/e2e
+go test -v -timeout 10m
+```
+
+For more information about e2e tests, see [test/e2e/README.md](test/e2e/README.md).
+
+#### Setting up a local test cluster with KinD
+
+```bash
+# Install KinD
+go install sigs.k8s.io/kind@latest
+
+# Create a test cluster
+kind create cluster --name e2e-test
+
+# Run e2e tests
+make e2e-test
+
+# Clean up
+kind delete cluster --name e2e-test
 ```
 
 ## 🔐 Security
@@ -495,7 +533,8 @@ go tool cover -html=coverage.out
 | `build` | Build the binary |
 | `build-linux` | Cross-compile for Linux |
 | `clean` | Remove build artifacts |
-| `test` | Run tests |
+| `test` | Run unit tests |
+| `e2e-test` | Run e2e tests (requires Kubernetes cluster) |
 | `coverage` | Generate test coverage report |
 | `deps` | Download and tidy dependencies |
 | `fmt` | Format code |

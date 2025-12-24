@@ -1,0 +1,14 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        app: hobby-pod
+        managed-by: personal-server
+    name: hobby-storage-pvc
+    namespace: hobby
+spec:
+    accessModes:
+        - ReadWriteOnce
+    resources:
+        requests:
+            storage: 10Gi
+status: {}

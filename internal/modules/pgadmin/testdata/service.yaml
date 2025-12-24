@@ -1,0 +1,17 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        app: pgadmin
+        managed-by: personal-server
+    name: pgadmin
+    namespace: infra
+spec:
+    ports:
+        - name: http
+          port: 80
+          protocol: TCP
+          targetPort: 80
+    selector:
+        app: pgadmin
+status:
+    loadBalancer: {}

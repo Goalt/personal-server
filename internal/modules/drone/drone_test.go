@@ -2,6 +2,7 @@ package drone
 
 import (
 	"context"
+	_ "embed"
 	"os"
 	"path/filepath"
 	"testing"
@@ -476,6 +477,24 @@ func TestFormatAge(t *testing.T) {
 	}
 }
 
+//go:embed testdata/secret.yaml
+var expectedSecretYAML string
+
+//go:embed testdata/role.yaml
+var expectedRoleYAML string
+
+//go:embed testdata/rolebinding.yaml
+var expectedRolebindingYAML string
+
+//go:embed testdata/deployment.yaml
+var expectedDeploymentYAML string
+
+//go:embed testdata/runner-deployment.yaml
+var expectedRunnerdeploymentYAML string
+
+//go:embed testdata/service.yaml
+var expectedServiceYAML string
+
 func TestGenerate(t *testing.T) {
 	// Create a temporary directory for output
 	tempDir := t.TempDir()
@@ -511,20 +530,33 @@ func TestGenerate(t *testing.T) {
 		t.Fatalf("Generate() failed: %v", err)
 	}
 
-	// Verify all expected files exist
-	expectedFiles := []string{
-		"configs/drone/secret.yaml",
-		"configs/drone/role.yaml",
-		"configs/drone/rolebinding.yaml",
-		"configs/drone/deployment.yaml",
-		"configs/drone/runner-deployment.yaml",
-		"configs/drone/service.yaml",
+	// Verify generated files exist and match expected content
+	testCases := []struct {
+		name     string
+		filename string
+		expected string
+	}{
+		{"secret", "configs/drone/secret.yaml", expectedSecretYAML},
+		{"role", "configs/drone/role.yaml", expectedRoleYAML},
+		{"rolebinding", "configs/drone/rolebinding.yaml", expectedRolebindingYAML},
+		{"deployment", "configs/drone/deployment.yaml", expectedDeploymentYAML},
+		{"runner-deployment", "configs/drone/runner-deployment.yaml", expectedRunnerdeploymentYAML},
+		{"service", "configs/drone/service.yaml", expectedServiceYAML},
 	}
 
-	for _, file := range expectedFiles {
-		filePath := filepath.Join(tempDir, file)
-		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			t.Errorf("expected file %s was not generated", file)
-		}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Read generated file
+			generatedPath := filepath.Join(tempDir, tc.filename)
+			generatedContent, err := os.ReadFile(generatedPath)
+			if err != nil {
+				t.Fatalf("failed to read generated file %s: %v", tc.filename, err)
+			}
+
+			// Compare with expected
+			if string(generatedContent) != tc.expected {
+				t.Errorf("Generated YAML does not match expected.\nGenerated:\n%s\n\nExpected:\n%s", string(generatedContent), tc.expected)
+			}
+		})
 	}
 }

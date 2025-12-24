@@ -1,0 +1,72 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        app: drone
+    name: drone
+    namespace: infra
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: drone
+    strategy: {}
+    template:
+        metadata:
+            creationTimestamp: null
+            labels:
+                app: drone
+        spec:
+            containers:
+                - env:
+                    - name: DRONE_SERVER_HOST
+                      valueFrom:
+                        secretKeyRef:
+                            key: drone_server_host
+                            name: drone-secrets
+                    - name: DRONE_SERVER_PROTO
+                      valueFrom:
+                        secretKeyRef:
+                            key: drone_server_proto
+                            name: drone-secrets
+                    - name: DRONE_GITEA_SERVER
+                      valueFrom:
+                        secretKeyRef:
+                            key: drone_gitea_server
+                            name: drone-secrets
+                    - name: DRONE_GITEA_CLIENT_ID
+                      valueFrom:
+                        secretKeyRef:
+                            key: drone_gitea_client_id
+                            name: drone-secrets
+                    - name: DRONE_GITEA_CLIENT_SECRET
+                      valueFrom:
+                        secretKeyRef:
+                            key: drone_gitea_client_secret
+                            name: drone-secrets
+                    - name: DRONE_RPC_SECRET
+                      valueFrom:
+                        secretKeyRef:
+                            key: drone_rpc_secret
+                            name: drone-secrets
+                  image: drone/drone:2
+                  imagePullPolicy: IfNotPresent
+                  livenessProbe:
+                    httpGet:
+                        path: /healthz
+                        port: 80
+                    initialDelaySeconds: 60
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                  name: drone
+                  ports:
+                    - containerPort: 80
+                      name: http
+                  readinessProbe:
+                    httpGet:
+                        path: /healthz
+                        port: 80
+                    initialDelaySeconds: 30
+                    periodSeconds: 5
+                    timeoutSeconds: 3
+                  resources: {}
+status: {}

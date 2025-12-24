@@ -1,0 +1,30 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        app: pet-testapp
+        managed-by: personal-server
+        type: pet-project
+    name: pet-testapp
+    namespace: hobby
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: pet-testapp
+    strategy: {}
+    template:
+        metadata:
+            creationTimestamp: null
+            labels:
+                app: pet-testapp
+                type: pet-project
+        spec:
+            containers:
+                - env:
+                    - name: ENV
+                      value: test
+                  image: nginx:latest
+                  name: testapp
+                  resources: {}
+            restartPolicy: Always
+status: {}

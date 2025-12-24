@@ -1,6 +1,7 @@
 package hobbypod
 
 import (
+_ "embed"
 	"context"
 	"os"
 	"path/filepath"
@@ -310,6 +311,14 @@ func TestHobbyPodModule_PrepareDeploymentVolumes(t *testing.T) {
 	}
 }
 
+
+//go:embed testdata/deployment.yaml
+var expectedDeploymentYAML string
+
+//go:embed testdata/pvc.yaml
+var expectedPvcYAML string
+
+
 func TestGenerate(t *testing.T) {
 	tempDir := t.TempDir()
 	originalWd, err := os.Getwd()
@@ -338,15 +347,29 @@ func TestGenerate(t *testing.T) {
 		t.Fatalf("Generate() failed: %v", err)
 	}
 
-	expectedFiles := []string{
-		"configs/hobbypod/pvc.yaml",
-		"configs/hobbypod/deployment.yaml",
+	// Verify generated files exist and match expected content
+	testCases := []struct {
+		name     string
+		filename string
+		expected string
+	}{
+		{"pvc", "configs/hobbypod/pvc.yaml", expectedPvcYAML},
+		{"deployment", "configs/hobbypod/deployment.yaml", expectedDeploymentYAML},
 	}
 
-	for _, file := range expectedFiles {
-		filePath := filepath.Join(tempDir, file)
-		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			t.Errorf("expected file %s was not generated", file)
-		}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Read generated file
+			generatedPath := filepath.Join(tempDir, tc.filename)
+			generatedContent, err := os.ReadFile(generatedPath)
+			if err != nil {
+				t.Fatalf("failed to read generated file %s: %v", tc.filename, err)
+			}
+
+			// Compare with expected
+			if string(generatedContent) != tc.expected {
+				t.Errorf("Generated YAML does not match expected.\nGenerated:\n%s\n\nExpected:\n%s", string(generatedContent), tc.expected)
+			}
+		})
 	}
 }

@@ -1,0 +1,47 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        app: pgadmin
+        managed-by: personal-server
+    name: pgadmin
+    namespace: infra
+spec:
+    replicas: 1
+    revisionHistoryLimit: 1
+    selector:
+        matchLabels:
+            app: pgadmin
+    strategy: {}
+    template:
+        metadata:
+            creationTimestamp: null
+            labels:
+                app: pgadmin
+        spec:
+            containers:
+                - env:
+                    - name: PGADMIN_DEFAULT_EMAIL
+                      valueFrom:
+                        secretKeyRef:
+                            key: pgadmin_default_email
+                            name: pgadmin-secrets
+                            optional: false
+                    - name: PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION
+                      value: "False"
+                    - name: PGADMIN_DEFAULT_PASSWORD
+                      valueFrom:
+                        secretKeyRef:
+                            key: pgadmin_admin_password
+                            name: pgadmin-secrets
+                            optional: false
+                  image: dpage/pgadmin4:9.10.0
+                  imagePullPolicy: Always
+                  name: pgadmin
+                  ports:
+                    - containerPort: 80
+                      name: http
+                      protocol: TCP
+                  resources: {}
+            restartPolicy: Always
+            terminationGracePeriodSeconds: 0
+status: {}

@@ -1,0 +1,42 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        app: hobby-pod
+        managed-by: personal-server
+    name: hobby-pod
+    namespace: hobby
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: hobby-pod
+    strategy: {}
+    template:
+        metadata:
+            creationTimestamp: null
+            labels:
+                app: hobby-pod
+        spec:
+            containers:
+                - env:
+                    - name: DEBIAN_FRONTEND
+                      value: noninteractive
+                  image: ghcr.io/goalt/workconfig:sha-595cb6c
+                  name: hobby
+                  resources: {}
+                  securityContext:
+                    allowPrivilegeEscalation: true
+                    capabilities:
+                        add:
+                            - SYS_ADMIN
+                    privileged: true
+                    runAsNonRoot: false
+                  volumeMounts:
+                    - mountPath: /data
+                      name: hobby-storage
+            restartPolicy: Always
+            volumes:
+                - name: hobby-storage
+                  persistentVolumeClaim:
+                    claimName: hobby-storage-pvc
+status: {}

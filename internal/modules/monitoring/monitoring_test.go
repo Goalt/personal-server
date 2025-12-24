@@ -1,10 +1,10 @@
 package monitoring
 
 import (
+_ "embed"
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/Goalt/personal-server/internal/config"
@@ -428,6 +428,23 @@ func TestMonitoringModule_PrepareMissingSentryDSN(t *testing.T) {
 	}
 }
 
+
+//go:embed testdata/clusterrole.yaml
+var expectedClusterroleYAML string
+
+//go:embed testdata/clusterrolebinding.yaml
+var expectedClusterrolebindingYAML string
+
+//go:embed testdata/deployment.yaml
+var expectedDeploymentYAML string
+
+//go:embed testdata/secret.yaml
+var expectedSecretYAML string
+
+//go:embed testdata/serviceaccount.yaml
+var expectedServiceaccountYAML string
+
+
 func TestGenerate(t *testing.T) {
 	// Create a temporary directory for output
 	tempDir := t.TempDir()
@@ -463,38 +480,32 @@ func TestGenerate(t *testing.T) {
 		t.Fatalf("Generate() failed: %v", err)
 	}
 
-	// Verify all expected files exist
-	expectedFiles := []string{
-		"configs/monitoring/serviceaccount.yaml",
-		"configs/monitoring/clusterrole.yaml",
-		"configs/monitoring/clusterrolebinding.yaml",
-		"configs/monitoring/secret.yaml",
-		"configs/monitoring/deployment.yaml",
+	// Verify generated files exist and match expected content
+	testCases := []struct {
+		name     string
+		filename string
+		expected string
+	}{
+		{"serviceaccount", "configs/monitoring/serviceaccount.yaml", expectedServiceaccountYAML},
+		{"clusterrole", "configs/monitoring/clusterrole.yaml", expectedClusterroleYAML},
+		{"clusterrolebinding", "configs/monitoring/clusterrolebinding.yaml", expectedClusterrolebindingYAML},
+		{"secret", "configs/monitoring/secret.yaml", expectedSecretYAML},
+		{"deployment", "configs/monitoring/deployment.yaml", expectedDeploymentYAML},
 	}
 
-	for _, file := range expectedFiles {
-		filePath := filepath.Join(tempDir, file)
-		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			t.Errorf("expected file %s was not generated", file)
-		}
-	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Read generated file
+			generatedPath := filepath.Join(tempDir, tc.filename)
+			generatedContent, err := os.ReadFile(generatedPath)
+			if err != nil {
+				t.Fatalf("failed to read generated file %s: %v", tc.filename, err)
+			}
 
-	// Verify deployment contains expected content
-	deploymentPath := filepath.Join(tempDir, "configs/monitoring/deployment.yaml")
-	deploymentContent, err := os.ReadFile(deploymentPath)
-	if err != nil {
-		t.Fatalf("failed to read deployment.yaml: %v", err)
-	}
-	deploymentStr := string(deploymentContent)
-
-	expectedStrings := []string{
-		"monitor-sentry-kubernetes",
-		"infra",
-		"sentry-kubernetes",
-	}
-	for _, expected := range expectedStrings {
-		if !strings.Contains(deploymentStr, expected) {
-			t.Errorf("deployment.yaml missing expected content: %s", expected)
-		}
+			// Compare with expected
+			if string(generatedContent) != tc.expected {
+				t.Errorf("Generated YAML does not match expected.\nGenerated:\n%s\n\nExpected:\n%s", string(generatedContent), tc.expected)
+			}
+		})
 	}
 }

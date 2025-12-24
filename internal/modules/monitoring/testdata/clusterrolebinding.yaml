@@ -1,0 +1,16 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        app: sentry-kubernetes
+        chart: sentry-kubernetes-0.2.6
+        heritage: Helm
+        release: monitor
+    name: monitor-sentry-kubernetes
+roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: monitor-sentry-kubernetes
+subjects:
+    - kind: ServiceAccount
+      name: monitor-sentry-kubernetes
+      namespace: infra

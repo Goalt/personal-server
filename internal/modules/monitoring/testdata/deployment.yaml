@@ -1,0 +1,41 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        app: sentry-kubernetes
+        chart: sentry-kubernetes-0.2.6
+        heritage: Helm
+        release: monitor
+    name: monitor-sentry-kubernetes
+    namespace: infra
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: sentry-kubernetes
+    strategy: {}
+    template:
+        metadata:
+            annotations:
+                checksum/secrets: static-place-holder
+            creationTimestamp: null
+            labels:
+                app: sentry-kubernetes
+                release: monitor
+        spec:
+            containers:
+                - env:
+                    - name: SENTRY_DSN
+                      valueFrom:
+                        secretKeyRef:
+                            key: sentry.dsn
+                            name: monitor-sentry-kubernetes
+                    - name: SENTRY_K8S_MONITOR_CRONJOBS
+                      value: "true"
+                    - name: SENTRY_K8S_WATCH_NAMESPACES
+                      value: __all__
+                  image: ghcr.io/goalt/sentry-kubernetes:0b536b48eee946b00cac35e161561f3f31fb1a79
+                  imagePullPolicy: Always
+                  name: sentry-kubernetes
+                  resources: {}
+            serviceAccountName: monitor-sentry-kubernetes
+status: {}

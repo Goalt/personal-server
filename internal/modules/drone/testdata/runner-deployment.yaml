@@ -1,0 +1,34 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        app.kubernetes.io/name: drone-runner
+    name: drone-runner
+    namespace: infra
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app.kubernetes.io/name: drone-runner
+    strategy: {}
+    template:
+        metadata:
+            creationTimestamp: null
+            labels:
+                app.kubernetes.io/name: drone-runner
+        spec:
+            containers:
+                - env:
+                    - name: DRONE_RPC_HOST
+                    - name: DRONE_RPC_PROTO
+                      value: http
+                    - name: DRONE_RPC_SECRET
+                      valueFrom:
+                        secretKeyRef:
+                            key: drone_rpc_secret
+                            name: drone-secrets
+                  image: drone/drone-runner-kube:latest
+                  name: runner
+                  ports:
+                    - containerPort: 3000
+                  resources: {}
+status: {}

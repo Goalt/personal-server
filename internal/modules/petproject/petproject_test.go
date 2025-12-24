@@ -1,6 +1,7 @@
 package petproject
 
 import (
+_ "embed"
 	"context"
 	"os"
 	"path/filepath"
@@ -117,6 +118,14 @@ func TestPrepareDeployment(t *testing.T) {
 	}
 }
 
+
+//go:embed testdata/deployment.yaml
+var expectedDeploymentYAML string
+
+//go:embed testdata/service.yaml
+var expectedServiceYAML string
+
+
 func TestGenerate(t *testing.T) {
 	// Create a temporary directory for output
 	tempDir := t.TempDir()
@@ -164,56 +173,30 @@ func TestGenerate(t *testing.T) {
 		t.Fatalf("Generate() failed: %v", err)
 	}
 
-	// Verify deployment file exists
-	deploymentPath := filepath.Join(tempDir, "configs", "pet-projects", "testapp", "deployment.yaml")
-	if _, err := os.Stat(deploymentPath); os.IsNotExist(err) {
-		t.Errorf("deployment.yaml was not generated")
+	// Verify generated files exist and match expected content
+	testCases := []struct {
+		name     string
+		filename string
+		expected string
+	}{
+		{"deployment", "configs/pet-projects/testapp/deployment.yaml", expectedDeploymentYAML},
+		{"service", "configs/pet-projects/testapp/service.yaml", expectedServiceYAML},
 	}
 
-	// Verify service file exists
-	servicePath := filepath.Join(tempDir, "configs", "pet-projects", "testapp", "service.yaml")
-	if _, err := os.Stat(servicePath); os.IsNotExist(err) {
-		t.Errorf("service.yaml was not generated")
-	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Read generated file
+			generatedPath := filepath.Join(tempDir, tc.filename)
+			generatedContent, err := os.ReadFile(generatedPath)
+			if err != nil {
+				t.Fatalf("failed to read generated file %s: %v", tc.filename, err)
+			}
 
-	// Read and verify deployment file contains expected content
-	deploymentContent, err := os.ReadFile(deploymentPath)
-	if err != nil {
-		t.Fatalf("failed to read deployment.yaml: %v", err)
-	}
-	deploymentStr := string(deploymentContent)
-
-	// Check for key content in deployment
-	expectedStrings := []string{
-		"pet-testapp",
-		"nginx:latest",
-		"hobby",
-		"managed-by: personal-server",
-	}
-	for _, expected := range expectedStrings {
-		if !contains(deploymentStr, expected) {
-			t.Errorf("deployment.yaml missing expected content: %s", expected)
-		}
-	}
-
-	// Read and verify service file contains expected content
-	serviceContent, err := os.ReadFile(servicePath)
-	if err != nil {
-		t.Fatalf("failed to read service.yaml: %v", err)
-	}
-	serviceStr := string(serviceContent)
-
-	// Check for key content in service
-	expectedServiceStrings := []string{
-		"pet-testapp",
-		"http",
-		"port: 80",
-		"targetPort: 8080",
-	}
-	for _, expected := range expectedServiceStrings {
-		if !contains(serviceStr, expected) {
-			t.Errorf("service.yaml missing expected content: %s", expected)
-		}
+			// Compare with expected
+			if string(generatedContent) != tc.expected {
+				t.Errorf("Generated YAML does not match expected.\nGenerated:\n%s\n\nExpected:\n%s", string(generatedContent), tc.expected)
+			}
+		})
 	}
 }
 

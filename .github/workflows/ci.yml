@@ -54,4 +54,4 @@ jobs:
         fail_ci_if_error: false
     
     - name: Build
-      run: go build -v ./cmd/main.go
+      run: make build

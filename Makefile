@@ -22,7 +22,7 @@ BUILD_DIR=./bin
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS=-ldflags "-X github.com/Goalt/personal-server/internal/app.Version=$(VERSION)"
 
-.PHONY: all build clean test coverage deps fmt vet run help
+.PHONY: all build clean test coverage deps fmt vet run help e2e-test
 
 # Default target
 all: clean deps test build
@@ -49,6 +49,12 @@ clean:
 test:
 	@echo "Running tests..."
 	$(GOTEST) -v ./...
+
+# Run e2e tests (requires KinD cluster)
+e2e-test: build
+	@echo "Running e2e tests..."
+	@echo "Note: This requires a running Kubernetes cluster (e.g., KinD)"
+	cd test/e2e && $(GOTEST) -v -timeout 10m -run TestNamespaceE2E
 
 # Run tests with coverage
 coverage:
@@ -94,6 +100,7 @@ help:
 	@echo "  build-linux - Build for Linux (cross-compile)"
 	@echo "  clean       - Clean build artifacts"
 	@echo "  test        - Run tests"
+	@echo "  e2e-test    - Run e2e tests (requires Kubernetes cluster)"
 	@echo "  coverage    - Run tests with coverage report"
 	@echo "  deps        - Download and tidy dependencies"
 	@echo "  fmt         - Format code"

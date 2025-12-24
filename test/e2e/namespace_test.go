@@ -17,7 +17,7 @@ import (
 
 const (
 	testConfigPath = "test/e2e/test-config.yaml"
-	binaryPath     = "../../bin/personal-server"
+	binaryPath     = "bin/personal-server"
 	timeout        = 5 * time.Minute
 )
 

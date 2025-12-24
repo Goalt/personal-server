@@ -402,7 +402,7 @@ func TestGenerate(t *testing.T) {
 			Name:      "cloudflare",
 			Namespace: "infra",
 			Secrets: map[string]string{
-				"cloudflare_api_token": "test-token-123",
+				"cloudflare_api_token": "password",
 			},
 		},
 		log: logger.Default(),

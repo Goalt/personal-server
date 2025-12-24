@@ -392,7 +392,7 @@ func TestGenerate(t *testing.T) {
 			Namespace: "infra",
 			Secrets: map[string]string{
 				"pgadmin_default_email":  "admin@example.com",
-				"pgadmin_admin_password": "testpass123",
+				"pgadmin_admin_password": "password",
 			},
 		},
 		log: logger.Default(),

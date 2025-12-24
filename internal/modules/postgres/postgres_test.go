@@ -466,7 +466,7 @@ func TestGenerate(t *testing.T) {
 			Namespace: "infra",
 			Secrets: map[string]string{
 				"admin_postgres_user":     "admin",
-				"admin_postgres_password": "testpass123",
+				"admin_postgres_password": "password",
 			},
 		},
 		log: logger.Default(),

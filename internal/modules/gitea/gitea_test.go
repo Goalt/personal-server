@@ -529,7 +529,7 @@ func TestGenerate(t *testing.T) {
 			Name:      "gitea",
 			Namespace: "infra",
 			Secrets: map[string]string{
-				"gitea_db_password": "testpass123",
+				"gitea_db_password": "password",
 			},
 		},
 		log: logger.Default(),

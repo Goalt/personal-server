@@ -56,7 +56,8 @@ jobs:
         CGO_ENABLED: 0
       run: |
         BINARY_NAME="personal-server-${{ matrix.suffix }}${{ matrix.ext }}"
-        go build -ldflags="-s -w" -o "${BINARY_NAME}" ./cmd/main.go
+        VERSION="${{ github.ref_name }}"
+        go build -ldflags="-s -w -X github.com/Goalt/personal-server/internal/app.Version=${VERSION}" -o "${BINARY_NAME}" ./cmd/main.go
         echo "BINARY_NAME=${BINARY_NAME}" >> $GITHUB_ENV
     
     - name: Create checksum

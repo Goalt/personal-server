@@ -1,0 +1,12 @@
+metadata:
+    creationTimestamp: null
+    name: drone
+    namespace: infra
+roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: Role
+    name: drone
+subjects:
+    - kind: ServiceAccount
+      name: default
+      namespace: infra

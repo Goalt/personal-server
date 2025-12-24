@@ -1,0 +1,22 @@
+metadata:
+    annotations:
+        kompose.cmd: kompose --file docker-comopose.yaml convert
+        kompose.version: 1.26.1 (HEAD)
+    creationTimestamp: null
+    labels:
+        io.kompose.service: bitwarden
+        managed-by: personal-server
+    name: bitwarden
+    namespace: infra
+spec:
+    ports:
+        - name: "80"
+          port: 80
+          targetPort: 80
+        - name: "3012"
+          port: 3012
+          targetPort: 3012
+    selector:
+        app: bitwarden
+status:
+    loadBalancer: {}

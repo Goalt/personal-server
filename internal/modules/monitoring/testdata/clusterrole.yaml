@@ -1,0 +1,17 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        app: sentry-kubernetes
+        chart: sentry-kubernetes-0.2.6
+        heritage: Helm
+        release: monitor
+    name: monitor-sentry-kubernetes
+rules:
+    - apiGroups:
+        - ""
+      resources:
+        - events
+      verbs:
+        - get
+        - list
+        - watch

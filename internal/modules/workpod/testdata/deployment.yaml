@@ -1,0 +1,41 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        app: work-pod
+    name: work-pod
+    namespace: hobby
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: work-pod
+    strategy: {}
+    template:
+        metadata:
+            creationTimestamp: null
+            labels:
+                app: work-pod
+        spec:
+            containers:
+                - env:
+                    - name: DEBIAN_FRONTEND
+                      value: noninteractive
+                  image: ghcr.io/goalt/workconfig:sha-afd12b4
+                  name: debian
+                  resources: {}
+                  securityContext:
+                    allowPrivilegeEscalation: true
+                    capabilities:
+                        add:
+                            - SYS_ADMIN
+                    privileged: true
+                    runAsNonRoot: false
+                  volumeMounts:
+                    - mountPath: /data
+                      name: work-storage
+            restartPolicy: Always
+            volumes:
+                - name: work-storage
+                  persistentVolumeClaim:
+                    claimName: work-storage-pvc
+status: {}

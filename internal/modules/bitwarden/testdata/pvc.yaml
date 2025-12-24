@@ -1,0 +1,14 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        io.kompose.service: bitwarden-claim0
+        managed-by: personal-server
+    name: bitwarden-claim0
+    namespace: infra
+spec:
+    accessModes:
+        - ReadWriteOnce
+    resources:
+        requests:
+            storage: 100Mi
+status: {}

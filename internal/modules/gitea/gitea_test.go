@@ -1,9 +1,15 @@
 package gitea
 
 import (
+	"context"
+	_ "embed"
+	"os"
+	"path/filepath"
+
 	"testing"
 
 	"github.com/Goalt/personal-server/internal/config"
+	"github.com/Goalt/personal-server/internal/logger"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -485,5 +491,81 @@ func TestGiteaModule_PrepareMissingDBPassword(t *testing.T) {
 	expectedErr := "gitea_db_password not found in configuration"
 	if err.Error() != expectedErr {
 		t.Errorf("prepare() error = %s, want %s", err.Error(), expectedErr)
+	}
+}
+
+//go:embed testdata/secret.yaml
+var expectedSecretYAML string
+
+//go:embed testdata/pvc.yaml
+var expectedPvcYAML string
+
+//go:embed testdata/service.yaml
+var expectedServiceYAML string
+
+//go:embed testdata/deployment.yaml
+var expectedDeploymentYAML string
+
+func TestGenerate(t *testing.T) {
+	// Create a temporary directory for output
+	tempDir := t.TempDir()
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+
+	// Change to temp directory so Generate creates files there
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	defer os.Chdir(originalWd)
+
+	// Create module with test configuration
+	module := &GiteaModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		ModuleConfig: config.Module{
+			Name:      "gitea",
+			Namespace: "infra",
+			Secrets: map[string]string{
+				"gitea_db_password": "password",
+			},
+		},
+		log: logger.Default(),
+	}
+
+	// Run Generate
+	ctx := context.Background()
+	if err := module.Generate(ctx); err != nil {
+		t.Fatalf("Generate() failed: %v", err)
+	}
+
+	// Verify generated files exist and match expected content
+	testCases := []struct {
+		name     string
+		filename string
+		expected string
+	}{
+		{"secret", "configs/gitea/secret.yaml", expectedSecretYAML},
+		{"pvc", "configs/gitea/pvc.yaml", expectedPvcYAML},
+		{"service", "configs/gitea/service.yaml", expectedServiceYAML},
+		{"deployment", "configs/gitea/deployment.yaml", expectedDeploymentYAML},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Read generated file
+			generatedPath := filepath.Join(tempDir, tc.filename)
+			generatedContent, err := os.ReadFile(generatedPath)
+			if err != nil {
+				t.Fatalf("failed to read generated file %s: %v", tc.filename, err)
+			}
+
+			// Compare with expected
+			if string(generatedContent) != tc.expected {
+				t.Errorf("Generated YAML does not match expected.\nGenerated:\n%s\n\nExpected:\n%s", string(generatedContent), tc.expected)
+			}
+		})
 	}
 }

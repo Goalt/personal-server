@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    creationTimestamp: null
+    labels:
+        app: webdav
+        managed-by: personal-server
+    name: webdav
+    namespace: infra
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: webdav
+    strategy: {}
+    template:
+        metadata:
+            creationTimestamp: null
+            labels:
+                app: webdav
+        spec:
+            containers:
+                - args:
+                    - -c
+                    - /config/config.yaml
+                  env:
+                    - name: WEBDAV_USERNAME
+                      valueFrom:
+                        secretKeyRef:
+                            key: webdav_username
+                            name: webdav-secrets
+                    - name: WEBDAV_PASSWORD
+                      valueFrom:
+                        secretKeyRef:
+                            key: webdav_password
+                            name: webdav-secrets
+                  image: ghcr.io/hacdias/webdav:latest
+                  name: webdav
+                  ports:
+                    - containerPort: 8080
+                      name: http
+                      protocol: TCP
+                  resources: {}
+                  securityContext:
+                    allowPrivilegeEscalation: false
+                    capabilities:
+                        drop:
+                            - ALL
+                    readOnlyRootFilesystem: true
+                    runAsGroup: 1000
+                    runAsNonRoot: true
+                    runAsUser: 1000
+                  volumeMounts:
+                    - mountPath: /config
+                      name: webdav-config
+                      readOnly: true
+                    - mountPath: /data
+                      name: webdav-data
+                - command:
+                    - sh
+                    - -c
+                    - while true; do sleep 3600; done
+                  image: busybox:latest
+                  name: backup-helper
+                  resources: {}
+                  securityContext:
+                    allowPrivilegeEscalation: false
+                    capabilities:
+                        drop:
+                            - ALL
+                    readOnlyRootFilesystem: true
+                    runAsGroup: 1000
+                    runAsNonRoot: true
+                    runAsUser: 1000
+                  volumeMounts:
+                    - mountPath: /data
+                      name: webdav-data
+            restartPolicy: Always
+            securityContext:
+                fsGroup: 1000
+            volumes:
+                - configMap:
+                    name: webdav-config
+                  name: webdav-config
+                - name: webdav-data
+                  persistentVolumeClaim:
+                    claimName: webdav-data-pvc
+status: {}

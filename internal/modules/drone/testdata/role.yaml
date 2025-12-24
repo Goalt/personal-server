@@ -1,0 +1,24 @@
+metadata:
+    creationTimestamp: null
+    name: drone
+    namespace: infra
+rules:
+    - apiGroups:
+        - ""
+      resources:
+        - secrets
+      verbs:
+        - create
+        - delete
+    - apiGroups:
+        - ""
+      resources:
+        - pods
+        - pods/log
+      verbs:
+        - get
+        - create
+        - delete
+        - list
+        - watch
+        - update

@@ -1,10 +1,15 @@
 package webdav
 
 import (
+	"context"
+	_ "embed"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/Goalt/personal-server/internal/config"
+	"github.com/Goalt/personal-server/internal/logger"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -645,5 +650,78 @@ func TestWebdavModule_PrepareDeploymentVolumes(t *testing.T) {
 	}
 	if !dataVolumeFound {
 		t.Error("Deployment missing webdav-data volume")
+	}
+}
+
+//go:embed testdata/configmap.yaml
+var expectedConfigmapYAML string
+
+//go:embed testdata/deployment.yaml
+var expectedDeploymentYAML string
+
+//go:embed testdata/pvc.yaml
+var expectedPvcYAML string
+
+//go:embed testdata/secret.yaml
+var expectedSecretYAML string
+
+//go:embed testdata/service.yaml
+var expectedServiceYAML string
+
+func TestGenerate(t *testing.T) {
+	tempDir := t.TempDir()
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	defer os.Chdir(originalWd)
+
+	module := &WebdavModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		ModuleConfig: config.Module{
+			Name:      "webdav",
+			Namespace: "infra",
+		},
+		log: logger.Default(),
+	}
+
+	ctx := context.Background()
+	if err := module.Generate(ctx); err != nil {
+		t.Fatalf("Generate() failed: %v", err)
+	}
+
+	// Verify generated files exist and match expected content
+	testCases := []struct {
+		name     string
+		filename string
+		expected string
+	}{
+		{"configmap", "configs/webdav/configmap.yaml", expectedConfigmapYAML},
+		{"secret", "configs/webdav/secret.yaml", expectedSecretYAML},
+		{"pvc", "configs/webdav/pvc.yaml", expectedPvcYAML},
+		{"service", "configs/webdav/service.yaml", expectedServiceYAML},
+		{"deployment", "configs/webdav/deployment.yaml", expectedDeploymentYAML},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Read generated file
+			generatedPath := filepath.Join(tempDir, tc.filename)
+			generatedContent, err := os.ReadFile(generatedPath)
+			if err != nil {
+				t.Fatalf("failed to read generated file %s: %v", tc.filename, err)
+			}
+
+			// Compare with expected
+			if string(generatedContent) != tc.expected {
+				t.Errorf("Generated YAML does not match expected.\nGenerated:\n%s\n\nExpected:\n%s", string(generatedContent), tc.expected)
+			}
+		})
 	}
 }

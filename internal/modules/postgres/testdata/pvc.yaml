@@ -1,0 +1,13 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        app: postgres
+    name: postgres-data-pvc
+    namespace: infra
+spec:
+    accessModes:
+        - ReadWriteOnce
+    resources:
+        requests:
+            storage: 10Gi
+status: {}

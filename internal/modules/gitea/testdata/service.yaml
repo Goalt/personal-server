@@ -1,0 +1,22 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        app: gitea
+        managed-by: personal-server
+    name: gitea
+    namespace: infra
+spec:
+    ports:
+        - name: http
+          port: 3000
+          protocol: TCP
+          targetPort: 3000
+        - name: ssh
+          port: 22
+          protocol: TCP
+          targetPort: 22
+    selector:
+        app: gitea
+    type: ClusterIP
+status:
+    loadBalancer: {}

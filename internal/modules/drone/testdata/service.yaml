@@ -1,0 +1,17 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        app: drone
+    name: drone
+    namespace: infra
+spec:
+    ports:
+        - name: http
+          port: 80
+          protocol: TCP
+          targetPort: 80
+    selector:
+        app: drone
+    type: ClusterIP
+status:
+    loadBalancer: {}

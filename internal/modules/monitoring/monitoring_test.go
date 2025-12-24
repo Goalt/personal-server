@@ -1,9 +1,14 @@
 package monitoring
 
 import (
+	"context"
+	_ "embed"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/Goalt/personal-server/internal/config"
+	"github.com/Goalt/personal-server/internal/logger"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -420,5 +425,85 @@ func TestMonitoringModule_PrepareMissingSentryDSN(t *testing.T) {
 	expectedErr := "sentry_dsn not found in configuration"
 	if err.Error() != expectedErr {
 		t.Errorf("prepare() error = %s, want %s", err.Error(), expectedErr)
+	}
+}
+
+//go:embed testdata/clusterrole.yaml
+var expectedClusterroleYAML string
+
+//go:embed testdata/clusterrolebinding.yaml
+var expectedClusterrolebindingYAML string
+
+//go:embed testdata/deployment.yaml
+var expectedDeploymentYAML string
+
+//go:embed testdata/secret.yaml
+var expectedSecretYAML string
+
+//go:embed testdata/serviceaccount.yaml
+var expectedServiceaccountYAML string
+
+func TestGenerate(t *testing.T) {
+	// Create a temporary directory for output
+	tempDir := t.TempDir()
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+
+	// Change to temp directory so Generate creates files there
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	defer os.Chdir(originalWd)
+
+	// Create module with test configuration
+	module := &MonitoringModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		ModuleConfig: config.Module{
+			Name:      "monitoring",
+			Namespace: "infra",
+			Secrets: map[string]string{
+				"sentry_dsn": "https://test@sentry.io/123",
+			},
+		},
+		log: logger.Default(),
+	}
+
+	// Run Generate
+	ctx := context.Background()
+	if err := module.Generate(ctx); err != nil {
+		t.Fatalf("Generate() failed: %v", err)
+	}
+
+	// Verify generated files exist and match expected content
+	testCases := []struct {
+		name     string
+		filename string
+		expected string
+	}{
+		{"serviceaccount", "configs/monitoring/serviceaccount.yaml", expectedServiceaccountYAML},
+		{"clusterrole", "configs/monitoring/clusterrole.yaml", expectedClusterroleYAML},
+		{"clusterrolebinding", "configs/monitoring/clusterrolebinding.yaml", expectedClusterrolebindingYAML},
+		{"secret", "configs/monitoring/secret.yaml", expectedSecretYAML},
+		{"deployment", "configs/monitoring/deployment.yaml", expectedDeploymentYAML},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Read generated file
+			generatedPath := filepath.Join(tempDir, tc.filename)
+			generatedContent, err := os.ReadFile(generatedPath)
+			if err != nil {
+				t.Fatalf("failed to read generated file %s: %v", tc.filename, err)
+			}
+
+			// Compare with expected
+			if string(generatedContent) != tc.expected {
+				t.Errorf("Generated YAML does not match expected.\nGenerated:\n%s\n\nExpected:\n%s", string(generatedContent), tc.expected)
+			}
+		})
 	}
 }

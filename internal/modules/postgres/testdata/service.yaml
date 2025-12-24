@@ -1,0 +1,16 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        app: postgres
+    name: postgres
+    namespace: infra
+spec:
+    ports:
+        - name: postgres
+          port: 5432
+          targetPort: 5432
+    selector:
+        app: postgres
+    type: ClusterIP
+status:
+    loadBalancer: {}

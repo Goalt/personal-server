@@ -1,11 +1,16 @@
 package cloudflare
 
 import (
+	"context"
+	_ "embed"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/Goalt/personal-server/internal/config"
 	"github.com/Goalt/personal-server/internal/k8s"
+	"github.com/Goalt/personal-server/internal/logger"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -365,5 +370,73 @@ func TestGetMapKeys(t *testing.T) {
 		if !keySet[expectedKey] {
 			t.Errorf("getMapKeys missing key: %s", expectedKey)
 		}
+	}
+}
+
+//go:embed testdata/secret.yaml
+var expectedSecretYAML string
+
+//go:embed testdata/deployment.yaml
+var expectedDeploymentYAML string
+
+func TestGenerate(t *testing.T) {
+	// Create a temporary directory for output
+	tempDir := t.TempDir()
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+
+	// Change to temp directory so Generate creates files there
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	defer os.Chdir(originalWd)
+
+	// Create module with test configuration
+	module := &CloudflareModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		ModuleConfig: config.Module{
+			Name:      "cloudflare",
+			Namespace: "infra",
+			Secrets: map[string]string{
+				"cloudflare_api_token": "password",
+			},
+		},
+		log: logger.Default(),
+	}
+
+	// Run Generate
+	ctx := context.Background()
+	if err := module.Generate(ctx); err != nil {
+		t.Fatalf("Generate() failed: %v", err)
+	}
+
+	// Verify generated files exist and match expected content
+	testCases := []struct {
+		name     string
+		filename string
+		expected string
+	}{
+		{"secret", "configs/cloudflare/secret.yaml", expectedSecretYAML},
+		{"deployment", "configs/cloudflare/deployment.yaml", expectedDeploymentYAML},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Read generated file
+			generatedPath := filepath.Join(tempDir, tc.filename)
+			generatedContent, err := os.ReadFile(generatedPath)
+			if err != nil {
+				t.Fatalf("failed to read generated file %s: %v", tc.filename, err)
+			}
+
+			// Compare with expected
+			if string(generatedContent) != tc.expected {
+				t.Errorf("Generated YAML does not match expected.\nGenerated:\n%s\n\nExpected:\n%s", string(generatedContent), tc.expected)
+			}
+		})
 	}
 }

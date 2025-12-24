@@ -1,0 +1,19 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        app: pet-testapp
+        managed-by: personal-server
+        type: pet-project
+    name: pet-testapp
+    namespace: hobby
+spec:
+    ports:
+        - name: http
+          port: 80
+          protocol: TCP
+          targetPort: 8080
+    selector:
+        app: pet-testapp
+    type: ClusterIP
+status:
+    loadBalancer: {}

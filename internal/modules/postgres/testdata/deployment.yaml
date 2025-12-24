@@ -1,0 +1,62 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        app: postgres
+    name: postgres
+    namespace: infra
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: postgres
+    strategy: {}
+    template:
+        metadata:
+            creationTimestamp: null
+            labels:
+                app: postgres
+        spec:
+            containers:
+                - env:
+                    - name: POSTGRES_USER
+                      valueFrom:
+                        secretKeyRef:
+                            key: admin_postgres_user
+                            name: postgres-secrets
+                    - name: POSTGRES_PASSWORD
+                      valueFrom:
+                        secretKeyRef:
+                            key: admin_postgres_password
+                            name: postgres-secrets
+                    - name: PGDATA
+                      value: /var/lib/postgresql/data/pgdata
+                  image: postgres:16
+                  imagePullPolicy: IfNotPresent
+                  livenessProbe:
+                    exec:
+                        command:
+                            - sh
+                            - -c
+                            - pg_isready -U "$POSTGRES_USER" -h 127.0.0.1 -p 5432
+                    initialDelaySeconds: 30
+                    periodSeconds: 10
+                  name: postgres
+                  ports:
+                    - containerPort: 5432
+                  readinessProbe:
+                    exec:
+                        command:
+                            - sh
+                            - -c
+                            - pg_isready -U "$POSTGRES_USER" -h 127.0.0.1 -p 5432
+                    initialDelaySeconds: 10
+                    periodSeconds: 5
+                  resources: {}
+                  volumeMounts:
+                    - mountPath: /var/lib/postgresql/data
+                      name: data
+            volumes:
+                - name: data
+                  persistentVolumeClaim:
+                    claimName: postgres-data-pvc
+status: {}

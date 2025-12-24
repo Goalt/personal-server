@@ -1,6 +1,10 @@
 package petproject
 
 import (
+	"context"
+	_ "embed"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/Goalt/personal-server/internal/config"
@@ -114,10 +118,98 @@ func TestPrepareDeployment(t *testing.T) {
 	}
 }
 
+//go:embed testdata/deployment.yaml
+var expectedDeploymentYAML string
+
+//go:embed testdata/service.yaml
+var expectedServiceYAML string
+
 func TestGenerate(t *testing.T) {
-	// This test would require setting up a temporary directory
-	// and verifying file creation. For now, we'll skip it.
-	t.Skip("Skipping integration test")
+	// Create a temporary directory for output
+	tempDir := t.TempDir()
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+
+	// Change to temp directory so Generate creates files there
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	defer os.Chdir(originalWd)
+
+	// Create module with test configuration
+	generalConfig := config.GeneralConfig{
+		Domain:     "example.com",
+		Namespaces: []string{"hobby"},
+	}
+
+	projectConfig := config.PetProject{
+		Name:      "testapp",
+		Namespace: "hobby",
+		Image:     "nginx:latest",
+		Environment: map[string]string{
+			"ENV": "test",
+		},
+		Service: &config.ServiceConfig{
+			Ports: []config.ServicePort{
+				{
+					Name:       "http",
+					Port:       80,
+					TargetPort: 8080,
+				},
+			},
+		},
+	}
+
+	log := logger.Default()
+	module := New(generalConfig, projectConfig, log)
+
+	// Run Generate
+	ctx := context.Background()
+	if err := module.Generate(ctx); err != nil {
+		t.Fatalf("Generate() failed: %v", err)
+	}
+
+	// Verify generated files exist and match expected content
+	testCases := []struct {
+		name     string
+		filename string
+		expected string
+	}{
+		{"deployment", "configs/pet-projects/testapp/deployment.yaml", expectedDeploymentYAML},
+		{"service", "configs/pet-projects/testapp/service.yaml", expectedServiceYAML},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Read generated file
+			generatedPath := filepath.Join(tempDir, tc.filename)
+			generatedContent, err := os.ReadFile(generatedPath)
+			if err != nil {
+				t.Fatalf("failed to read generated file %s: %v", tc.filename, err)
+			}
+
+			// Compare with expected
+			if string(generatedContent) != tc.expected {
+				t.Errorf("Generated YAML does not match expected.\nGenerated:\n%s\n\nExpected:\n%s", string(generatedContent), tc.expected)
+			}
+		})
+	}
+}
+
+// contains checks if a string contains a substring
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || containsSubstring(s, substr)))
+}
+
+func containsSubstring(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
 
 func TestApply(t *testing.T) {

@@ -1,0 +1,39 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        app: bitwarden
+        managed-by: personal-server
+    name: bitwarden
+    namespace: infra
+spec:
+    replicas: 1
+    revisionHistoryLimit: 1
+    selector:
+        matchLabels:
+            app: bitwarden
+    strategy: {}
+    template:
+        metadata:
+            creationTimestamp: null
+            labels:
+                app: bitwarden
+        spec:
+            containers:
+                - env:
+                    - name: WEBSOCKET_ENABLED
+                      value: "true"
+                  image: vaultwarden/server:1.32.0
+                  name: bitwarden
+                  ports:
+                    - containerPort: 80
+                    - containerPort: 3012
+                  resources: {}
+                  volumeMounts:
+                    - mountPath: /data
+                      name: bitwarden-claim0
+            restartPolicy: Always
+            volumes:
+                - name: bitwarden-claim0
+                  persistentVolumeClaim:
+                    claimName: bitwarden-claim0
+status: {}

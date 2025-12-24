@@ -1,11 +1,16 @@
 package drone
 
 import (
+	"context"
+	_ "embed"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/Goalt/personal-server/internal/config"
 	"github.com/Goalt/personal-server/internal/k8s"
+	"github.com/Goalt/personal-server/internal/logger"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -467,6 +472,90 @@ func TestFormatAge(t *testing.T) {
 			result := k8s.FormatAge(tt.duration)
 			if result != tt.expected {
 				t.Errorf("k8s.FormatAge(%v) = %s, want %s", tt.duration, result, tt.expected)
+			}
+		})
+	}
+}
+
+//go:embed testdata/secret.yaml
+var expectedSecretYAML string
+
+//go:embed testdata/role.yaml
+var expectedRoleYAML string
+
+//go:embed testdata/rolebinding.yaml
+var expectedRolebindingYAML string
+
+//go:embed testdata/deployment.yaml
+var expectedDeploymentYAML string
+
+//go:embed testdata/runner-deployment.yaml
+var expectedRunnerdeploymentYAML string
+
+//go:embed testdata/service.yaml
+var expectedServiceYAML string
+
+func TestGenerate(t *testing.T) {
+	// Create a temporary directory for output
+	tempDir := t.TempDir()
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+
+	// Change to temp directory so Generate creates files there
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	defer os.Chdir(originalWd)
+
+	// Create module with test configuration
+	module := &DroneModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		ModuleConfig: config.Module{
+			Name:      "drone",
+			Namespace: "infra",
+			Secrets: map[string]string{
+				"drone_gitea_client_secret": "test-secret",
+			},
+		},
+		log: logger.Default(),
+	}
+
+	// Run Generate
+	ctx := context.Background()
+	if err := module.Generate(ctx); err != nil {
+		t.Fatalf("Generate() failed: %v", err)
+	}
+
+	// Verify generated files exist and match expected content
+	testCases := []struct {
+		name     string
+		filename string
+		expected string
+	}{
+		{"secret", "configs/drone/secret.yaml", expectedSecretYAML},
+		{"role", "configs/drone/role.yaml", expectedRoleYAML},
+		{"rolebinding", "configs/drone/rolebinding.yaml", expectedRolebindingYAML},
+		{"deployment", "configs/drone/deployment.yaml", expectedDeploymentYAML},
+		{"runner-deployment", "configs/drone/runner-deployment.yaml", expectedRunnerdeploymentYAML},
+		{"service", "configs/drone/service.yaml", expectedServiceYAML},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Read generated file
+			generatedPath := filepath.Join(tempDir, tc.filename)
+			generatedContent, err := os.ReadFile(generatedPath)
+			if err != nil {
+				t.Fatalf("failed to read generated file %s: %v", tc.filename, err)
+			}
+
+			// Compare with expected
+			if string(generatedContent) != tc.expected {
+				t.Errorf("Generated YAML does not match expected.\nGenerated:\n%s\n\nExpected:\n%s", string(generatedContent), tc.expected)
 			}
 		})
 	}

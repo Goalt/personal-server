@@ -1,8 +1,8 @@
 package webdav
 
 import (
-_ "embed"
 	"context"
+	_ "embed"
 	"os"
 	"path/filepath"
 	"strings"
@@ -653,7 +653,6 @@ func TestWebdavModule_PrepareDeploymentVolumes(t *testing.T) {
 	}
 }
 
-
 //go:embed testdata/configmap.yaml
 var expectedConfigmapYAML string
 
@@ -668,7 +667,6 @@ var expectedSecretYAML string
 
 //go:embed testdata/service.yaml
 var expectedServiceYAML string
-
 
 func TestGenerate(t *testing.T) {
 	tempDir := t.TempDir()

@@ -1,8 +1,8 @@
 package monitoring
 
 import (
-_ "embed"
 	"context"
+	_ "embed"
 	"os"
 	"path/filepath"
 	"testing"
@@ -428,7 +428,6 @@ func TestMonitoringModule_PrepareMissingSentryDSN(t *testing.T) {
 	}
 }
 
-
 //go:embed testdata/clusterrole.yaml
 var expectedClusterroleYAML string
 
@@ -443,7 +442,6 @@ var expectedSecretYAML string
 
 //go:embed testdata/serviceaccount.yaml
 var expectedServiceaccountYAML string
-
 
 func TestGenerate(t *testing.T) {
 	// Create a temporary directory for output

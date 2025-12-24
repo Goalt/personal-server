@@ -1,8 +1,8 @@
 package hobbypod
 
 import (
-_ "embed"
 	"context"
+	_ "embed"
 	"os"
 	"path/filepath"
 	"testing"
@@ -311,13 +311,11 @@ func TestHobbyPodModule_PrepareDeploymentVolumes(t *testing.T) {
 	}
 }
 
-
 //go:embed testdata/deployment.yaml
 var expectedDeploymentYAML string
 
 //go:embed testdata/pvc.yaml
 var expectedPvcYAML string
-
 
 func TestGenerate(t *testing.T) {
 	tempDir := t.TempDir()

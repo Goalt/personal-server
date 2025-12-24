@@ -1,8 +1,8 @@
 package gitea
 
 import (
-	_ "embed"
 	"context"
+	_ "embed"
 	"os"
 	"path/filepath"
 

@@ -1,8 +1,8 @@
 package workpod
 
 import (
-_ "embed"
 	"context"
+	_ "embed"
 	"os"
 	"path/filepath"
 	"testing"
@@ -204,13 +204,11 @@ func TestWorkPodModule_Prepare(t *testing.T) {
 	}
 }
 
-
 //go:embed testdata/deployment.yaml
 var expectedDeploymentYAML string
 
 //go:embed testdata/pvc.yaml
 var expectedPvcYAML string
-
 
 func TestGenerate(t *testing.T) {
 	tempDir := t.TempDir()

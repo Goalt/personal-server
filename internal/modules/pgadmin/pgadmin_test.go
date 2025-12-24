@@ -1,8 +1,8 @@
 package pgadmin
 
 import (
-_ "embed"
 	"context"
+	_ "embed"
 	"os"
 	"path/filepath"
 	"testing"
@@ -362,7 +362,6 @@ func TestPgadminModule_PrepareDeploymentContainer(t *testing.T) {
 	}
 }
 
-
 //go:embed testdata/deployment.yaml
 var expectedDeploymentYAML string
 
@@ -371,7 +370,6 @@ var expectedSecretYAML string
 
 //go:embed testdata/service.yaml
 var expectedServiceYAML string
-
 
 func TestGenerate(t *testing.T) {
 	tempDir := t.TempDir()

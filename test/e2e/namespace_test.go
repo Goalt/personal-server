@@ -68,6 +68,30 @@ func runCommand(t *testing.T, name string, args ...string) (string, error) {
 	return string(output), nil
 }
 
+// testBackupCommand tests a module's backup functionality
+// It creates a temporary backup directory and runs the backup command
+// Returns true if backup succeeded, false if it failed (expected when pod is not ready)
+func testBackupCommand(t *testing.T, moduleName string) bool {
+	t.Helper()
+
+	// Create a temporary backup directory
+	backupDir, err := os.MkdirTemp("", fmt.Sprintf("e2e-%s-backup-*", moduleName))
+	if err != nil {
+		t.Fatalf("failed to create temp backup dir: %v", err)
+	}
+	defer os.RemoveAll(backupDir)
+
+	// Try to run backup - expect it to fail if pod isn't ready
+	output, err := runCommand(t, binaryPath, "-config", testConfigPath, moduleName, "backup", backupDir)
+	if err != nil {
+		t.Logf("Backup command output (expected to fail if pod not ready):\n%s", output)
+		t.Logf("Backup failed as expected when pod is not ready: %v", err)
+		return false
+	}
+	t.Logf("Backup output:\n%s", output)
+	return true
+}
+
 // TestNamespaceE2E tests the complete namespace lifecycle
 func TestNamespaceE2E(t *testing.T) {
 	if testing.Short() {

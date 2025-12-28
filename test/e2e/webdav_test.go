@@ -177,25 +177,9 @@ func TestWebdavE2E(t *testing.T) {
 		}
 	})
 
-	// Test 4: Test backup command (note: this may not fully succeed without a running pod, but should not error)
+	// Test 4: Test backup command (note: may fail if pod is not ready)
 	t.Run("Backup", func(t *testing.T) {
-		// Create a temporary backup directory
-		backupDir, err := os.MkdirTemp("", "e2e-webdav-backup-*")
-		if err != nil {
-			t.Fatalf("failed to create temp backup dir: %v", err)
-		}
-		defer os.RemoveAll(backupDir)
-
-		// Try to run backup - it may fail if pod isn't ready, but shouldn't panic
-		output, err := runCommand(t, binaryPath, "-config", testConfigPath, "webdav", "backup", backupDir)
-		// We don't fail the test if backup fails since the pod might not be ready
-		// but we log the output
-		if err != nil {
-			t.Logf("Backup command output (may fail if pod not ready):\n%s", output)
-			t.Logf("Expected: Backup may fail if pod is not ready: %v", err)
-		} else {
-			t.Logf("Backup output:\n%s", output)
-		}
+		testBackupCommand(t, "webdav")
 	})
 
 	// Test 5: Clean up webdav resources

@@ -33,7 +33,9 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Download dependencies
-        run: go mod download
+        run: |
+          go mod download
+          cd test/e2e && go mod download
 
       - name: Build binary
         run: make build

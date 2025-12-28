@@ -38,8 +38,8 @@ func TestBitwardenE2E(t *testing.T) {
 
 		// Delete deployment
 		deploymentName := "vaultwarden"
-		namespace := "e2e-test-infra"
-		err := client.AppsV1().Deployments(namespace).Delete(ctx, deploymentName, metav1.DeleteOptions{})
+		// Using testNamespace constant
+		err := client.AppsV1().Deployments(testNamespace).Delete(ctx, deploymentName, metav1.DeleteOptions{})
 		if err != nil {
 			t.Logf("Warning: failed to delete deployment %s: %v", deploymentName, err)
 		} else {
@@ -48,7 +48,7 @@ func TestBitwardenE2E(t *testing.T) {
 
 		// Delete service
 		serviceName := "vaultwarden"
-		err = client.CoreV1().Services(namespace).Delete(ctx, serviceName, metav1.DeleteOptions{})
+		err = client.CoreV1().Services(testNamespace).Delete(ctx, serviceName, metav1.DeleteOptions{})
 		if err != nil {
 			t.Logf("Warning: failed to delete service %s: %v", serviceName, err)
 		} else {
@@ -57,7 +57,7 @@ func TestBitwardenE2E(t *testing.T) {
 
 		// Delete PVC
 		pvcName := "vaultwarden-data"
-		err = client.CoreV1().PersistentVolumeClaims(namespace).Delete(ctx, pvcName, metav1.DeleteOptions{})
+		err = client.CoreV1().PersistentVolumeClaims(testNamespace).Delete(ctx, pvcName, metav1.DeleteOptions{})
 		if err != nil {
 			t.Logf("Warning: failed to delete PVC %s: %v", pvcName, err)
 		} else {
@@ -102,10 +102,10 @@ func TestBitwardenE2E(t *testing.T) {
 		time.Sleep(2 * time.Second)
 
 		ctx := context.Background()
-		namespace := "e2e-test-infra"
+		// Using testNamespace constant
 
 		// Verify PVC was created
-		pvc, err := client.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, "vaultwarden-data", metav1.GetOptions{})
+		pvc, err := client.CoreV1().PersistentVolumeClaims(testNamespace).Get(ctx, "vaultwarden-data", metav1.GetOptions{})
 		if err != nil {
 			t.Errorf("PVC vaultwarden-data was not created: %v", err)
 		} else {
@@ -113,7 +113,7 @@ func TestBitwardenE2E(t *testing.T) {
 		}
 
 		// Verify service was created
-		service, err := client.CoreV1().Services(namespace).Get(ctx, "vaultwarden", metav1.GetOptions{})
+		service, err := client.CoreV1().Services(testNamespace).Get(ctx, "vaultwarden", metav1.GetOptions{})
 		if err != nil {
 			t.Errorf("service vaultwarden was not created: %v", err)
 		} else {
@@ -121,7 +121,7 @@ func TestBitwardenE2E(t *testing.T) {
 		}
 
 		// Verify deployment was created
-		deployment, err := client.AppsV1().Deployments(namespace).Get(ctx, "vaultwarden", metav1.GetOptions{})
+		deployment, err := client.AppsV1().Deployments(testNamespace).Get(ctx, "vaultwarden", metav1.GetOptions{})
 		if err != nil {
 			t.Errorf("deployment vaultwarden was not created: %v", err)
 		} else {
@@ -160,10 +160,10 @@ func TestBitwardenE2E(t *testing.T) {
 		time.Sleep(2 * time.Second)
 
 		ctx := context.Background()
-		namespace := "e2e-test-infra"
+		// Using testNamespace constant
 
 		// Verify deployment is deleted or being deleted
-		_, err = client.AppsV1().Deployments(namespace).Get(ctx, "vaultwarden", metav1.GetOptions{})
+		_, err = client.AppsV1().Deployments(testNamespace).Get(ctx, "vaultwarden", metav1.GetOptions{})
 		if err == nil {
 			t.Logf("Warning: deployment vaultwarden still exists after clean")
 		} else {
@@ -171,7 +171,7 @@ func TestBitwardenE2E(t *testing.T) {
 		}
 
 		// Verify service is deleted or being deleted
-		_, err = client.CoreV1().Services(namespace).Get(ctx, "vaultwarden", metav1.GetOptions{})
+		_, err = client.CoreV1().Services(testNamespace).Get(ctx, "vaultwarden", metav1.GetOptions{})
 		if err == nil {
 			t.Logf("Warning: service vaultwarden still exists after clean")
 		} else {
@@ -179,7 +179,7 @@ func TestBitwardenE2E(t *testing.T) {
 		}
 
 		// Verify PVC is deleted or being deleted
-		_, err = client.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, "vaultwarden-data", metav1.GetOptions{})
+		_, err = client.CoreV1().PersistentVolumeClaims(testNamespace).Get(ctx, "vaultwarden-data", metav1.GetOptions{})
 		if err == nil {
 			t.Logf("Warning: PVC vaultwarden-data still exists after clean")
 		} else {

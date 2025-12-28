@@ -54,7 +54,7 @@ test:
 e2e-test: build
 	@echo "Running e2e tests..."
 	@echo "Note: This requires a running Kubernetes cluster (e.g., KinD)"
-	cd test/e2e && $(GOTEST) -v -timeout 10m -run TestNamespaceE2E
+	cd test/e2e && $(GOTEST) -v -timeout 10m
 
 # Run tests with coverage
 coverage:

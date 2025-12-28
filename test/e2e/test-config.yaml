@@ -11,3 +11,18 @@ backup:
   sentry_dsn: ""
   cron: "*/30 * * * *"
   passphrase: ""
+
+modules:
+  - name: cloudflare
+    namespace: e2e-test-infra
+    secrets:
+      cloudflare_api_token: test-token-e2e
+
+  - name: bitwarden
+    namespace: e2e-test-infra
+
+  - name: webdav
+    namespace: e2e-test-infra
+    secrets:
+      webdav_username: e2e-test
+      webdav_password: e2e-test-password

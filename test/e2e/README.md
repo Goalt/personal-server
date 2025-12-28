@@ -17,6 +17,35 @@ Tests the complete lifecycle of the `namespace` subcommand:
 3. **Status**: Checks the status of deployed namespaces
 4. **Clean**: Removes namespaces from the cluster
 
+### Cloudflare E2E Test
+
+Tests the complete lifecycle of the `cloudflare` module:
+
+1. **Generate**: Creates Kubernetes configurations for Cloudflare tunnel
+2. **Apply**: Deploys the Cloudflare tunnel to the cluster
+3. **Status**: Checks the status of the Cloudflare deployment
+4. **Clean**: Removes Cloudflare resources from the cluster
+
+### Bitwarden E2E Test
+
+Tests the complete lifecycle of the `bitwarden` module:
+
+1. **Generate**: Creates Kubernetes configurations for Vaultwarden
+2. **Apply**: Deploys Vaultwarden to the cluster
+3. **Status**: Checks the status of the Vaultwarden deployment
+4. **Backup**: Tests the backup functionality (may not complete if pod is not ready)
+5. **Clean**: Removes Vaultwarden resources from the cluster
+
+### WebDAV E2E Test
+
+Tests the complete lifecycle of the `webdav` module:
+
+1. **Generate**: Creates Kubernetes configurations for WebDAV server
+2. **Apply**: Deploys the WebDAV server to the cluster
+3. **Status**: Checks the status of the WebDAV deployment
+4. **Backup**: Tests the backup functionality (may not complete if pod is not ready)
+5. **Clean**: Removes WebDAV resources from the cluster
+
 ## Prerequisites
 
 - Go 1.25.3 or later
@@ -56,7 +85,15 @@ make e2e-test
 ```bash
 # From repository root
 cd test/e2e
+
+# Run all e2e tests
+go test -v -timeout 10m
+
+# Run a specific test
 go test -v -timeout 10m -run TestNamespaceE2E
+go test -v -timeout 10m -run TestCloudflareE2E
+go test -v -timeout 10m -run TestBitwardenE2E
+go test -v -timeout 10m -run TestWebdavE2E
 ```
 
 ### Skipping E2E tests during regular test runs
@@ -90,8 +127,9 @@ The e2e tests use a test-specific configuration file (`test-config.yaml`) that d
 
 The e2e tests automatically clean up after themselves by:
 
-1. Deleting any created Kubernetes namespaces
-2. Removing generated configuration files
+1. Deleting any created Kubernetes resources (deployments, services, PVCs, secrets, configmaps)
+2. Deleting any created Kubernetes namespaces
+3. Removing generated configuration files
 
 If a test fails or is interrupted, you may need to manually clean up:
 
@@ -100,7 +138,7 @@ If a test fails or is interrupted, you may need to manually clean up:
 kubectl delete namespace e2e-test-infra e2e-test-hobby
 
 # Remove generated configs
-rm -rf configs/namespace
+rm -rf configs/namespace configs/cloudflare configs/bitwarden configs/webdav
 ```
 
 ## Troubleshooting

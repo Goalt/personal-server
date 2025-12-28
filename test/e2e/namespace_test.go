@@ -19,7 +19,7 @@ const (
 	testConfigPath = "test/e2e/test-config.yaml"
 	binaryPath     = "bin/personal-server"
 	timeout        = 5 * time.Minute
-	
+
 	// Test namespace used for deploying test resources
 	testNamespace = "e2e-test-infra"
 )

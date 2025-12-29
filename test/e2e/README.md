@@ -17,6 +17,115 @@ Tests the complete lifecycle of the `namespace` subcommand:
 3. **Status**: Checks the status of deployed namespaces
 4. **Clean**: Removes namespaces from the cluster
 
+### Cloudflare E2E Test
+
+Tests the complete lifecycle of the `cloudflare` module:
+
+1. **Generate**: Creates Kubernetes configurations for Cloudflare tunnel
+2. **Apply**: Deploys the Cloudflare tunnel to the cluster
+3. **Status**: Checks the status of the Cloudflare deployment
+4. **Clean**: Removes Cloudflare resources from the cluster
+
+### Bitwarden E2E Test
+
+Tests the complete lifecycle of the `bitwarden` module:
+
+1. **Generate**: Creates Kubernetes configurations for Vaultwarden
+2. **Apply**: Deploys Vaultwarden to the cluster
+3. **Status**: Checks the status of the Vaultwarden deployment
+4. **Backup**: Tests the backup functionality (may not complete if pod is not ready)
+5. **Clean**: Removes Vaultwarden resources from the cluster
+
+### WebDAV E2E Test
+
+Tests the complete lifecycle of the `webdav` module:
+
+1. **Generate**: Creates Kubernetes configurations for WebDAV server
+2. **Apply**: Deploys the WebDAV server to the cluster
+3. **Status**: Checks the status of the WebDAV deployment
+4. **Backup**: Tests the backup functionality (may not complete if pod is not ready)
+5. **Clean**: Removes WebDAV resources from the cluster
+
+### Postgres E2E Test
+
+Tests the complete lifecycle of the `postgres` module:
+
+1. **Generate**: Creates Kubernetes configurations for PostgreSQL database
+2. **Apply**: Deploys PostgreSQL to the cluster
+3. **Status**: Checks the status of the PostgreSQL deployment
+4. **Backup**: Tests the backup functionality (may not complete if pod is not ready)
+5. **Clean**: Removes PostgreSQL resources from the cluster
+
+### pgAdmin E2E Test
+
+Tests the complete lifecycle of the `pgadmin` module:
+
+1. **Generate**: Creates Kubernetes configurations for pgAdmin
+2. **Apply**: Deploys pgAdmin to the cluster
+3. **Status**: Checks the status of the pgAdmin deployment
+4. **Clean**: Removes pgAdmin resources from the cluster
+
+### Gitea E2E Test
+
+Tests the complete lifecycle of the `gitea` module:
+
+1. **Generate**: Creates Kubernetes configurations for Gitea
+2. **Apply**: Deploys Gitea to the cluster
+3. **Status**: Checks the status of the Gitea deployment
+4. **Backup**: Tests the backup functionality (may not complete if pod is not ready)
+5. **Clean**: Removes Gitea resources from the cluster
+
+### Drone E2E Test
+
+Tests the complete lifecycle of the `drone` module:
+
+1. **Generate**: Creates Kubernetes configurations for Drone CI/CD (server and runner)
+2. **Apply**: Deploys Drone server and runner to the cluster
+3. **Status**: Checks the status of the Drone deployments
+4. **Clean**: Removes Drone resources from the cluster
+
+### Monitoring E2E Test
+
+Tests the complete lifecycle of the `monitoring` module:
+
+1. **Generate**: Creates Kubernetes configurations for Sentry monitoring (ServiceAccount, ClusterRole, ClusterRoleBinding, Secret, Deployment)
+2. **Apply**: Deploys Sentry Kubernetes monitoring to the cluster
+3. **Status**: Checks the status of all monitoring resources
+4. **Apply Idempotency**: Verifies that applying twice fails with appropriate error messages
+5. **Clean**: Removes all monitoring resources from the cluster (including cluster-wide resources)
+
+### Workpod E2E Test
+
+Tests the complete lifecycle of the `workpod` module:
+
+1. **Generate**: Creates Kubernetes configurations for work pod (PVC, Deployment)
+2. **Apply**: Deploys the work pod to the cluster
+3. **Status**: Checks the status of the work pod deployment
+4. **Backup**: Tests the backup functionality (may not complete if pod is not ready)
+5. **Clean**: Removes work pod resources from the cluster
+
+### Hobbypod E2E Test
+
+Tests the complete lifecycle of the `hobbypod` module:
+
+1. **Generate**: Creates Kubernetes configurations for hobby pod (PVC, Deployment)
+2. **Apply**: Deploys the hobby pod to the cluster
+3. **Status**: Checks the status of the hobby pod deployment
+4. **Backup**: Tests the backup functionality (may not complete if pod is not ready)
+5. **Clean**: Removes hobby pod resources from the cluster
+
+### PetProject E2E Test
+
+Tests the complete lifecycle of the `petproject` module:
+
+1. **Generate**: Creates Kubernetes configurations for pet project (Deployment, Service)
+2. **Apply**: Deploys the pet project to the cluster
+3. **Status**: Checks the status of the pet project deployment and service
+4. **Rollout Restart**: Tests the rollout restart functionality
+5. **Rollout Status**: Tests the rollout status command
+6. **Apply Idempotency**: Verifies that applying twice fails with appropriate error
+7. **Clean**: Removes pet project resources from the cluster
+
 ## Prerequisites
 
 - Go 1.25.3 or later
@@ -56,7 +165,23 @@ make e2e-test
 ```bash
 # From repository root
 cd test/e2e
+
+# Run all e2e tests
+go test -v -timeout 10m
+
+# Run a specific test
 go test -v -timeout 10m -run TestNamespaceE2E
+go test -v -timeout 10m -run TestCloudflareE2E
+go test -v -timeout 10m -run TestBitwardenE2E
+go test -v -timeout 10m -run TestWebdavE2E
+go test -v -timeout 10m -run TestPostgresE2E
+go test -v -timeout 10m -run TestPgadminE2E
+go test -v -timeout 10m -run TestGiteaE2E
+go test -v -timeout 10m -run TestDroneE2E
+go test -v -timeout 10m -run TestMonitoringE2E
+go test -v -timeout 10m -run TestWorkpodE2E
+go test -v -timeout 10m -run TestHobbypodE2E
+go test -v -timeout 10m -run TestPetProjectE2E
 ```
 
 ### Skipping E2E tests during regular test runs
@@ -90,8 +215,9 @@ The e2e tests use a test-specific configuration file (`test-config.yaml`) that d
 
 The e2e tests automatically clean up after themselves by:
 
-1. Deleting any created Kubernetes namespaces
-2. Removing generated configuration files
+1. Deleting any created Kubernetes resources (deployments, services, PVCs, secrets, configmaps)
+2. Deleting any created Kubernetes namespaces
+3. Removing generated configuration files
 
 If a test fails or is interrupted, you may need to manually clean up:
 
@@ -100,7 +226,7 @@ If a test fails or is interrupted, you may need to manually clean up:
 kubectl delete namespace e2e-test-infra e2e-test-hobby
 
 # Remove generated configs
-rm -rf configs/namespace
+rm -rf configs/namespace configs/cloudflare configs/bitwarden configs/webdav configs/postgres configs/pgadmin configs/gitea configs/drone configs/monitoring configs/workpod configs/hobbypod configs/pet-projects
 ```
 
 ## Troubleshooting

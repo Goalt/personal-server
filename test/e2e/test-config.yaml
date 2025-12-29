@@ -11,3 +11,68 @@ backup:
   sentry_dsn: ""
   cron: "*/30 * * * *"
   passphrase: ""
+
+modules:
+  - name: cloudflare
+    namespace: e2e-test-infra
+    secrets:
+      cloudflare_api_token: test-token-e2e
+
+  - name: bitwarden
+    namespace: e2e-test-infra
+
+  - name: webdav
+    namespace: e2e-test-infra
+    secrets:
+      webdav_username: e2e-test
+      webdav_password: e2e-test-password
+
+  - name: postgres
+    namespace: e2e-test-infra
+    secrets:
+      admin_postgres_user: e2e-admin
+      admin_postgres_password: e2e-test-password
+
+  - name: pgadmin
+    namespace: e2e-test-infra
+    secrets:
+      pgadmin_default_email: e2e-test@example.com
+      pgadmin_admin_password: e2e-test-password
+
+  - name: gitea
+    namespace: e2e-test-infra
+    secrets:
+      gitea_db_password: e2e-test-gitea-password
+
+  - name: drone
+    namespace: e2e-test-infra
+    secrets:
+      drone_gitea_client_id: e2e-test-client-id
+      drone_gitea_client_secret: e2e-test-client-secret
+      drone_rpc_secret: e2e-test-rpc-secret
+      drone_server_proto: https
+      drone_server_host: drone
+
+  - name: monitoring
+    namespace: e2e-test-infra
+    secrets:
+      sentry_dsn: https://test@sentry.io/e2e-test-123
+
+  - name: work-pod
+    namespace: e2e-test-infra
+
+  - name: hobby-pod
+    namespace: e2e-test-infra
+
+pet-projects:
+  - name: test-pet-project
+    namespace: e2e-test-infra
+    image: nginx:latest
+    environment:
+      TEST_ENV: "test-value"
+      ANOTHER_VAR: "another-value"
+    service:
+      ports:
+        - name: http
+          port: 80
+          target_port: 8080

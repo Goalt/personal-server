@@ -63,3 +63,16 @@ modules:
 
   - name: hobby-pod
     namespace: e2e-test-infra
+
+pet-projects:
+  - name: test-pet-project
+    namespace: e2e-test-infra
+    image: nginx:latest
+    environment:
+      TEST_ENV: "test-value"
+      ANOTHER_VAR: "another-value"
+    service:
+      ports:
+        - name: http
+          port: 80
+          target_port: 8080

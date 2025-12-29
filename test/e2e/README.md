@@ -114,6 +114,18 @@ Tests the complete lifecycle of the `hobbypod` module:
 4. **Backup**: Tests the backup functionality (may not complete if pod is not ready)
 5. **Clean**: Removes hobby pod resources from the cluster
 
+### PetProject E2E Test
+
+Tests the complete lifecycle of the `petproject` module:
+
+1. **Generate**: Creates Kubernetes configurations for pet project (Deployment, Service)
+2. **Apply**: Deploys the pet project to the cluster
+3. **Status**: Checks the status of the pet project deployment and service
+4. **Rollout Restart**: Tests the rollout restart functionality
+5. **Rollout Status**: Tests the rollout status command
+6. **Apply Idempotency**: Verifies that applying twice fails with appropriate error
+7. **Clean**: Removes pet project resources from the cluster
+
 ## Prerequisites
 
 - Go 1.25.3 or later
@@ -169,6 +181,7 @@ go test -v -timeout 10m -run TestDroneE2E
 go test -v -timeout 10m -run TestMonitoringE2E
 go test -v -timeout 10m -run TestWorkpodE2E
 go test -v -timeout 10m -run TestHobbypodE2E
+go test -v -timeout 10m -run TestPetProjectE2E
 ```
 
 ### Skipping E2E tests during regular test runs
@@ -213,7 +226,7 @@ If a test fails or is interrupted, you may need to manually clean up:
 kubectl delete namespace e2e-test-infra e2e-test-hobby
 
 # Remove generated configs
-rm -rf configs/namespace configs/cloudflare configs/bitwarden configs/webdav configs/postgres configs/pgadmin configs/gitea configs/drone configs/monitoring configs/workpod configs/hobbypod
+rm -rf configs/namespace configs/cloudflare configs/bitwarden configs/webdav configs/postgres configs/pgadmin configs/gitea configs/drone configs/monitoring configs/workpod configs/hobbypod configs/pet-projects
 ```
 
 ## Troubleshooting

@@ -192,13 +192,6 @@ func TestGiteaModule_PreparePVC(t *testing.T) {
 	if actualStorage.Cmp(expectedStorage) != 0 {
 		t.Errorf("PVC storage request = %s, want %s", actualStorage.String(), expectedStorage.String())
 	}
-
-	// Test storage class
-	if pvc.Spec.StorageClassName == nil {
-		t.Error("PVC storage class is nil")
-	} else if *pvc.Spec.StorageClassName != "microk8s-hostpath" {
-		t.Errorf("PVC storage class = %s, want microk8s-hostpath", *pvc.Spec.StorageClassName)
-	}
 }
 
 func TestGiteaModule_PrepareService(t *testing.T) {

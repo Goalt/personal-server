@@ -52,3 +52,8 @@ modules:
       drone_rpc_secret: e2e-test-rpc-secret
       drone_server_proto: https
       drone_server_host: drone
+
+  - name: monitoring
+    namespace: e2e-test-infra
+    secrets:
+      sentry_dsn: https://test@sentry.io/e2e-test-123

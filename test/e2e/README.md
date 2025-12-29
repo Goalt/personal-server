@@ -84,6 +84,16 @@ Tests the complete lifecycle of the `drone` module:
 3. **Status**: Checks the status of the Drone deployments
 4. **Clean**: Removes Drone resources from the cluster
 
+### Monitoring E2E Test
+
+Tests the complete lifecycle of the `monitoring` module:
+
+1. **Generate**: Creates Kubernetes configurations for Sentry monitoring (ServiceAccount, ClusterRole, ClusterRoleBinding, Secret, Deployment)
+2. **Apply**: Deploys Sentry Kubernetes monitoring to the cluster
+3. **Status**: Checks the status of all monitoring resources
+4. **Apply Idempotency**: Verifies that applying twice fails with appropriate error messages
+5. **Clean**: Removes all monitoring resources from the cluster (including cluster-wide resources)
+
 ## Prerequisites
 
 - Go 1.25.3 or later
@@ -136,6 +146,7 @@ go test -v -timeout 10m -run TestPostgresE2E
 go test -v -timeout 10m -run TestPgadminE2E
 go test -v -timeout 10m -run TestGiteaE2E
 go test -v -timeout 10m -run TestDroneE2E
+go test -v -timeout 10m -run TestMonitoringE2E
 ```
 
 ### Skipping E2E tests during regular test runs
@@ -180,7 +191,7 @@ If a test fails or is interrupted, you may need to manually clean up:
 kubectl delete namespace e2e-test-infra e2e-test-hobby
 
 # Remove generated configs
-rm -rf configs/namespace configs/cloudflare configs/bitwarden configs/webdav configs/postgres configs/pgadmin configs/gitea configs/drone
+rm -rf configs/namespace configs/cloudflare configs/bitwarden configs/webdav configs/postgres configs/pgadmin configs/gitea configs/drone configs/monitoring
 ```
 
 ## Troubleshooting

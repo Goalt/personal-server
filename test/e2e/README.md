@@ -65,6 +65,16 @@ Tests the complete lifecycle of the `pgadmin` module:
 3. **Status**: Checks the status of the pgAdmin deployment
 4. **Clean**: Removes pgAdmin resources from the cluster
 
+### Gitea E2E Test
+
+Tests the complete lifecycle of the `gitea` module:
+
+1. **Generate**: Creates Kubernetes configurations for Gitea
+2. **Apply**: Deploys Gitea to the cluster
+3. **Status**: Checks the status of the Gitea deployment
+4. **Backup**: Tests the backup functionality (may not complete if pod is not ready)
+5. **Clean**: Removes Gitea resources from the cluster
+
 ## Prerequisites
 
 - Go 1.25.3 or later
@@ -115,6 +125,7 @@ go test -v -timeout 10m -run TestBitwardenE2E
 go test -v -timeout 10m -run TestWebdavE2E
 go test -v -timeout 10m -run TestPostgresE2E
 go test -v -timeout 10m -run TestPgadminE2E
+go test -v -timeout 10m -run TestGiteaE2E
 ```
 
 ### Skipping E2E tests during regular test runs
@@ -159,7 +170,7 @@ If a test fails or is interrupted, you may need to manually clean up:
 kubectl delete namespace e2e-test-infra e2e-test-hobby
 
 # Remove generated configs
-rm -rf configs/namespace configs/cloudflare configs/bitwarden configs/webdav configs/postgres configs/pgadmin
+rm -rf configs/namespace configs/cloudflare configs/bitwarden configs/webdav configs/postgres configs/pgadmin configs/gitea
 ```
 
 ## Troubleshooting

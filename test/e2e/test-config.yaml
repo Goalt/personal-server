@@ -38,3 +38,8 @@ modules:
     secrets:
       pgadmin_default_email: e2e-test@example.com
       pgadmin_admin_password: e2e-test-password
+
+  - name: gitea
+    namespace: e2e-test-infra
+    secrets:
+      gitea_db_password: e2e-test-gitea-password

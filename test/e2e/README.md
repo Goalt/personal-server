@@ -46,6 +46,25 @@ Tests the complete lifecycle of the `webdav` module:
 4. **Backup**: Tests the backup functionality (may not complete if pod is not ready)
 5. **Clean**: Removes WebDAV resources from the cluster
 
+### Postgres E2E Test
+
+Tests the complete lifecycle of the `postgres` module:
+
+1. **Generate**: Creates Kubernetes configurations for PostgreSQL database
+2. **Apply**: Deploys PostgreSQL to the cluster
+3. **Status**: Checks the status of the PostgreSQL deployment
+4. **Backup**: Tests the backup functionality (may not complete if pod is not ready)
+5. **Clean**: Removes PostgreSQL resources from the cluster
+
+### pgAdmin E2E Test
+
+Tests the complete lifecycle of the `pgadmin` module:
+
+1. **Generate**: Creates Kubernetes configurations for pgAdmin
+2. **Apply**: Deploys pgAdmin to the cluster
+3. **Status**: Checks the status of the pgAdmin deployment
+4. **Clean**: Removes pgAdmin resources from the cluster
+
 ## Prerequisites
 
 - Go 1.25.3 or later
@@ -94,6 +113,8 @@ go test -v -timeout 10m -run TestNamespaceE2E
 go test -v -timeout 10m -run TestCloudflareE2E
 go test -v -timeout 10m -run TestBitwardenE2E
 go test -v -timeout 10m -run TestWebdavE2E
+go test -v -timeout 10m -run TestPostgresE2E
+go test -v -timeout 10m -run TestPgadminE2E
 ```
 
 ### Skipping E2E tests during regular test runs
@@ -138,7 +159,7 @@ If a test fails or is interrupted, you may need to manually clean up:
 kubectl delete namespace e2e-test-infra e2e-test-hobby
 
 # Remove generated configs
-rm -rf configs/namespace configs/cloudflare configs/bitwarden configs/webdav
+rm -rf configs/namespace configs/cloudflare configs/bitwarden configs/webdav configs/postgres configs/pgadmin
 ```
 
 ## Troubleshooting

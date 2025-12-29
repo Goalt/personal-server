@@ -26,3 +26,15 @@ modules:
     secrets:
       webdav_username: e2e-test
       webdav_password: e2e-test-password
+
+  - name: postgres
+    namespace: e2e-test-infra
+    secrets:
+      admin_postgres_user: e2e-admin
+      admin_postgres_password: e2e-test-password
+
+  - name: pgadmin
+    namespace: e2e-test-infra
+    secrets:
+      pgadmin_default_email: e2e-test@example.com
+      pgadmin_admin_password: e2e-test-password

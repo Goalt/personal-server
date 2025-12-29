@@ -43,3 +43,12 @@ modules:
     namespace: e2e-test-infra
     secrets:
       gitea_db_password: e2e-test-gitea-password
+
+  - name: drone
+    namespace: e2e-test-infra
+    secrets:
+      drone_gitea_client_id: e2e-test-client-id
+      drone_gitea_client_secret: e2e-test-client-secret
+      drone_rpc_secret: e2e-test-rpc-secret
+      drone_server_proto: https
+      drone_server_host: drone

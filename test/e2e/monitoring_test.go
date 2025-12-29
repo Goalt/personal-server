@@ -306,5 +306,3 @@ func TestMonitoringE2E(t *testing.T) {
 		}
 	})
 }
-
-

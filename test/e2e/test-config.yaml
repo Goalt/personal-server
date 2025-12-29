@@ -60,3 +60,6 @@ modules:
 
   - name: work-pod
     namespace: e2e-test-infra
+
+  - name: hobby-pod
+    namespace: e2e-test-infra

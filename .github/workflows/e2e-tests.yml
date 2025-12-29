@@ -70,5 +70,5 @@ jobs:
           kubectl delete namespace e2e-test-infra --ignore-not-found=true
           kubectl delete namespace e2e-test-hobby --ignore-not-found=true
           # Clean up generated configs
-          rm -rf configs/namespace configs/cloudflare configs/bitwarden configs/webdav configs/postgres configs/pgadmin configs/gitea configs/drone configs/monitoring configs/workpod
+          rm -rf configs/namespace configs/cloudflare configs/bitwarden configs/webdav configs/postgres configs/pgadmin configs/gitea configs/drone configs/monitoring configs/workpod configs/hobbypod
 

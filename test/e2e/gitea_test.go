@@ -259,4 +259,3 @@ func TestGiteaE2E(t *testing.T) {
 		}
 	})
 }
-

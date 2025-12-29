@@ -18,15 +18,14 @@ func TestWebdavE2E(t *testing.T) {
 		t.Skip("Skipping e2e test in short mode")
 	}
 
-	// Change to the repository root
-	repoRoot := filepath.Join("..", "..")
-	if err := os.Chdir(repoRoot); err != nil {
-		t.Fatalf("failed to change to repo root: %v", err)
-	}
+	// Construct full path to binary from test directory
+	fullBinaryPath := filepath.Join("..", "..", binaryPath)
+	// Construct full path to config from test directory
+	fullConfigPath := filepath.Join("..", "..", testConfigPath)
 
 	// Verify binary exists
-	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
-		t.Fatalf("binary not found at %s. Run 'make build' first", binaryPath)
+	if _, err := os.Stat(fullBinaryPath); os.IsNotExist(err) {
+		t.Fatalf("binary not found at %s. Run 'make build' first", fullBinaryPath)
 	}
 
 	// Create Kubernetes client
@@ -114,7 +113,7 @@ func TestWebdavE2E(t *testing.T) {
 
 	// Test 1: Generate webdav configurations
 	t.Run("Generate", func(t *testing.T) {
-		output, err := runCommand(t, binaryPath, "-config", testConfigPath, "webdav", "generate")
+		output, err := runCommand(t, fullBinaryPath, "-config", fullConfigPath, "webdav", "generate")
 		if err != nil {
 			t.Fatalf("failed to generate webdav configs: %v", err)
 		}
@@ -134,7 +133,7 @@ func TestWebdavE2E(t *testing.T) {
 
 	// Test 2: Apply webdav configurations
 	t.Run("Apply", func(t *testing.T) {
-		output, err := runCommand(t, binaryPath, "-config", testConfigPath, "webdav", "apply")
+		output, err := runCommand(t, fullBinaryPath, "-config", fullConfigPath, "webdav", "apply")
 		if err != nil {
 			t.Fatalf("failed to apply webdav configs: %v", err)
 		}
@@ -185,11 +184,36 @@ func TestWebdavE2E(t *testing.T) {
 		} else {
 			t.Logf("Verified deployment exists: %s", deployment.Name)
 		}
+
+		// Add a sleep to wait for the pod to be ready
+		time.Sleep(10 * time.Second)
+
+		// Verify pod is running - get pod from deployment
+		labelSelector := metav1.FormatLabelSelector(deployment.Spec.Selector)
+		pods, err := client.CoreV1().Pods(testNamespace).List(ctx, metav1.ListOptions{
+			LabelSelector: labelSelector,
+		})
+		if err != nil {
+			t.Errorf("failed to list pods for deployment webdav: %v", err)
+		}
+		if len(pods.Items) == 0 {
+			t.Errorf("no pods found for deployment webdav")
+		} else {
+			t.Logf("Verified pod exists: %s", pods.Items[0].Name)
+		}
+
+		// Verify pod is running
+		if pods.Items[0].Status.Phase != corev1.PodRunning {
+			t.Errorf("pod webdav is not running: %s", pods.Items[0].Status.Phase)
+		} else {
+			t.Logf("Verified pod is running: %s", pods.Items[0].Name)
+		}
+
 	})
 
 	// Test 3: Check status
 	t.Run("Status", func(t *testing.T) {
-		output, err := runCommand(t, binaryPath, "-config", testConfigPath, "webdav", "status")
+		output, err := runCommand(t, fullBinaryPath, "-config", fullConfigPath, "webdav", "status")
 		if err != nil {
 			t.Fatalf("failed to get webdav status: %v", err)
 		}
@@ -208,7 +232,7 @@ func TestWebdavE2E(t *testing.T) {
 
 	// Test 5: Clean up webdav resources
 	t.Run("Clean", func(t *testing.T) {
-		output, err := runCommand(t, binaryPath, "-config", testConfigPath, "webdav", "clean")
+		output, err := runCommand(t, fullBinaryPath, "-config", fullConfigPath, "webdav", "clean")
 		if err != nil {
 			t.Fatalf("failed to clean webdav: %v", err)
 		}

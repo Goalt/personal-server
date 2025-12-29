@@ -220,7 +220,7 @@ func (m *GiteaModule) prepare() (*corev1.Secret, *corev1.PersistentVolumeClaim, 
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: resource.MustParse("1Gi"),
+					corev1.ResourceStorage: resource.MustParse("10Gi"),
 				},
 			},
 			StorageClassName: func() *string { s := "microk8s-hostpath"; return &s }(),

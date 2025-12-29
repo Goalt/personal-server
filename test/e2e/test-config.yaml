@@ -57,3 +57,6 @@ modules:
     namespace: e2e-test-infra
     secrets:
       sentry_dsn: https://test@sentry.io/e2e-test-123
+
+  - name: work-pod
+    namespace: e2e-test-infra

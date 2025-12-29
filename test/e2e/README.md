@@ -94,6 +94,16 @@ Tests the complete lifecycle of the `monitoring` module:
 4. **Apply Idempotency**: Verifies that applying twice fails with appropriate error messages
 5. **Clean**: Removes all monitoring resources from the cluster (including cluster-wide resources)
 
+### Workpod E2E Test
+
+Tests the complete lifecycle of the `workpod` module:
+
+1. **Generate**: Creates Kubernetes configurations for work pod (PVC, Deployment)
+2. **Apply**: Deploys the work pod to the cluster
+3. **Status**: Checks the status of the work pod deployment
+4. **Backup**: Tests the backup functionality (may not complete if pod is not ready)
+5. **Clean**: Removes work pod resources from the cluster
+
 ## Prerequisites
 
 - Go 1.25.3 or later
@@ -147,6 +157,7 @@ go test -v -timeout 10m -run TestPgadminE2E
 go test -v -timeout 10m -run TestGiteaE2E
 go test -v -timeout 10m -run TestDroneE2E
 go test -v -timeout 10m -run TestMonitoringE2E
+go test -v -timeout 10m -run TestWorkpodE2E
 ```
 
 ### Skipping E2E tests during regular test runs

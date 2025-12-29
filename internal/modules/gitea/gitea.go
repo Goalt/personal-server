@@ -223,7 +223,7 @@ func (m *GiteaModule) prepare() (*corev1.Secret, *corev1.PersistentVolumeClaim, 
 					corev1.ResourceStorage: resource.MustParse("10Gi"),
 				},
 			},
-			StorageClassName: func() *string { s := "microk8s-hostpath"; return &s }(),
+			// StorageClassName: func() *string { s := "microk8s-hostpath"; return &s }(),
 		},
 	}
 

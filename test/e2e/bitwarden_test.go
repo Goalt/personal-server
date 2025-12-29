@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -31,13 +32,36 @@ func TestBitwardenE2E(t *testing.T) {
 	// Create Kubernetes client
 	client := createKubeClient(t)
 
+	// Ensure the test namespace exists
+	ctx := context.Background()
+	_, err := client.CoreV1().Namespaces().Get(ctx, testNamespace, metav1.GetOptions{})
+	if err != nil {
+		// Namespace doesn't exist, create it
+		t.Logf("Creating test namespace: %s", testNamespace)
+		namespace := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: testNamespace,
+				Labels: map[string]string{
+					"managed-by": "personal-server",
+				},
+			},
+		}
+		_, err = client.CoreV1().Namespaces().Create(ctx, namespace, metav1.CreateOptions{})
+		if err != nil {
+			t.Fatalf("failed to create test namespace %s: %v", testNamespace, err)
+		}
+		t.Logf("Created test namespace: %s", testNamespace)
+	} else {
+		t.Logf("Test namespace %s already exists", testNamespace)
+	}
+
 	// Cleanup function - runs at the end
 	defer func() {
 		t.Log("Cleaning up bitwarden resources...")
 		ctx := context.Background()
 
 		// Delete deployment
-		deploymentName := "vaultwarden"
+		deploymentName := "bitwarden"
 		// Using testNamespace constant
 		err := client.AppsV1().Deployments(testNamespace).Delete(ctx, deploymentName, metav1.DeleteOptions{})
 		if err != nil {
@@ -47,7 +71,7 @@ func TestBitwardenE2E(t *testing.T) {
 		}
 
 		// Delete service
-		serviceName := "vaultwarden"
+		serviceName := "bitwarden"
 		err = client.CoreV1().Services(testNamespace).Delete(ctx, serviceName, metav1.DeleteOptions{})
 		if err != nil {
 			t.Logf("Warning: failed to delete service %s: %v", serviceName, err)
@@ -56,7 +80,7 @@ func TestBitwardenE2E(t *testing.T) {
 		}
 
 		// Delete PVC
-		pvcName := "vaultwarden-data"
+		pvcName := "bitwarden-claim0"
 		err = client.CoreV1().PersistentVolumeClaims(testNamespace).Delete(ctx, pvcName, metav1.DeleteOptions{})
 		if err != nil {
 			t.Logf("Warning: failed to delete PVC %s: %v", pvcName, err)
@@ -105,25 +129,25 @@ func TestBitwardenE2E(t *testing.T) {
 		// Using testNamespace constant
 
 		// Verify PVC was created
-		pvc, err := client.CoreV1().PersistentVolumeClaims(testNamespace).Get(ctx, "vaultwarden-data", metav1.GetOptions{})
+		pvc, err := client.CoreV1().PersistentVolumeClaims(testNamespace).Get(ctx, "bitwarden-claim0", metav1.GetOptions{})
 		if err != nil {
-			t.Errorf("PVC vaultwarden-data was not created: %v", err)
+			t.Errorf("PVC bitwarden-claim0 was not created: %v", err)
 		} else {
 			t.Logf("Verified PVC exists: %s", pvc.Name)
 		}
 
 		// Verify service was created
-		service, err := client.CoreV1().Services(testNamespace).Get(ctx, "vaultwarden", metav1.GetOptions{})
+		service, err := client.CoreV1().Services(testNamespace).Get(ctx, "bitwarden", metav1.GetOptions{})
 		if err != nil {
-			t.Errorf("service vaultwarden was not created: %v", err)
+			t.Errorf("service bitwarden was not created: %v", err)
 		} else {
 			t.Logf("Verified service exists: %s", service.Name)
 		}
 
 		// Verify deployment was created
-		deployment, err := client.AppsV1().Deployments(testNamespace).Get(ctx, "vaultwarden", metav1.GetOptions{})
+		deployment, err := client.AppsV1().Deployments(testNamespace).Get(ctx, "bitwarden", metav1.GetOptions{})
 		if err != nil {
-			t.Errorf("deployment vaultwarden was not created: %v", err)
+			t.Errorf("deployment bitwarden was not created: %v", err)
 		} else {
 			t.Logf("Verified deployment exists: %s", deployment.Name)
 		}
@@ -138,8 +162,8 @@ func TestBitwardenE2E(t *testing.T) {
 		t.Logf("Status output:\n%s", output)
 
 		// Verify output contains deployment name
-		if !strings.Contains(output, "vaultwarden") {
-			t.Errorf("status output does not contain deployment name: vaultwarden")
+		if !strings.Contains(output, "bitwarden") {
+			t.Errorf("status output does not contain deployment name: bitwarden")
 		}
 	})
 
@@ -163,27 +187,27 @@ func TestBitwardenE2E(t *testing.T) {
 		// Using testNamespace constant
 
 		// Verify deployment is deleted or being deleted
-		_, err = client.AppsV1().Deployments(testNamespace).Get(ctx, "vaultwarden", metav1.GetOptions{})
+		_, err = client.AppsV1().Deployments(testNamespace).Get(ctx, "bitwarden", metav1.GetOptions{})
 		if err == nil {
-			t.Logf("Warning: deployment vaultwarden still exists after clean")
+			t.Logf("Warning: deployment bitwarden still exists after clean")
 		} else {
-			t.Logf("Deployment vaultwarden deleted successfully")
+			t.Logf("Deployment bitwarden deleted successfully")
 		}
 
 		// Verify service is deleted or being deleted
-		_, err = client.CoreV1().Services(testNamespace).Get(ctx, "vaultwarden", metav1.GetOptions{})
+		_, err = client.CoreV1().Services(testNamespace).Get(ctx, "bitwarden", metav1.GetOptions{})
 		if err == nil {
-			t.Logf("Warning: service vaultwarden still exists after clean")
+			t.Logf("Warning: service bitwarden still exists after clean")
 		} else {
-			t.Logf("Service vaultwarden deleted successfully")
+			t.Logf("Service bitwarden deleted successfully")
 		}
 
 		// Verify PVC is deleted or being deleted
-		_, err = client.CoreV1().PersistentVolumeClaims(testNamespace).Get(ctx, "vaultwarden-data", metav1.GetOptions{})
+		_, err = client.CoreV1().PersistentVolumeClaims(testNamespace).Get(ctx, "bitwarden-claim0", metav1.GetOptions{})
 		if err == nil {
-			t.Logf("Warning: PVC vaultwarden-data still exists after clean")
+			t.Logf("Warning: PVC bitwarden-claim0 still exists after clean")
 		} else {
-			t.Logf("PVC vaultwarden-data deleted successfully")
+			t.Logf("PVC bitwarden-claim0 deleted successfully")
 		}
 	})
 }

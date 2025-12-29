@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -31,13 +32,36 @@ func TestCloudflareE2E(t *testing.T) {
 	// Create Kubernetes client
 	client := createKubeClient(t)
 
+	// Ensure the test namespace exists
+	ctx := context.Background()
+	_, err := client.CoreV1().Namespaces().Get(ctx, testNamespace, metav1.GetOptions{})
+	if err != nil {
+		// Namespace doesn't exist, create it
+		t.Logf("Creating test namespace: %s", testNamespace)
+		namespace := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: testNamespace,
+				Labels: map[string]string{
+					"managed-by": "personal-server",
+				},
+			},
+		}
+		_, err = client.CoreV1().Namespaces().Create(ctx, namespace, metav1.CreateOptions{})
+		if err != nil {
+			t.Fatalf("failed to create test namespace %s: %v", testNamespace, err)
+		}
+		t.Logf("Created test namespace: %s", testNamespace)
+	} else {
+		t.Logf("Test namespace %s already exists", testNamespace)
+	}
+
 	// Cleanup function - runs at the end
 	defer func() {
 		t.Log("Cleaning up cloudflare resources...")
 		ctx := context.Background()
 
 		// Delete deployment
-		deploymentName := "cloudflared"
+		deploymentName := "cloudflared-deployment"
 		err := client.AppsV1().Deployments(testNamespace).Delete(ctx, deploymentName, metav1.DeleteOptions{})
 		if err != nil {
 			t.Logf("Warning: failed to delete deployment %s: %v", deploymentName, err)
@@ -46,7 +70,7 @@ func TestCloudflareE2E(t *testing.T) {
 		}
 
 		// Delete secret
-		secretName := "cloudflare-secret"
+		secretName := "tunnel-token"
 		err = client.CoreV1().Secrets(testNamespace).Delete(ctx, secretName, metav1.DeleteOptions{})
 		if err != nil {
 			t.Logf("Warning: failed to delete secret %s: %v", secretName, err)
@@ -94,17 +118,17 @@ func TestCloudflareE2E(t *testing.T) {
 		ctx := context.Background()
 
 		// Verify secret was created
-		secret, err := client.CoreV1().Secrets(testNamespace).Get(ctx, "cloudflare-secret", metav1.GetOptions{})
+		secret, err := client.CoreV1().Secrets(testNamespace).Get(ctx, "tunnel-token", metav1.GetOptions{})
 		if err != nil {
-			t.Errorf("secret cloudflare-secret was not created: %v", err)
+			t.Errorf("secret tunnel-token was not created: %v", err)
 		} else {
 			t.Logf("Verified secret exists: %s", secret.Name)
 		}
 
 		// Verify deployment was created
-		deployment, err := client.AppsV1().Deployments(testNamespace).Get(ctx, "cloudflared", metav1.GetOptions{})
+		deployment, err := client.AppsV1().Deployments(testNamespace).Get(ctx, "cloudflared-deployment", metav1.GetOptions{})
 		if err != nil {
-			t.Errorf("deployment cloudflared was not created: %v", err)
+			t.Errorf("deployment cloudflared-deployment was not created: %v", err)
 		} else {
 			t.Logf("Verified deployment exists: %s", deployment.Name)
 		}
@@ -138,19 +162,19 @@ func TestCloudflareE2E(t *testing.T) {
 		ctx := context.Background()
 
 		// Verify deployment is deleted or being deleted
-		_, err = client.AppsV1().Deployments(testNamespace).Get(ctx, "cloudflared", metav1.GetOptions{})
+		_, err = client.AppsV1().Deployments(testNamespace).Get(ctx, "cloudflared-deployment", metav1.GetOptions{})
 		if err == nil {
-			t.Logf("Warning: deployment cloudflared still exists after clean")
+			t.Logf("Warning: deployment cloudflared-deployment still exists after clean")
 		} else {
-			t.Logf("Deployment cloudflared deleted successfully")
+			t.Logf("Deployment cloudflared-deployment deleted successfully")
 		}
 
 		// Verify secret is deleted or being deleted
-		_, err = client.CoreV1().Secrets(testNamespace).Get(ctx, "cloudflare-secret", metav1.GetOptions{})
+		_, err = client.CoreV1().Secrets(testNamespace).Get(ctx, "tunnel-token", metav1.GetOptions{})
 		if err == nil {
-			t.Logf("Warning: secret cloudflare-secret still exists after clean")
+			t.Logf("Warning: secret tunnel-token still exists after clean")
 		} else {
-			t.Logf("Secret cloudflare-secret deleted successfully")
+			t.Logf("Secret tunnel-token deleted successfully")
 		}
 	})
 }

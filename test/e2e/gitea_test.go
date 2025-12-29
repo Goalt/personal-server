@@ -171,7 +171,7 @@ func TestGiteaE2E(t *testing.T) {
 		}
 
 		// Add a sleep to wait for the pod to be ready
-		time.Sleep(20 * time.Second)
+		time.Sleep(60 * time.Second)
 
 		// Verify pod is running - get pod from deployment
 		labelSelector := metav1.FormatLabelSelector(deployment.Spec.Selector)

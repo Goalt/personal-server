@@ -189,6 +189,10 @@ func (m *RedisModule) prepare() (*corev1.Secret, *corev1.PersistentVolumeClaim, 
 	redisPassword := k8s.GetSecretOrDefault(m.ModuleConfig.Secrets, "redis_password", "")
 
 	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "redis-secrets",
 			Namespace: m.ModuleConfig.Namespace,
@@ -205,6 +209,10 @@ func (m *RedisModule) prepare() (*corev1.Secret, *corev1.PersistentVolumeClaim, 
 
 	// Prepare PVC
 	pvc := &corev1.PersistentVolumeClaim{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "PersistentVolumeClaim",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "redis-data-pvc",
 			Namespace: m.ModuleConfig.Namespace,
@@ -225,6 +233,10 @@ func (m *RedisModule) prepare() (*corev1.Secret, *corev1.PersistentVolumeClaim, 
 
 	// Prepare Service
 	service := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "redis",
 			Namespace: m.ModuleConfig.Namespace,
@@ -252,6 +264,10 @@ func (m *RedisModule) prepare() (*corev1.Secret, *corev1.PersistentVolumeClaim, 
 	// Prepare Deployment
 	replicas := int32(1)
 	deployment := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "redis",
 			Namespace: m.ModuleConfig.Namespace,

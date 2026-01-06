@@ -247,6 +247,7 @@ func (a *App) printUsage() {
 	a.logger.Println("  monitoring <subcommand>       Manage Monitoring configurations")
 	a.logger.Println("  postgres <subcommand>         Manage Postgres configurations")
 	a.logger.Println("  pgadmin <subcommand>          Manage pgadmin configurations")
+	a.logger.Println("  redis <subcommand>            Manage Redis configurations")
 	a.logger.Println("  ssh-login-notifier <subcommand>  Manage SSH login notification configurations")
 }
 

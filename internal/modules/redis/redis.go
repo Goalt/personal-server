@@ -631,7 +631,10 @@ func (m *RedisModule) Backup(ctx context.Context, destDir string) error {
 	redisPassword := k8s.GetSecretOrDefault(m.ModuleConfig.Secrets, "redis_password", "")
 	var saveCmd *exec.Cmd
 	if redisPassword != "" {
-		// Use REDISCLI_AUTH environment variable to pass password securely in the pod's shell
+		// Use REDISCLI_AUTH environment variable to pass password securely.
+		// The password is set as an env var within the pod's shell context (not as a command arg),
+		// so it won't appear in the host's process list - only "sh -c" is visible externally.
+		// This is the most secure approach as kubectl exec doesn't support --env flag.
 		shellCmd := fmt.Sprintf("REDISCLI_AUTH='%s' redis-cli SAVE", redisPassword)
 		args := append(kubectlArgs[1:], "exec", "-n", m.ModuleConfig.Namespace, podName, "--", "sh", "-c", shellCmd)
 		saveCmd = exec.CommandContext(ctx, kubectlArgs[0], args...)

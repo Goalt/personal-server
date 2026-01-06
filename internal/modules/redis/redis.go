@@ -564,6 +564,14 @@ func (m *RedisModule) Status(ctx context.Context) error {
 	return nil
 }
 
+// getKubectlCommand returns the kubectl command and args array for the environment
+func (m *RedisModule) getKubectlCommand() (string, []string) {
+	if _, err := os.Stat("/snap/bin/microk8s"); err == nil {
+		return "/snap/bin/microk8s", []string{"/snap/bin/microk8s", "kubectl"}
+	}
+	return "kubectl", []string{"kubectl"}
+}
+
 func (m *RedisModule) Backup(ctx context.Context, destDir string) error {
 	// Create Kubernetes client
 	clientset, err := k8s.CreateKubernetesClient()
@@ -602,20 +610,15 @@ func (m *RedisModule) Backup(ctx context.Context, destDir string) error {
 
 	// 1. Trigger Redis SAVE command to ensure data is persisted to disk
 	m.log.Info("💾 Triggering Redis SAVE...\n")
-	kubectlCmd := "kubectl"
-	kubectlArgs := []string{"kubectl"}
-	if _, err := os.Stat("/snap/bin/microk8s"); err == nil {
-		kubectlCmd = "/snap/bin/microk8s"
-		kubectlArgs = []string{kubectlCmd, "kubectl"}
-	}
+	kubectlCmd, kubectlArgs := m.getKubectlCommand()
 
 	redisPassword := k8s.GetSecretOrDefault(m.ModuleConfig.Secrets, "redis_password", "")
 	var saveCmd *exec.Cmd
 	if redisPassword != "" {
-		// Use REDISCLI_AUTH environment variable to pass password securely
-		args := append(kubectlArgs[1:], "exec", "-n", m.ModuleConfig.Namespace, podName, "--", "sh", "-c", "redis-cli SAVE")
+		// Use REDISCLI_AUTH environment variable to pass password securely in the pod's shell
+		shellCmd := fmt.Sprintf("REDISCLI_AUTH='%s' redis-cli SAVE", redisPassword)
+		args := append(kubectlArgs[1:], "exec", "-n", m.ModuleConfig.Namespace, podName, "--", "sh", "-c", shellCmd)
 		saveCmd = exec.CommandContext(ctx, kubectlArgs[0], args...)
-		saveCmd.Env = append(os.Environ(), fmt.Sprintf("REDISCLI_AUTH=%s", redisPassword))
 	} else {
 		args := append(kubectlArgs[1:], "exec", "-n", m.ModuleConfig.Namespace, podName, "--", "redis-cli", "SAVE")
 		saveCmd = exec.CommandContext(ctx, kubectlArgs[0], args...)
@@ -634,7 +637,7 @@ func (m *RedisModule) Backup(ctx context.Context, destDir string) error {
 
 	// Execute tar command in pod and stream to file
 	args := append(kubectlArgs[1:], "exec", "-n", m.ModuleConfig.Namespace, podName, "--", "tar", "czf", "-", "/data")
-	cmd := exec.CommandContext(ctx, kubectlArgs[0], args...)
+	cmd := exec.CommandContext(ctx, kubectlCmd, args...)
 
 	outFile, err := os.Create(dataBackupFile)
 	if err != nil {
@@ -757,15 +760,10 @@ func (m *RedisModule) Restore(ctx context.Context, args []string) error {
 	// Restore data
 	m.log.Info("💾 Restoring data...\n")
 
-	kubectlCmd := "kubectl"
-	kubectlArgs := []string{"kubectl"}
-	if _, err := os.Stat("/snap/bin/microk8s"); err == nil {
-		kubectlCmd = "/snap/bin/microk8s"
-		kubectlArgs = []string{kubectlCmd, "kubectl"}
-	}
+	_, kubectlArgs := m.getKubectlCommand()
 
-	// 1. Clean existing data
-	cleanArgs := append(kubectlArgs[1:], "exec", "-n", m.ModuleConfig.Namespace, podName, "--", "rm", "-rf", "/data/*")
+	// 1. Clean existing data using find command for robust deletion
+	cleanArgs := append(kubectlArgs[1:], "exec", "-n", m.ModuleConfig.Namespace, podName, "--", "sh", "-c", "find /data -mindepth 1 -delete")
 	cleanCmd := exec.CommandContext(ctx, kubectlArgs[0], cleanArgs...)
 	if err := cleanCmd.Run(); err != nil {
 		m.log.Warn("Warning during clean: %v\n", err)

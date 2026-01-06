@@ -603,20 +603,22 @@ func (m *RedisModule) Backup(ctx context.Context, destDir string) error {
 	// 1. Trigger Redis SAVE command to ensure data is persisted to disk
 	m.log.Info("💾 Triggering Redis SAVE...\n")
 	kubectlCmd := "kubectl"
+	kubectlArgs := []string{"kubectl"}
 	if _, err := os.Stat("/snap/bin/microk8s"); err == nil {
-		kubectlCmd = "/snap/bin/microk8s kubectl"
+		kubectlCmd = "/snap/bin/microk8s"
+		kubectlArgs = []string{kubectlCmd, "kubectl"}
 	}
 
 	redisPassword := k8s.GetSecretOrDefault(m.ModuleConfig.Secrets, "redis_password", "")
 	var saveCmd *exec.Cmd
 	if redisPassword != "" {
-		saveCmdStr := fmt.Sprintf("%s exec -n %s %s -- redis-cli -a %s SAVE", kubectlCmd, m.ModuleConfig.Namespace, podName, redisPassword)
-		saveCmdParts := strings.Fields(saveCmdStr)
-		saveCmd = exec.CommandContext(ctx, saveCmdParts[0], saveCmdParts[1:]...)
+		// Use REDISCLI_AUTH environment variable to pass password securely
+		args := append(kubectlArgs[1:], "exec", "-n", m.ModuleConfig.Namespace, podName, "--", "sh", "-c", "redis-cli SAVE")
+		saveCmd = exec.CommandContext(ctx, kubectlArgs[0], args...)
+		saveCmd.Env = append(os.Environ(), fmt.Sprintf("REDISCLI_AUTH=%s", redisPassword))
 	} else {
-		saveCmdStr := fmt.Sprintf("%s exec -n %s %s -- redis-cli SAVE", kubectlCmd, m.ModuleConfig.Namespace, podName)
-		saveCmdParts := strings.Fields(saveCmdStr)
-		saveCmd = exec.CommandContext(ctx, saveCmdParts[0], saveCmdParts[1:]...)
+		args := append(kubectlArgs[1:], "exec", "-n", m.ModuleConfig.Namespace, podName, "--", "redis-cli", "SAVE")
+		saveCmd = exec.CommandContext(ctx, kubectlArgs[0], args...)
 	}
 
 	if err := saveCmd.Run(); err != nil {
@@ -631,9 +633,8 @@ func (m *RedisModule) Backup(ctx context.Context, destDir string) error {
 	dataBackupFile := filepath.Join(backupDir, fmt.Sprintf("redis_data_%s.tar.gz", timestamp))
 
 	// Execute tar command in pod and stream to file
-	cmdStr := fmt.Sprintf("%s exec -n %s %s -- tar czf - /data", kubectlCmd, m.ModuleConfig.Namespace, podName)
-	cmdParts := strings.Fields(cmdStr)
-	cmd := exec.CommandContext(ctx, cmdParts[0], cmdParts[1:]...)
+	args := append(kubectlArgs[1:], "exec", "-n", m.ModuleConfig.Namespace, podName, "--", "tar", "czf", "-", "/data")
+	cmd := exec.CommandContext(ctx, kubectlArgs[0], args...)
 
 	outFile, err := os.Create(dataBackupFile)
 	if err != nil {
@@ -757,22 +758,22 @@ func (m *RedisModule) Restore(ctx context.Context, args []string) error {
 	m.log.Info("💾 Restoring data...\n")
 
 	kubectlCmd := "kubectl"
+	kubectlArgs := []string{"kubectl"}
 	if _, err := os.Stat("/snap/bin/microk8s"); err == nil {
-		kubectlCmd = "/snap/bin/microk8s kubectl"
+		kubectlCmd = "/snap/bin/microk8s"
+		kubectlArgs = []string{kubectlCmd, "kubectl"}
 	}
 
 	// 1. Clean existing data
-	cleanCmdStr := fmt.Sprintf("%s exec -n %s %s -- rm -rf /data/*", kubectlCmd, m.ModuleConfig.Namespace, podName)
-	cleanCmdParts := strings.Fields(cleanCmdStr)
-	cleanCmd := exec.CommandContext(ctx, cleanCmdParts[0], cleanCmdParts[1:]...)
+	cleanArgs := append(kubectlArgs[1:], "exec", "-n", m.ModuleConfig.Namespace, podName, "--", "rm", "-rf", "/data/*")
+	cleanCmd := exec.CommandContext(ctx, kubectlArgs[0], cleanArgs...)
 	if err := cleanCmd.Run(); err != nil {
 		m.log.Warn("Warning during clean: %v\n", err)
 	}
 
 	// 2. Restore from tar
-	restoreCmdStr := fmt.Sprintf("%s exec -i -n %s %s -- tar xzf - -C /", kubectlCmd, m.ModuleConfig.Namespace, podName)
-	restoreCmdParts := strings.Fields(restoreCmdStr)
-	restoreCmd := exec.CommandContext(ctx, restoreCmdParts[0], restoreCmdParts[1:]...)
+	restoreArgs := append(kubectlArgs[1:], "exec", "-i", "-n", m.ModuleConfig.Namespace, podName, "--", "tar", "xzf", "-", "-C", "/")
+	restoreCmd := exec.CommandContext(ctx, kubectlArgs[0], restoreArgs...)
 
 	inFile, err := os.Open(dataBackupFile)
 	if err != nil {
@@ -792,9 +793,8 @@ func (m *RedisModule) Restore(ctx context.Context, args []string) error {
 	// Restart deployment
 	m.log.Info("🔄 Restarting deployment 'redis'...\n")
 
-	restartCmdStr := fmt.Sprintf("%s rollout restart deployment/redis -n %s", kubectlCmd, m.ModuleConfig.Namespace)
-	restartCmdParts := strings.Fields(restartCmdStr)
-	restartCmd := exec.CommandContext(ctx, restartCmdParts[0], restartCmdParts[1:]...)
+	restartArgs := append(kubectlArgs[1:], "rollout", "restart", "deployment/redis", "-n", m.ModuleConfig.Namespace)
+	restartCmd := exec.CommandContext(ctx, kubectlArgs[0], restartArgs...)
 
 	if err := restartCmd.Run(); err != nil {
 		m.log.Warn("Failed to trigger rollout restart: %v\n", err)

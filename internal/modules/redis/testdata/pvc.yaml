@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    creationTimestamp: null
+    labels:
+        app: redis
+        managed-by: personal-server
+    name: redis-data-pvc
+    namespace: infra
+spec:
+    accessModes:
+        - ReadWriteOnce
+    resources:
+        requests:
+            storage: 5Gi
+status: {}

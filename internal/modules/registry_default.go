@@ -13,6 +13,7 @@ import (
 	"github.com/Goalt/personal-server/internal/modules/petproject"
 	"github.com/Goalt/personal-server/internal/modules/pgadmin"
 	"github.com/Goalt/personal-server/internal/modules/postgres"
+	"github.com/Goalt/personal-server/internal/modules/redis"
 	"github.com/Goalt/personal-server/internal/modules/sshlogin"
 	"github.com/Goalt/personal-server/internal/modules/webdav"
 	"github.com/Goalt/personal-server/internal/modules/workpod"
@@ -57,6 +58,9 @@ func DefaultRegistry(log logger.Logger) *Registry {
 	})
 	r.Register("pgadmin", func(g config.GeneralConfig, m config.Module, log logger.Logger) Module {
 		return pgadmin.New(g, m, log)
+	})
+	r.Register("redis", func(g config.GeneralConfig, m config.Module, log logger.Logger) Module {
+		return redis.New(g, m, log)
 	})
 	r.Register("ssh-login-notifier", func(g config.GeneralConfig, m config.Module, log logger.Logger) Module {
 		return sshlogin.New(g, m, log)

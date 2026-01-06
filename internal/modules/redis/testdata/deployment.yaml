@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    creationTimestamp: null
+    labels:
+        app: redis
+        managed-by: personal-server
+    name: redis
+    namespace: infra
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: redis
+    strategy: {}
+    template:
+        metadata:
+            creationTimestamp: null
+            labels:
+                app: redis
+        spec:
+            containers:
+                - args:
+                    - --requirepass
+                    - $(REDIS_PASSWORD)
+                  env:
+                    - name: REDIS_PASSWORD
+                      valueFrom:
+                        secretKeyRef:
+                            key: redis-password
+                            name: redis-secrets
+                  image: redis:7.2-alpine
+                  imagePullPolicy: IfNotPresent
+                  livenessProbe:
+                    exec:
+                        command:
+                            - redis-cli
+                            - -a
+                            - $(REDIS_PASSWORD)
+                            - ping
+                    initialDelaySeconds: 30
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                  name: redis
+                  ports:
+                    - containerPort: 6379
+                      name: redis
+                  readinessProbe:
+                    exec:
+                        command:
+                            - redis-cli
+                            - -a
+                            - $(REDIS_PASSWORD)
+                            - ping
+                    initialDelaySeconds: 5
+                    periodSeconds: 5
+                    timeoutSeconds: 3
+                  resources: {}
+                  volumeMounts:
+                    - mountPath: /data
+                      name: redis-data
+            volumes:
+                - name: redis-data
+                  persistentVolumeClaim:
+                    claimName: redis-data-pvc
+status: {}

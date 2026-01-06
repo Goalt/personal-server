@@ -50,6 +50,10 @@ modules:
     secrets:
       gitea_db_user: gitea
       gitea_db_password: secret_password
+  - name: redis
+    namespace: infra
+    secrets:
+      redis_password: secret_password
   - name: ssh-login-notifier
     namespace: infra
     secrets:

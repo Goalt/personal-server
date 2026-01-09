@@ -356,6 +356,7 @@ pet-projects:
   - name: myapp
     namespace: hobby
     image: nginx:latest
+    imagePullSecret: regcred
     environment:
       PORT: "8080"
       ENV: "production"
@@ -397,6 +398,10 @@ pet-projects:
 
 	if len(config.PetProjects[0].Environment) != 2 {
 		t.Errorf("Expected 2 environment variables in first pet project, got %d", len(config.PetProjects[0].Environment))
+	}
+
+	if config.PetProjects[0].ImagePullSecret != "regcred" {
+		t.Errorf("Expected imagePullSecret to be 'regcred', got '%s'", config.PetProjects[0].ImagePullSecret)
 	}
 
 	if config.PetProjects[0].Environment["PORT"] != "8080" {

@@ -183,6 +183,14 @@ func (m *PetProjectModule) prepareDeployment() *appsv1.Deployment {
 							Env:   envVars,
 						},
 					},
+					ImagePullSecrets: func() []corev1.LocalObjectReference {
+						if m.ProjectConfig.ImagePullSecret == "" {
+							return nil
+						}
+						return []corev1.LocalObjectReference{
+							{Name: m.ProjectConfig.ImagePullSecret},
+						}
+					}(),
 					RestartPolicy: corev1.RestartPolicyAlways,
 				},
 			},

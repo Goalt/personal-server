@@ -118,6 +118,38 @@ func TestPrepareDeployment(t *testing.T) {
 	}
 }
 
+func TestPrepareDeploymentWithImagePullSecret(t *testing.T) {
+	generalConfig := config.GeneralConfig{
+		Domain:     "example.com",
+		Namespaces: []string{"hobby"},
+	}
+
+	projectConfig := config.PetProject{
+		Name:            "privateapp",
+		Namespace:       "hobby",
+		Image:           "private.registry/app:latest",
+		ImagePullSecret: "my-regcred",
+	}
+
+	log := logger.Default()
+	module := New(generalConfig, projectConfig, log)
+
+	deployment := module.prepareDeployment()
+
+	if deployment == nil {
+		t.Fatal("Expected deployment to be created, got nil")
+	}
+
+	podSpec := deployment.Spec.Template.Spec
+	if len(podSpec.ImagePullSecrets) != 1 {
+		t.Fatalf("Expected 1 image pull secret, got %d", len(podSpec.ImagePullSecrets))
+	}
+
+	if podSpec.ImagePullSecrets[0].Name != "my-regcred" {
+		t.Errorf("Expected image pull secret name to be 'my-regcred', got '%s'", podSpec.ImagePullSecrets[0].Name)
+	}
+}
+
 //go:embed testdata/deployment.yaml
 var expectedDeploymentYAML string
 

@@ -323,6 +323,7 @@ personal-server <module> rollout <restart|status|history|undo>
 - **postgres**: PostgreSQL database
 - **pgadmin**: PostgreSQL administration interface
 - **ssh-login-notifier**: SSH login notification service
+- **ingress**: HTTP routing and ingress management with TLS support
 
 ### Pet Projects
 
@@ -374,6 +375,209 @@ personal-server myapp rollout undo     # Undo last rollout
 # Clean up
 personal-server myapp clean
 ```
+
+### Ingress & HTTP Routing
+
+The ingress module allows you to configure HTTP routing rules to expose your services externally with optional TLS/HTTPS support.
+
+#### Configuration
+
+Define ingress rules in your `config.yaml`:
+
+```yaml
+ingresses:
+  - name: web-ingress
+    namespace: infra
+    rules:
+      - host: gitea.example.com
+        path: /
+        pathType: Prefix        # Prefix, Exact, or ImplementationSpecific
+        serviceName: gitea
+        servicePort: 3000
+      - host: bitwarden.example.com
+        path: /
+        pathType: Prefix
+        serviceName: bitwarden
+        servicePort: 80
+    tls: true                   # Enable TLS/HTTPS
+```
+
+#### Path Types
+
+- **Prefix**: Matches the beginning of the path (default, most common)
+- **Exact**: Matches the exact path only
+- **ImplementationSpecific**: Implementation-specific matching (depends on ingress controller)
+
+#### Multiple Paths on Same Host
+
+You can define multiple paths for the same hostname:
+
+```yaml
+ingresses:
+  - name: api-ingress
+    namespace: infra
+    rules:
+      - host: api.example.com
+        path: /v1
+        pathType: Prefix
+        serviceName: api-service-v1
+        servicePort: 8080
+      - host: api.example.com
+        path: /v2
+        pathType: Prefix
+        serviceName: api-service-v2
+        servicePort: 8080
+```
+
+#### Commands
+
+```bash
+# Generate ingress configuration
+personal-server web-ingress generate
+
+# Apply ingress to cluster
+personal-server web-ingress apply
+
+# Check ingress status
+personal-server web-ingress status
+
+# Clean up ingress
+personal-server web-ingress clean
+```
+
+#### Setting Up TLS/HTTPS
+
+To enable HTTPS for your services, you need to set up TLS certificates. There are two main approaches:
+
+##### Option 1: Using cert-manager (Recommended)
+
+cert-manager automates certificate management and renewal using Let's Encrypt or other certificate authorities.
+
+**1. Install cert-manager on MicroK8s:**
+
+```bash
+# Enable cert-manager addon
+microk8s enable cert-manager
+
+# Or install manually with kubectl
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.0/cert-manager.yaml
+```
+
+**2. Create a ClusterIssuer for Let's Encrypt:**
+
+```bash
+# Create a production Let's Encrypt issuer
+cat <<EOF | kubectl apply -f -
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: your-email@example.com
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+    - http01:
+        ingress:
+          class: public
+EOF
+```
+
+**3. Annotate your Ingress to use cert-manager:**
+
+After generating your ingress configuration with `personal-server <ingress-name> generate`, edit the generated YAML file to add cert-manager annotations:
+
+```bash
+# Edit the generated ingress file
+nano configs/ingress/web-ingress/ingress.yaml
+```
+
+Add these annotations under `metadata`:
+
+```yaml
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  name: web-ingress
+  namespace: infra
+```
+
+Then apply the ingress:
+
+```bash
+kubectl apply -f configs/ingress/web-ingress/ingress.yaml
+```
+
+cert-manager will automatically create and manage the TLS secret (`web-ingress-tls` in this example).
+
+**4. Verify certificate creation:**
+
+```bash
+# Check certificate status
+kubectl get certificate -n infra
+
+# Check the certificate details
+kubectl describe certificate web-ingress-tls -n infra
+```
+
+##### Option 2: Manual TLS Secret Creation
+
+If you have your own certificates, create a TLS secret manually:
+
+```bash
+# Create TLS secret from certificate files
+kubectl create secret tls web-ingress-tls \
+  --cert=path/to/tls.crt \
+  --key=path/to/tls.key \
+  -n infra
+
+# Or from a combined PEM file
+kubectl create secret tls web-ingress-tls \
+  --cert=path/to/fullchain.pem \
+  --key=path/to/privkey.pem \
+  -n infra
+```
+
+The secret name must match the one referenced in your ingress configuration (e.g., `web-ingress-tls` for an ingress named `web-ingress`).
+
+##### Option 3: Using Cloudflare for TLS
+
+If you're using Cloudflare, you can enable "Full (strict)" SSL/TLS mode and use Cloudflare Origin Certificates:
+
+1. Generate an origin certificate in the Cloudflare dashboard
+2. Create a Kubernetes secret with the certificate:
+
+```bash
+kubectl create secret tls web-ingress-tls \
+  --cert=origin.crt \
+  --key=origin.key \
+  -n infra
+```
+
+3. Ensure your Cloudflare SSL/TLS mode is set to "Full (strict)"
+
+#### Troubleshooting TLS
+
+**Certificate not issued:**
+```bash
+# Check cert-manager logs
+kubectl logs -n cert-manager deployment/cert-manager
+
+# Check certificate request status
+kubectl get certificaterequest -n infra
+kubectl describe certificaterequest <request-name> -n infra
+```
+
+**DNS not resolving:**
+- Ensure your DNS records point to your cluster's ingress controller IP
+- For MicroK8s: `kubectl get svc -n ingress` to find the ingress controller service
+- Update your DNS A/AAAA records to point to this IP
+
+**Port 80/443 not accessible:**
+- Check firewall rules: `sudo ufw status`
+- Allow HTTP/HTTPS: `sudo ufw allow 80/tcp && sudo ufw allow 443/tcp`
 
 ### Examples
 

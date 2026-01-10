@@ -172,7 +172,7 @@ func (m *IngressModule) prepare() *networkingv1.Ingress {
 		}
 
 		hostRules[host] = append(hostRules[host], httpPath)
-		
+
 		// Collect hosts for TLS if enabled
 		if m.IngressConfig.TLS {
 			tlsHosts = append(tlsHosts, host)

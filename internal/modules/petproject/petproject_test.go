@@ -3,6 +3,7 @@ package petproject
 import (
 	"context"
 	_ "embed"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -115,6 +116,100 @@ func TestPrepareDeployment(t *testing.T) {
 
 	if deployment.Labels["managed-by"] != "personal-server" {
 		t.Errorf("Expected managed-by label to be 'personal-server', got '%s'", deployment.Labels["managed-by"])
+	}
+}
+
+func TestPrepareDeploymentWithImagePullSecret(t *testing.T) {
+	generalConfig := config.GeneralConfig{
+		Domain:     "example.com",
+		Namespaces: []string{"hobby"},
+	}
+
+	projectConfig := config.PetProject{
+		Name:            "privateapp",
+		Namespace:       "hobby",
+		Image:           "private.registry/app:latest",
+		ImagePullSecret: "my-regcred",
+	}
+
+	log := logger.Default()
+	module := New(generalConfig, projectConfig, log)
+
+	deployment := module.prepareDeployment()
+
+	if deployment == nil {
+		t.Fatal("Expected deployment to be created, got nil")
+	}
+
+	podSpec := deployment.Spec.Template.Spec
+	if len(podSpec.ImagePullSecrets) != 1 {
+		t.Fatalf("Expected 1 image pull secret, got %d", len(podSpec.ImagePullSecrets))
+	}
+
+	if podSpec.ImagePullSecrets[0].Name != "my-regcred" {
+		t.Errorf("Expected image pull secret name to be 'my-regcred', got '%s'", podSpec.ImagePullSecrets[0].Name)
+	}
+}
+
+func TestPrepareImagePullSecret(t *testing.T) {
+	generalConfig := config.GeneralConfig{
+		Domain:     "example.com",
+		Namespaces: []string{"hobby"},
+	}
+
+	projectConfig := config.PetProject{
+		Name:      "privateapp",
+		Namespace: "hobby",
+		Image:     "private.registry/app:latest",
+		RegistryCredentials: &config.RegistryCredentials{
+			Server:   "https://registry.example.com",
+			Username: "user",
+			Password: "pass",
+			Email:    "user@example.com",
+		},
+	}
+
+	log := logger.Default()
+	module := New(generalConfig, projectConfig, log)
+
+	secret, secretName, err := module.prepareImagePullSecret()
+	if err != nil {
+		t.Fatalf("prepareImagePullSecret() returned error: %v", err)
+	}
+
+	if secret == nil {
+		t.Fatal("Expected secret to be created, got nil")
+	}
+
+	if secretName != "pet-privateapp-regcred" {
+		t.Errorf("Expected secret name to be 'pet-privateapp-regcred', got '%s'", secretName)
+	}
+
+	if secret.Type != corev1.SecretTypeDockerConfigJson {
+		t.Errorf("Expected secret type %s, got %s", corev1.SecretTypeDockerConfigJson, secret.Type)
+	}
+
+	data := secret.Data[".dockerconfigjson"]
+	if len(data) == 0 {
+		t.Fatal("Expected .dockerconfigjson data to be set")
+	}
+
+	var parsed map[string]map[string]map[string]interface{}
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("Failed to unmarshal docker config json: %v", err)
+	}
+
+	auths := parsed["auths"]["https://registry.example.com"]
+	if auths["username"] != "user" || auths["password"] != "pass" || auths["email"] != "user@example.com" {
+		t.Errorf("Unexpected registry credentials in secret: %+v", auths)
+	}
+
+	deployment := module.prepareDeployment()
+	if len(deployment.Spec.Template.Spec.ImagePullSecrets) != 1 {
+		t.Fatalf("Expected deployment to reference image pull secret, got %d", len(deployment.Spec.Template.Spec.ImagePullSecrets))
+	}
+	if deployment.Spec.Template.Spec.ImagePullSecrets[0].Name != secretName {
+		t.Errorf("Deployment image pull secret name mismatch. expected %s, got %s", secretName, deployment.Spec.Template.Spec.ImagePullSecrets[0].Name)
 	}
 }
 

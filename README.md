@@ -250,6 +250,11 @@ pet-projects:
   - name: myapp
     namespace: hobby
     image: nginx:latest
+    imagePullSecret: my-registry-secret
+    registryCredentials:
+      server: https://registry.example.com
+      username: myuser
+      password: mypassword
     environment:
       PORT: "8080"
       ENV: "production"
@@ -328,6 +333,11 @@ pet-projects:
   - name: myapp
     namespace: hobby
     image: nginx:latest
+    imagePullSecret: my-registry-secret # Optional: reference an existing registry secret
+    registryCredentials:              # Optional: create the secret automatically
+      server: https://registry.example.com
+      username: myuser
+      password: mypassword
     environment:
       PORT: "8080"
       ENV: "production"

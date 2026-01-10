@@ -2,6 +2,7 @@ package petproject
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -51,6 +52,10 @@ func (m *PetProjectModule) Generate(ctx context.Context) error {
 	m.log.Info("Output directory: %s\n\n", outputDir)
 
 	// Prepare Kubernetes objects
+	secret, _, err := m.prepareImagePullSecret()
+	if err != nil {
+		return err
+	}
 	deployment := m.prepareDeployment()
 
 	// Helper function to write object to YAML file
@@ -69,6 +74,13 @@ func (m *PetProjectModule) Generate(ctx context.Context) error {
 		}
 		m.log.Success("Generated: %s\n", filename)
 		return nil
+	}
+
+	// Write ImagePullSecret if configured
+	if secret != nil {
+		if err := writeYAML(secret, "image-pull-secret"); err != nil {
+			return err
+		}
 	}
 
 	// Write Deployment
@@ -112,7 +124,24 @@ func (m *PetProjectModule) Apply(ctx context.Context) error {
 	m.log.Info("No existing resources found, proceeding with creation...\n\n")
 
 	// Prepare Kubernetes objects
+	secret, secretName, err := m.prepareImagePullSecret()
+	if err != nil {
+		return err
+	}
 	deployment := m.prepareDeployment()
+
+	// Apply ImagePullSecret if configured
+	if secret != nil {
+		m.log.Progress("Applying ImagePullSecret: %s\n", secretName)
+		_, err := clientset.CoreV1().Secrets(m.ProjectConfig.Namespace).Create(ctx, secret, metav1.CreateOptions{})
+		if errors.IsAlreadyExists(err) {
+			_, err = clientset.CoreV1().Secrets(m.ProjectConfig.Namespace).Update(ctx, secret, metav1.UpdateOptions{})
+		}
+		if err != nil {
+			return fmt.Errorf("failed to create or update ImagePullSecret: %w", err)
+		}
+		m.log.Success("Created ImagePullSecret: %s\n", secretName)
+	}
 
 	// Apply Deployment
 	m.log.Progress("Applying Deployment: %s\n", deploymentName)
@@ -141,6 +170,7 @@ func (m *PetProjectModule) Apply(ctx context.Context) error {
 func (m *PetProjectModule) prepareDeployment() *appsv1.Deployment {
 	replicas := int32(1)
 	deploymentName := fmt.Sprintf("pet-%s", m.ProjectConfig.Name)
+	imagePullSecretName := m.imagePullSecretName()
 
 	// Convert environment map to EnvVar slice
 	envVars := make([]corev1.EnvVar, 0, len(m.ProjectConfig.Environment))
@@ -183,6 +213,14 @@ func (m *PetProjectModule) prepareDeployment() *appsv1.Deployment {
 							Env:   envVars,
 						},
 					},
+					ImagePullSecrets: func() []corev1.LocalObjectReference {
+						if imagePullSecretName == "" {
+							return nil
+						}
+						return []corev1.LocalObjectReference{
+							{Name: imagePullSecretName},
+						}
+					}(),
 					RestartPolicy: corev1.RestartPolicyAlways,
 				},
 			},
@@ -190,6 +228,65 @@ func (m *PetProjectModule) prepareDeployment() *appsv1.Deployment {
 	}
 
 	return deployment
+}
+
+func (m *PetProjectModule) prepareImagePullSecret() (*corev1.Secret, string, error) {
+	if m.ProjectConfig.RegistryCredentials == nil {
+		return nil, "", nil
+	}
+
+	creds := m.ProjectConfig.RegistryCredentials
+	secretName := m.imagePullSecretName()
+	if secretName == "" {
+		secretName = fmt.Sprintf("pet-%s-regcred", m.ProjectConfig.Name)
+	}
+
+	auth := fmt.Sprintf("%s:%s", creds.Username, creds.Password)
+	authEncoded := base64.StdEncoding.EncodeToString([]byte(auth))
+
+	configJSON := map[string]interface{}{
+		"auths": map[string]interface{}{
+			creds.Server: map[string]interface{}{
+				"username": creds.Username,
+				"password": creds.Password,
+				"email":    creds.Email,
+				"auth":     authEncoded,
+			},
+		},
+	}
+
+	jsonBytes, err := json.Marshal(configJSON)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to marshal registry credentials: %w", err)
+	}
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: m.ProjectConfig.Namespace,
+			Labels: map[string]string{
+				"app":        fmt.Sprintf("pet-%s", m.ProjectConfig.Name),
+				"managed-by": "personal-server",
+				"type":       "pet-project",
+			},
+		},
+		Type: corev1.SecretTypeDockerConfigJson,
+		Data: map[string][]byte{
+			".dockerconfigjson": jsonBytes,
+		},
+	}
+
+	return secret, secretName, nil
+}
+
+func (m *PetProjectModule) imagePullSecretName() string {
+	if m.ProjectConfig.ImagePullSecret != "" {
+		return m.ProjectConfig.ImagePullSecret
+	}
+	if m.ProjectConfig.RegistryCredentials != nil {
+		return fmt.Sprintf("pet-%s-regcred", m.ProjectConfig.Name)
+	}
+	return ""
 }
 
 func (m *PetProjectModule) prepareService() *corev1.Service {
@@ -248,6 +345,23 @@ func (m *PetProjectModule) Clean(ctx context.Context) error {
 	deletePolicy := metav1.DeletePropagationForeground
 	deleteOptions := metav1.DeleteOptions{
 		PropagationPolicy: &deletePolicy,
+	}
+
+	// Delete ImagePullSecret if managed by this module
+	if m.ProjectConfig.RegistryCredentials != nil {
+		secretName := m.imagePullSecretName()
+		m.log.Info("🗑️  Deleting ImagePullSecret: %s\n", secretName)
+		err = clientset.CoreV1().Secrets(m.ProjectConfig.Namespace).Delete(ctx, secretName, deleteOptions)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				m.log.Warn("ImagePullSecret '%s' not found (already deleted or never existed)\n", secretName)
+			} else {
+				m.log.Error("Failed to delete ImagePullSecret: %v\n", err)
+				return err
+			}
+		} else {
+			m.log.Success("Deleted ImagePullSecret: %s\n", secretName)
+		}
 	}
 
 	// Delete Deployment

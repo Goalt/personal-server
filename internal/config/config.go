@@ -26,6 +26,23 @@ type ServiceConfig struct {
 	Ports []ServicePort `yaml:"ports"`
 }
 
+// IngressRule represents a single ingress routing rule
+type IngressRule struct {
+	Host        string `yaml:"host"`
+	Path        string `yaml:"path"`
+	PathType    string `yaml:"pathType,omitempty"` // Prefix, Exact, ImplementationSpecific
+	ServiceName string `yaml:"serviceName"`
+	ServicePort int32  `yaml:"servicePort"`
+}
+
+// IngressConfig represents ingress configuration
+type IngressConfig struct {
+	Name      string        `yaml:"name"`
+	Namespace string        `yaml:"namespace"`
+	Rules     []IngressRule `yaml:"rules"`
+	TLS       bool          `yaml:"tls,omitempty"`
+}
+
 // PetProject represents a pet project configuration
 type PetProject struct {
 	Name                string               `yaml:"name"`
@@ -62,11 +79,12 @@ type BackupConfig struct {
 
 // Config represents the application configuration
 type Config struct {
-	Path        string        `yaml:"-"`
-	General     GeneralConfig `yaml:"general"`
-	Backup      BackupConfig  `yaml:"backup"`
-	Modules     []Module      `yaml:"modules"`
-	PetProjects []PetProject  `yaml:"pet-projects"`
+	Path        string          `yaml:"-"`
+	General     GeneralConfig   `yaml:"general"`
+	Backup      BackupConfig    `yaml:"backup"`
+	Modules     []Module        `yaml:"modules"`
+	PetProjects []PetProject    `yaml:"pet-projects"`
+	Ingresses   []IngressConfig `yaml:"ingresses,omitempty"`
 }
 
 // LoadConfig loads and parses the configuration file
@@ -112,4 +130,14 @@ func (c *Config) GetPetProject(name string) (PetProject, error) {
 		}
 	}
 	return PetProject{}, fmt.Errorf("pet project not found: %s", name)
+}
+
+// GetIngress retrieves an ingress configuration by name
+func (c *Config) GetIngress(name string) (IngressConfig, error) {
+	for _, ingress := range c.Ingresses {
+		if ingress.Name == name {
+			return ingress, nil
+		}
+	}
+	return IngressConfig{}, fmt.Errorf("ingress not found: %s", name)
 }

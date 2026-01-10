@@ -8,6 +8,7 @@ import (
 	"github.com/Goalt/personal-server/internal/modules/drone"
 	"github.com/Goalt/personal-server/internal/modules/gitea"
 	"github.com/Goalt/personal-server/internal/modules/hobbypod"
+	"github.com/Goalt/personal-server/internal/modules/ingress"
 	"github.com/Goalt/personal-server/internal/modules/monitoring"
 	"github.com/Goalt/personal-server/internal/modules/namespace"
 	"github.com/Goalt/personal-server/internal/modules/petproject"
@@ -69,6 +70,11 @@ func DefaultRegistry(log logger.Logger) *Registry {
 	// Register default pet project factory
 	r.RegisterPetProject("_default", func(g config.GeneralConfig, p config.PetProject, log logger.Logger) Module {
 		return petproject.New(g, p, log)
+	})
+
+	// Register default ingress factory
+	r.RegisterIngress("_default", func(g config.GeneralConfig, i config.IngressConfig, log logger.Logger) Module {
+		return ingress.New(g, i, log)
 	})
 
 	return r

@@ -86,3 +86,18 @@ pet-projects:
         - name: http
           port: 3000
           targetPort: 3000
+ingresses:
+  - name: web-ingress
+    namespace: infra
+    rules:
+      - host: gitea.example.com
+        path: /
+        pathType: Prefix
+        serviceName: gitea
+        servicePort: 3000
+      - host: bitwarden.example.com
+        path: /
+        pathType: Prefix
+        serviceName: bitwarden
+        servicePort: 80
+    tls: true

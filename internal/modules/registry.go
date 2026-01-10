@@ -13,10 +13,14 @@ type ModuleFactory func(general config.GeneralConfig, modCfg config.Module, log 
 // PetProjectFactory creates a pet project module from config
 type PetProjectFactory func(general config.GeneralConfig, projectCfg config.PetProject, log logger.Logger) Module
 
+// IngressFactory creates an ingress module from config
+type IngressFactory func(general config.GeneralConfig, ingressCfg config.IngressConfig, log logger.Logger) Module
+
 // Registry holds module factories indexed by command name
 type Registry struct {
 	factories           map[string]ModuleFactory
 	petProjectFactories map[string]PetProjectFactory
+	ingressFactories    map[string]IngressFactory
 	// requiresModuleConfig tracks which modules need module-specific config
 	requiresModuleConfig map[string]bool
 	logger               logger.Logger
@@ -27,6 +31,7 @@ func NewRegistry(log logger.Logger) *Registry {
 	return &Registry{
 		factories:            make(map[string]ModuleFactory),
 		petProjectFactories:  make(map[string]PetProjectFactory),
+		ingressFactories:     make(map[string]IngressFactory),
 		requiresModuleConfig: make(map[string]bool),
 		logger:               log,
 	}
@@ -51,12 +56,24 @@ func (r *Registry) RegisterPetProject(name string, factory PetProjectFactory) {
 	r.petProjectFactories[name] = factory
 }
 
+// RegisterIngress adds an ingress factory
+func (r *Registry) RegisterIngress(name string, factory IngressFactory) {
+	r.ingressFactories[name] = factory
+}
+
 // Get creates a module by name
 func (r *Registry) Get(name string, cfg *config.Config) (Module, error) {
 	factory, ok := r.factories[name]
 	if !ok {
 		// Check if it's a pet project
-		return r.GetPetProject(name, cfg)
+		if module, err := r.GetPetProject(name, cfg); err == nil {
+			return module, nil
+		}
+		// Check if it's an ingress
+		if module, err := r.GetIngress(name, cfg); err == nil {
+			return module, nil
+		}
+		return nil, fmt.Errorf("unknown module, pet project, or ingress: %s", name)
 	}
 
 	var modCfg config.Module
@@ -76,7 +93,7 @@ func (r *Registry) GetPetProject(name string, cfg *config.Config) (Module, error
 	// Try to find a pet project with this name
 	projectCfg, err := cfg.GetPetProject(name)
 	if err != nil {
-		return nil, fmt.Errorf("unknown module or pet project: %s", name)
+		return nil, fmt.Errorf("pet project not found: %s", name)
 	}
 
 	// Check if there's a specific factory registered for this pet project
@@ -90,6 +107,27 @@ func (r *Registry) GetPetProject(name string, cfg *config.Config) (Module, error
 	}
 
 	return nil, fmt.Errorf("no pet project factory registered")
+}
+
+// GetIngress creates an ingress module by name
+func (r *Registry) GetIngress(name string, cfg *config.Config) (Module, error) {
+	// Try to find an ingress with this name
+	ingressCfg, err := cfg.GetIngress(name)
+	if err != nil {
+		return nil, fmt.Errorf("ingress not found: %s", name)
+	}
+
+	// Check if there's a specific factory registered for this ingress
+	if factory, ok := r.ingressFactories[name]; ok {
+		return factory(cfg.General, ingressCfg, r.logger), nil
+	}
+
+	// Use the default ingress factory if no specific factory is registered
+	if defaultFactory, ok := r.ingressFactories["_default"]; ok {
+		return defaultFactory(cfg.General, ingressCfg, r.logger), nil
+	}
+
+	return nil, fmt.Errorf("no ingress factory registered")
 }
 
 // Commands returns all registered command names

@@ -1,0 +1,20 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        managed-by: personal-server
+    name: test-ingress
+    namespace: default
+spec:
+    rules:
+        - host: test.example.com
+          http:
+            paths:
+                - backend:
+                    service:
+                        name: test-service
+                        port:
+                            number: 80
+                  path: /
+                  pathType: Prefix
+status:
+    loadBalancer: {}

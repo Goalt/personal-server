@@ -357,6 +357,11 @@ pet-projects:
     namespace: hobby
     image: nginx:latest
     imagePullSecret: regcred
+    registryCredentials:
+      server: https://registry.example.com
+      username: user
+      password: pass
+      email: user@example.com
     environment:
       PORT: "8080"
       ENV: "production"
@@ -402,6 +407,14 @@ pet-projects:
 
 	if config.PetProjects[0].ImagePullSecret != "regcred" {
 		t.Errorf("Expected imagePullSecret to be 'regcred', got '%s'", config.PetProjects[0].ImagePullSecret)
+	}
+
+	if config.PetProjects[0].RegistryCredentials == nil {
+		t.Fatal("Expected registryCredentials to be set for first pet project")
+	}
+
+	if config.PetProjects[0].RegistryCredentials.Server != "https://registry.example.com" {
+		t.Errorf("Expected registry server to be 'https://registry.example.com', got '%s'", config.PetProjects[0].RegistryCredentials.Server)
 	}
 
 	if config.PetProjects[0].Environment["PORT"] != "8080" {

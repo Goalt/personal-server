@@ -322,6 +322,8 @@ personal-server <module> rollout <restart|status|history|undo>
 - **monitoring**: Monitoring stack
 - **postgres**: PostgreSQL database
 - **pgadmin**: PostgreSQL administration interface
+- **redis**: Redis in-memory data store
+- **prometheus**: Prometheus monitoring and metrics collection
 - **ssh-login-notifier**: SSH login notification service
 - **ingress**: HTTP routing and ingress management with TLS support
 
@@ -587,6 +589,11 @@ personal-server bitwarden generate
 personal-server bitwarden apply
 personal-server bitwarden status
 
+# Deploy Prometheus monitoring
+personal-server prometheus generate
+personal-server prometheus apply
+personal-server prometheus status
+
 # Backup Gitea data
 personal-server gitea backup
 
@@ -606,6 +613,102 @@ personal-server backup schedule clear
 # Decrypt a backup
 personal-server backup --decrypt backup.tar.gz.gpg --passphrase your_passphrase
 ```
+
+### Prometheus Monitoring
+
+The Prometheus module deploys a complete Prometheus monitoring stack for your Kubernetes cluster.
+
+#### Features
+
+- **Service Discovery**: Automatically discovers Kubernetes services, pods, and nodes
+- **Metrics Collection**: Collects metrics from Kubernetes API server, nodes, pods, and services
+- **Persistent Storage**: 10Gi persistent volume for metric data
+- **RBAC**: Proper service account and cluster role for Kubernetes API access
+- **Health Checks**: Liveness and readiness probes for reliability
+
+#### Quick Start
+
+```bash
+# Add prometheus to your config.yaml
+modules:
+  - name: prometheus
+    namespace: infra
+
+# Generate and apply Prometheus
+personal-server prometheus generate
+personal-server prometheus apply
+
+# Check status
+personal-server prometheus status
+
+# Restart deployment (e.g., after config changes)
+personal-server prometheus rollout restart
+```
+
+#### Accessing Prometheus UI
+
+The Prometheus UI is exposed on port 9090 via a ClusterIP service. To access it:
+
+**Option 1: Port Forward**
+```bash
+kubectl port-forward -n infra svc/prometheus 9090:9090
+```
+Then open http://localhost:9090 in your browser.
+
+**Option 2: Ingress**
+Add an ingress rule to expose Prometheus externally:
+```yaml
+ingresses:
+  - name: monitoring-ingress
+    namespace: infra
+    rules:
+      - host: prometheus.example.com
+        path: /
+        pathType: Prefix
+        serviceName: prometheus
+        servicePort: 9090
+    tls: true
+```
+
+#### Scraping Custom Metrics
+
+To expose metrics from your services for Prometheus to scrape:
+
+**For Pods:**
+Add these annotations to your pod:
+```yaml
+annotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/metrics"
+```
+
+**For Services:**
+Add these annotations to your service:
+```yaml
+annotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/metrics"
+```
+
+#### Default Scrape Configs
+
+The Prometheus deployment includes these scrape configurations:
+- **prometheus**: Self-monitoring
+- **kubernetes-apiservers**: Kubernetes API server metrics
+- **kubernetes-nodes**: Node metrics (kubelet)
+- **kubernetes-pods**: Pod metrics (with prometheus.io/scrape annotation)
+- **kubernetes-service-endpoints**: Service endpoint metrics
+
+#### Configuration
+
+The Prometheus configuration is stored in a ConfigMap (`prometheus-config`). To customize:
+
+1. Generate the configuration: `personal-server prometheus generate`
+2. Edit `configs/prometheus/configmap.yaml`
+3. Apply the updated config: `kubectl apply -f configs/prometheus/configmap.yaml`
+4. Restart Prometheus: `personal-server prometheus rollout restart`
 
 ## 🔨 Development
 

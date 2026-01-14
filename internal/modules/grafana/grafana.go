@@ -261,6 +261,9 @@ func (m *GrafanaModule) prepare() (*corev1.Secret, *corev1.PersistentVolumeClaim
 
 	// Prepare Deployment
 	replicas := int32(1)
+	fsGroup := int64(472)
+	runAsUser := int64(472)
+	runAsNonRoot := true
 	deployment := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -289,9 +292,9 @@ func (m *GrafanaModule) prepare() (*corev1.Secret, *corev1.PersistentVolumeClaim
 				},
 				Spec: corev1.PodSpec{
 					SecurityContext: &corev1.PodSecurityContext{
-						FSGroup:      func() *int64 { i := int64(472); return &i }(),
-						RunAsUser:    func() *int64 { i := int64(472); return &i }(),
-						RunAsNonRoot: func() *bool { b := true; return &b }(),
+						FSGroup:      &fsGroup,
+						RunAsUser:    &runAsUser,
+						RunAsNonRoot: &runAsNonRoot,
 					},
 					Containers: []corev1.Container{
 						{

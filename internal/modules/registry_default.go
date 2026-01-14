@@ -7,6 +7,7 @@ import (
 	"github.com/Goalt/personal-server/internal/modules/cloudflare"
 	"github.com/Goalt/personal-server/internal/modules/drone"
 	"github.com/Goalt/personal-server/internal/modules/gitea"
+	"github.com/Goalt/personal-server/internal/modules/grafana"
 	"github.com/Goalt/personal-server/internal/modules/hobbypod"
 	"github.com/Goalt/personal-server/internal/modules/ingress"
 	"github.com/Goalt/personal-server/internal/modules/monitoring"
@@ -50,6 +51,9 @@ func DefaultRegistry(log logger.Logger) *Registry {
 	})
 	r.Register("gitea", func(g config.GeneralConfig, m config.Module, log logger.Logger) Module {
 		return gitea.New(g, m, log)
+	})
+	r.Register("grafana", func(g config.GeneralConfig, m config.Module, log logger.Logger) Module {
+		return grafana.New(g, m, log)
 	})
 	r.Register("monitoring", func(g config.GeneralConfig, m config.Module, log logger.Logger) Module {
 		return monitoring.New(g, m, log)

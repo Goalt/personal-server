@@ -54,6 +54,8 @@ modules:
     namespace: infra
     secrets:
       redis_password: secret_password
+  - name: prometheus
+    namespace: infra
   - name: ssh-login-notifier
     namespace: infra
     secrets:

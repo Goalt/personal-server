@@ -622,9 +622,10 @@ The Prometheus module deploys a complete Prometheus monitoring stack for your Ku
 
 - **Service Discovery**: Automatically discovers Kubernetes services, pods, and nodes
 - **Metrics Collection**: Collects metrics from Kubernetes API server, nodes, pods, and services
-- **Persistent Storage**: 10Gi persistent volume for metric data
+- **Persistent Storage**: Configurable persistent volume for metric data (default: 10Gi)
 - **RBAC**: Proper service account and cluster role for Kubernetes API access
 - **Health Checks**: Liveness and readiness probes for reliability
+- **Configurable**: Customize Prometheus version and storage size
 
 #### Quick Start
 
@@ -633,6 +634,10 @@ The Prometheus module deploys a complete Prometheus monitoring stack for your Ku
 modules:
   - name: prometheus
     namespace: infra
+    # Optional: Customize settings
+    # secrets:
+    #   prometheus_image: prom/prometheus:v2.48.0  # Customize version
+    #   storage_size: 20Gi                         # Customize storage
 
 # Generate and apply Prometheus
 personal-server prometheus generate

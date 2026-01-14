@@ -414,6 +414,7 @@ scrape_configs:
 	}
 
 	// Prepare PVC
+	storageSize := k8s.GetSecretOrDefault(m.ModuleConfig.Secrets, "storage_size", "10Gi")
 	pvc := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "prometheus-data-pvc",
@@ -427,7 +428,7 @@ scrape_configs:
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: resource.MustParse("10Gi"),
+					corev1.ResourceStorage: resource.MustParse(storageSize),
 				},
 			},
 		},
@@ -461,6 +462,7 @@ scrape_configs:
 
 	// Prepare Deployment
 	replicas := int32(1)
+	prometheusImage := k8s.GetSecretOrDefault(m.ModuleConfig.Secrets, "prometheus_image", "prom/prometheus:v2.48.0")
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "prometheus",
@@ -488,7 +490,7 @@ scrape_configs:
 					Containers: []corev1.Container{
 						{
 							Name:            "prometheus",
-							Image:           "prom/prometheus:v2.48.0",
+							Image:           prometheusImage,
 							ImagePullPolicy: corev1.PullIfNotPresent,
 							Args: []string{
 								"--config.file=/etc/prometheus/prometheus.yml",

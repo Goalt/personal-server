@@ -244,6 +244,7 @@ func (a *App) printUsage() {
 	a.logger.Println("  work-pod <subcommand>         Generate work-pod configurations to configs/work-pod/")
 	a.logger.Println("  drone <subcommand>            Manage Drone configurations")
 	a.logger.Println("  gitea <subcommand>            Manage Gitea configurations")
+	a.logger.Println("  grafana <subcommand>          Manage Grafana configurations")
 	a.logger.Println("  monitoring <subcommand>       Manage Monitoring configurations")
 	a.logger.Println("  postgres <subcommand>         Manage Postgres configurations")
 	a.logger.Println("  pgadmin <subcommand>          Manage pgadmin configurations")

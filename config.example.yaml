@@ -59,6 +59,12 @@ modules:
     namespace: infra
     secrets:
       redis_password: secret_password
+  - name: prometheus
+    namespace: infra
+    # Optional secrets for customization:
+    # secrets:
+    #   prometheus_image: prom/prometheus:v2.48.0  # Customize Prometheus version
+    #   storage_size: 10Gi                         # Customize storage size
   - name: ssh-login-notifier
     namespace: infra
     secrets:

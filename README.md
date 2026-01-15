@@ -1,6 +1,28 @@
 # 🚀 Personal Server
 
+[![Go Version](https://img.shields.io/github/go-mod/go-version/Goalt/personal-server)](https://go.dev/)
+[![Release](https://img.shields.io/github/v/release/Goalt/personal-server)](https://github.com/Goalt/personal-server/releases/latest)
+[![License](https://img.shields.io/github/license/Goalt/personal-server)](LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/Goalt/personal-server)](https://goreportcard.com/report/github.com/Goalt/personal-server)
+
 A comprehensive Go application for managing Kubernetes-based personal infrastructure on MicroK8s. This tool provides a unified CLI interface to deploy, manage, backup, and restore self-hosted services.
+
+## 📑 Table of Contents
+
+- [Features](#-features)
+- [Quick Start](#-quick-start)
+- [System Setup](#️-system-setup)
+- [Prerequisites](#-prerequisites)
+- [Installation](#-installation)
+- [Configuration](#️-configuration)
+- [Usage](#-usage)
+- [Development](#-development)
+- [Testing](#-testing)
+- [Contributing](#-contributing)
+- [Troubleshooting](#-troubleshooting)
+- [FAQ](#-faq)
+- [Support](#-support)
+- [License](#-license)
 
 ## ✨ Features
 
@@ -11,6 +33,36 @@ A comprehensive Go application for managing Kubernetes-based personal infrastruc
 - **Configuration Management**: YAML-based configuration for easy customization
 - **Scheduled Backups**: Support for automated backups with configurable cron schedules
 - **Encrypted Backups**: GPG encryption support for secure backup storage
+
+## 🚀 Quick Start
+
+Get started with Personal Server in 5 minutes:
+
+```bash
+# 1. Download the latest release for your platform
+curl -L -o personal-server https://github.com/Goalt/personal-server/releases/latest/download/personal-server-linux-amd64
+chmod +x personal-server
+sudo mv personal-server /usr/local/bin/
+
+# 2. Create a configuration file
+cp config.example.yaml config.yaml
+# Edit config.yaml with your settings (domain, modules, secrets)
+
+# 3. Verify your configuration
+personal-server config
+
+# 4. Deploy your first service (example: namespace)
+personal-server namespace generate
+personal-server namespace apply
+
+# 5. Check the status
+personal-server namespace status
+```
+
+**Next Steps:**
+- Review the [Configuration](#️-configuration) section to customize your setup
+- Explore [Usage](#-usage) to learn about available commands
+- Check [Available Modules](#available-modules) to see what you can deploy
 
 ## 🖥️ System Setup
 
@@ -868,12 +920,58 @@ kind delete cluster --name e2e-test
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please ensure:
+Contributions are welcome! We appreciate your help in making Personal Server better.
 
-1. Code follows Go best practices
-2. All tests pass (`make test`)
-3. Code is formatted (`make fmt`)
-4. No linting errors (`make vet`)
+### How to Contribute
+
+1. **Fork the repository** and create your branch from `main`
+2. **Make your changes** following the project's coding standards
+3. **Write or update tests** for your changes
+4. **Run the test suite** to ensure everything passes
+5. **Update documentation** if you're changing functionality
+6. **Submit a pull request** with a clear description of your changes
+
+### Development Guidelines
+
+Before submitting a pull request, please ensure:
+
+1. **Code Quality**:
+   - Code follows Go best practices and idioms
+   - All tests pass: `make test`
+   - Code is formatted: `make fmt`
+   - No linting errors: `make vet`
+   - Run the full dev cycle: `make dev`
+
+2. **Testing**:
+   - Write unit tests for new functionality
+   - Ensure test coverage doesn't decrease
+   - Run e2e tests if applicable: `make e2e-test`
+
+3. **Documentation**:
+   - Update README.md for new features
+   - Add inline code comments for complex logic
+   - Update config.example.yaml if adding new configuration options
+
+4. **Commit Messages**:
+   - Use clear and descriptive commit messages
+   - Reference issue numbers when applicable
+   - Follow conventional commit format (optional but preferred)
+
+### Reporting Issues
+
+Found a bug or have a feature request? Please:
+
+1. Check if the issue already exists in [GitHub Issues](https://github.com/Goalt/personal-server/issues)
+2. If not, create a new issue with:
+   - Clear title and description
+   - Steps to reproduce (for bugs)
+   - Expected vs actual behavior
+   - Your environment details (OS, Go version, etc.)
+   - Relevant logs or error messages
+
+### Code of Conduct
+
+Be respectful and constructive in all interactions. We're all here to learn and improve together.
 
 ## 📄 Version
 
@@ -889,3 +987,195 @@ Key dependencies include:
 - **YAML**: `gopkg.in/yaml.v3` for configuration parsing
 
 See `go.mod` for the complete list of dependencies.
+
+## 🔧 Troubleshooting
+
+### Common Issues and Solutions
+
+#### Build Errors
+
+**Issue**: `go: cannot find main module`
+```bash
+# Solution: Ensure you're in the project directory
+cd /path/to/personal-server
+make build
+```
+
+**Issue**: Dependency download fails
+```bash
+# Solution: Clear module cache and retry
+go clean -modcache
+make deps
+```
+
+#### Kubernetes Connection Issues
+
+**Issue**: `Unable to connect to Kubernetes cluster`
+```bash
+# Solution 1: Check if MicroK8s is running
+microk8s status
+
+# Solution 2: Verify kubectl configuration
+kubectl cluster-info
+
+# Solution 3: For MicroK8s, ensure you're in the microk8s group
+sudo usermod -a -G microk8s $USER
+newgrp microk8s
+```
+
+#### Module Deployment Issues
+
+**Issue**: Module fails to deploy
+```bash
+# Check the module status and logs
+personal-server <module-name> status
+kubectl describe pod -n <namespace> -l app=<module-name>
+kubectl logs -n <namespace> -l app=<module-name>
+
+# Try regenerating and reapplying
+personal-server <module-name> generate
+personal-server <module-name> apply
+```
+
+**Issue**: Image pull errors
+```bash
+# Verify registry credentials are correct
+kubectl get secret -n <namespace>
+kubectl describe secret <secret-name> -n <namespace>
+
+# For MicroK8s registry issues
+microk8s enable registry:size=20Gi
+```
+
+#### Backup and Restore Issues
+
+**Issue**: Backup fails with WebDAV errors
+```bash
+# Verify WebDAV credentials and connectivity
+curl -u username:password https://webdav.example.com/
+
+# Check the backup configuration in config.yaml
+personal-server config
+```
+
+**Issue**: GPG decryption fails
+```bash
+# Ensure the correct passphrase is used
+personal-server backup --decrypt backup.tar.gz.gpg --passphrase your_passphrase
+
+# Check GPG installation
+gpg --version
+```
+
+#### Permission Issues
+
+**Issue**: Permission denied when accessing Kubernetes
+```bash
+# Ensure proper permissions on kubeconfig
+chmod 600 ~/.kube/config
+
+# For MicroK8s, check group membership
+groups | grep microk8s
+```
+
+### Getting More Help
+
+If you encounter an issue not listed here:
+1. Check the [FAQ](#-faq) section below
+2. Search [existing issues](https://github.com/Goalt/personal-server/issues)
+3. Review Kubernetes pod logs: `kubectl logs -n <namespace> <pod-name>`
+4. Enable verbose logging in your application
+5. See [Support](#-support) section for ways to get help
+
+## ❓ FAQ
+
+### General Questions
+
+**Q: What is Personal Server?**  
+A: Personal Server is a Go-based CLI tool for managing self-hosted services on Kubernetes (MicroK8s). It simplifies deployment, backup, and management of personal infrastructure.
+
+**Q: Do I need to know Kubernetes to use this?**  
+A: Basic familiarity with Kubernetes concepts helps, but isn't required. The tool abstracts away most complexity. The [System Setup](#️-system-setup) section guides you through the prerequisites.
+
+**Q: Can I use this with cloud Kubernetes services (EKS, GKE, AKS)?**  
+A: While designed for MicroK8s, it should work with any Kubernetes cluster. You may need to adjust ingress and storage configurations for your specific environment.
+
+**Q: Is this production-ready?**  
+A: This tool is designed for personal infrastructure and hobby projects. For production workloads, consider enterprise-grade solutions with professional support.
+
+### Configuration Questions
+
+**Q: Where should I store my config.yaml file?**  
+A: By default, Personal Server looks for `config.yaml` in the current directory. You can also specify a custom location using command-line flags (check `personal-server --help`).
+
+**Q: How do I secure sensitive data in config.yaml?**  
+A: Never commit config.yaml with real secrets to version control. Use environment variables or external secret management tools. The tool creates Kubernetes secrets from the configuration values.
+
+**Q: Can I use multiple configuration files?**  
+A: Currently, the tool uses a single config.yaml file. You can maintain different files for different environments and specify which to use when running commands.
+
+### Deployment Questions
+
+**Q: Which modules should I deploy first?**  
+A: Start with `namespace` to create your Kubernetes namespaces, then deploy foundational services like `postgres` before deploying applications that depend on them.
+
+**Q: How do I update a deployed module?**  
+A: Update your config.yaml, regenerate the module configuration with `personal-server <module> generate`, then apply with `personal-server <module> apply`. Use `personal-server <module> rollout restart` to restart the deployment.
+
+**Q: Can I customize the generated Kubernetes manifests?**  
+A: Yes! After running `personal-server <module> generate`, you can edit the generated YAML files in the `configs/` directory before applying them.
+
+### Backup Questions
+
+**Q: What data is backed up?**  
+A: Each module defines what data is backed up. Typically includes databases, configuration files, and persistent volumes. Check individual module documentation for details.
+
+**Q: How do I restore from a backup?**  
+A: Use `personal-server <module> restore <backup-file>` to restore a specific module, or follow the backup documentation for full system restoration.
+
+**Q: Are backups encrypted by default?**  
+A: Yes, when you configure a GPG passphrase in your config.yaml, backups are encrypted using GPG.
+
+### Development Questions
+
+**Q: How do I add a new module?**  
+A: See the [Adding a New Module](#adding-a-new-module) section in the Development documentation. Create a new module directory, implement the required interfaces, and register it.
+
+**Q: How do I run tests?**  
+A: Run `make test` for unit tests or `make e2e-test` for end-to-end tests (requires a Kubernetes cluster). See the [Testing](#-testing) section for more details.
+
+**Q: What Go version is required?**  
+A: Go 1.25.3 or later. Check `go.mod` for the exact version requirement.
+
+## 💬 Support
+
+### Getting Help
+
+If you need assistance:
+
+1. **Documentation**: Start with this README and the [docs/](docs/) directory
+2. **GitHub Issues**: Search or create an issue at [github.com/Goalt/personal-server/issues](https://github.com/Goalt/personal-server/issues)
+3. **GitHub Discussions**: For questions and community support, use [GitHub Discussions](https://github.com/Goalt/personal-server/discussions) (if enabled)
+
+### Reporting Security Vulnerabilities
+
+If you discover a security vulnerability, please **do not** open a public issue. Instead:
+- Email the maintainer directly (see GitHub profile)
+- Provide detailed information about the vulnerability
+- Allow reasonable time for a fix before public disclosure
+
+### Community
+
+- **Repository**: [github.com/Goalt/personal-server](https://github.com/Goalt/personal-server)
+- **Author**: [@Goalt](https://github.com/Goalt)
+- **Issues**: [github.com/Goalt/personal-server/issues](https://github.com/Goalt/personal-server/issues)
+
+## 📄 License
+
+This project is open source. Please check the repository for license information.
+
+For the most up-to-date licensing terms, see the [LICENSE](LICENSE) file in the repository or visit [github.com/Goalt/personal-server](https://github.com/Goalt/personal-server).
+
+---
+
+**Made with ❤️ for the self-hosting community**

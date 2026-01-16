@@ -183,6 +183,10 @@ func (m *PostgresExporterModule) prepare() (*appsv1.Deployment, error) {
 									Name:  "DATA_SOURCE_PASS",
 									Value: dataSourcePass,
 								},
+								{
+									Name:  "PG_EXPORTER_INCLUDE_DATABASES",
+									Value: includeDatabases,
+								},
 							},
 						},
 					},
@@ -200,16 +204,6 @@ func (m *PostgresExporterModule) prepare() (*appsv1.Deployment, error) {
 			corev1.EnvVar{
 				Name:  "PG_EXPORTER_EXTEND_QUERY_PATH",
 				Value: extendQueryPath,
-			},
-		)
-	}
-
-	if includeDatabases != "" {
-		deployment.Spec.Template.Spec.Containers[0].Env = append(
-			deployment.Spec.Template.Spec.Containers[0].Env,
-			corev1.EnvVar{
-				Name:  "PG_EXPORTER_INCLUDE_DATABASES",
-				Value: includeDatabases,
 			},
 		)
 	}

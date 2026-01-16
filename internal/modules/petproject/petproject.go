@@ -204,6 +204,11 @@ func (m *PetProjectModule) prepareDeployment() *appsv1.Deployment {
 						"app":  deploymentName,
 						"type": "pet-project",
 					},
+					Annotations: map[string]string{
+						"prometheus.io/scrape": "true",
+						"prometheus.io/port":   "8080",
+						"prometheus.io/path":   "/metrics",
+					},
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{

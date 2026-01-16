@@ -117,6 +117,20 @@ func TestPrepareDeployment(t *testing.T) {
 	if deployment.Labels["managed-by"] != "personal-server" {
 		t.Errorf("Expected managed-by label to be 'personal-server', got '%s'", deployment.Labels["managed-by"])
 	}
+
+	// Check Prometheus annotations on pod template
+	annotations := deployment.Spec.Template.Annotations
+	if annotations["prometheus.io/scrape"] != "true" {
+		t.Errorf("Expected prometheus.io/scrape to be 'true', got '%s'", annotations["prometheus.io/scrape"])
+	}
+
+	if annotations["prometheus.io/port"] != "8080" {
+		t.Errorf("Expected prometheus.io/port to be '8080', got '%s'", annotations["prometheus.io/port"])
+	}
+
+	if annotations["prometheus.io/path"] != "/metrics" {
+		t.Errorf("Expected prometheus.io/path to be '/metrics', got '%s'", annotations["prometheus.io/path"])
+	}
 }
 
 func TestPrepareDeploymentWithImagePullSecret(t *testing.T) {

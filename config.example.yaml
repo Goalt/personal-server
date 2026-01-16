@@ -40,6 +40,15 @@ modules:
     secrets:
       admin_postgres_user: postgres
       admin_postgres_password: secret_password
+  - name: postgres-exporter
+    namespace: infra
+    # Optional configuration - defaults shown below:
+    # secrets:
+    #   data_source_uri: postgres:5432/postgres?sslmode=disable
+    #   data_source_user: postgres
+    #   data_source_pass: postgres
+    #   extend_query_path: ""
+    #   include_databases: postgres
   - name: pgadmin
     namespace: infra
     secrets:

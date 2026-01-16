@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: postgres-exporter
+  name: postgres-exporter
+  namespace: infra
+spec:
+  replicas: 1
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: postgres-exporter
+  template:
+    metadata:
+      annotations:
+        prometheus.io/path: /metrics
+        prometheus.io/port: "9187"
+        prometheus.io/scrape: "true"
+      labels:
+        app: postgres-exporter
+    spec:
+      containers:
+      - env:
+        - name: DATA_SOURCE_URI
+          value: postgres:5432/postgres?sslmode=disable
+        - name: DATA_SOURCE_USER
+          value: postgres
+        - name: DATA_SOURCE_PASS
+          value: postgres
+        - name: PG_EXPORTER_INCLUDE_DATABASES
+          value: postgres
+        image: quay.io/prometheuscommunity/postgres-exporter:latest
+        imagePullPolicy: Always
+        name: postgres-exporter
+        ports:
+        - containerPort: 9187
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 0

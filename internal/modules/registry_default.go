@@ -15,6 +15,7 @@ import (
 	"github.com/Goalt/personal-server/internal/modules/petproject"
 	"github.com/Goalt/personal-server/internal/modules/pgadmin"
 	"github.com/Goalt/personal-server/internal/modules/postgres"
+	"github.com/Goalt/personal-server/internal/modules/postgresexporter"
 	"github.com/Goalt/personal-server/internal/modules/prometheus"
 	"github.com/Goalt/personal-server/internal/modules/redis"
 	"github.com/Goalt/personal-server/internal/modules/sshlogin"
@@ -61,6 +62,9 @@ func DefaultRegistry(log logger.Logger) *Registry {
 	})
 	r.Register("postgres", func(g config.GeneralConfig, m config.Module, log logger.Logger) Module {
 		return postgres.New(g, m, log)
+	})
+	r.Register("postgres-exporter", func(g config.GeneralConfig, m config.Module, log logger.Logger) Module {
+		return postgresexporter.New(g, m, log)
 	})
 	r.Register("pgadmin", func(g config.GeneralConfig, m config.Module, log logger.Logger) Module {
 		return pgadmin.New(g, m, log)

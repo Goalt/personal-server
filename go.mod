@@ -5,11 +5,14 @@ go 1.25.3
 require (
 	github.com/emersion/go-webdav v0.7.0
 	github.com/getsentry/sentry-go v0.40.0
+	github.com/stretchr/testify v1.8.4
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.28.4
 	k8s.io/apimachinery v0.28.4
 	k8s.io/client-go v0.28.4
 )
+
+require github.com/pmezard/go-difflib v1.0.0 // indirect
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect

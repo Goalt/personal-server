@@ -247,6 +247,7 @@ func (a *App) printUsage() {
 	a.logger.Println("  grafana <subcommand>          Manage Grafana configurations")
 	a.logger.Println("  monitoring <subcommand>       Manage Monitoring configurations")
 	a.logger.Println("  postgres <subcommand>         Manage Postgres configurations")
+	a.logger.Println("  postgres-exporter <subcommand>  Manage Postgres Exporter configurations")
 	a.logger.Println("  pgadmin <subcommand>          Manage pgadmin configurations")
 	a.logger.Println("  redis <subcommand>            Manage Redis configurations")
 	a.logger.Println("  prometheus <subcommand>       Manage Prometheus monitoring configurations")

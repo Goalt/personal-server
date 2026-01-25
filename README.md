@@ -115,7 +115,24 @@ sudo mv code /usr/local/bin/
 code tunnel
 ```
 
-### 4. Configure Security (Optional but Recommended)
+### 4. Install Claude Code (Optional)
+
+Claude Code provides AI-powered coding assistance. You can install it as a VS Code extension or use the Cline CLI tool:
+
+```bash
+# Install Cline (Claude CLI) via npm
+# Requires Node.js to be installed
+sudo apt install nodejs npm -y
+
+# Install Cline globally
+sudo npm install -g @anthropic-ai/cline
+
+# Alternatively, install Claude as a VS Code extension
+# If you have VS Code installed:
+code --install-extension anthropic.claude-dev
+```
+
+### 5. Configure Security (Optional but Recommended)
 
 ```bash
 # Configure firewall (only SSH access)

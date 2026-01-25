@@ -377,7 +377,7 @@ personal-server <module> rollout <restart|status|history|undo>
 - **redis**: Redis in-memory data store
 - **prometheus**: Prometheus monitoring and metrics collection
 - **ssh-login-notifier**: SSH login notification service
-- **ingress**: HTTP routing and ingress management with TLS support
+- **ingress**: HTTP routing and ingress management with TLS support, plus TCP/UDP service exposure
 
 ### Pet Projects
 
@@ -498,6 +498,35 @@ personal-server web-ingress status
 # Clean up ingress
 personal-server web-ingress clean
 ```
+
+#### TCP and UDP Services
+
+For non-HTTP protocols (like databases, SSH, VPN), you can expose TCP and UDP services through the ingress controller using ConfigMaps:
+
+```yaml
+ingresses:
+  - name: tcp-udp-services
+    namespace: infra
+    tcpServices:
+      - port: 5432           # External port exposed by ingress
+        serviceName: postgres
+        servicePort: 5432    # Internal service port
+      - port: 6379
+        serviceName: redis
+        servicePort: 6379
+      - port: 2222           # Custom SSH port
+        serviceName: gitea
+        servicePort: 22
+        namespace: infra     # Optional: defaults to ingress namespace
+    udpServices:
+      - port: 1194           # OpenVPN UDP port
+        serviceName: openvpn
+        servicePort: 1194
+```
+
+**Note:** TCP/UDP services are exposed via ConfigMaps that configure the ingress controller. Make sure your ingress controller (e.g., nginx-ingress) is configured to watch these ConfigMaps. For nginx-ingress, you may need to configure the controller with:
+- `--tcp-services-configmap=<namespace>/<configmap-name>-tcp`
+- `--udp-services-configmap=<namespace>/<configmap-name>-udp`
 
 #### Setting Up TLS/HTTPS
 

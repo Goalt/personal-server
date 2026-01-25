@@ -121,3 +121,23 @@ ingresses:
         serviceName: bitwarden
         servicePort: 80
     tls: true
+  - name: tcp-udp-services
+    namespace: infra
+    # TCP services exposed through ingress controller
+    tcpServices:
+      - port: 5432           # External port
+        serviceName: postgres
+        servicePort: 5432    # Internal service port
+      - port: 6379
+        serviceName: redis
+        servicePort: 6379
+      - port: 2222           # Custom SSH port
+        serviceName: gitea
+        servicePort: 22
+        namespace: infra     # Optional: defaults to ingress namespace
+    # UDP services exposed through ingress controller
+    udpServices:
+      - port: 1194           # OpenVPN port
+        serviceName: openvpn
+        servicePort: 1194
+

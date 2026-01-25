@@ -295,7 +295,7 @@ func (m *IngressModule) prepare() *networkingv1.Ingress {
 // preparePortConfigMap creates a ConfigMap for TCP or UDP services
 func (m *IngressModule) preparePortConfigMap(services interface{}, suffix string) *corev1.ConfigMap {
 	var data map[string]string
-	
+
 	// Handle both TCP and UDP service types
 	switch svc := services.(type) {
 	case []config.TCPService:

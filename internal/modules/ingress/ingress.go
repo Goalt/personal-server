@@ -292,21 +292,42 @@ func (m *IngressModule) prepare() *networkingv1.Ingress {
 	return ingress
 }
 
-func (m *IngressModule) prepareTCPConfigMap() *corev1.ConfigMap {
-	if len(m.IngressConfig.TCPServices) == 0 {
-		return nil
-	}
-
-	data := make(map[string]string)
-	for _, svc := range m.IngressConfig.TCPServices {
-		namespace := svc.Namespace
-		if namespace == "" {
-			namespace = m.IngressConfig.Namespace
+// preparePortConfigMap creates a ConfigMap for TCP or UDP services
+func (m *IngressModule) preparePortConfigMap(services interface{}, suffix string) *corev1.ConfigMap {
+	var data map[string]string
+	
+	// Handle both TCP and UDP service types
+	switch svc := services.(type) {
+	case []config.TCPService:
+		if len(svc) == 0 {
+			return nil
 		}
-		// Format: "<port>": "<namespace>/<service-name>:<service-port>"
-		key := fmt.Sprintf("%d", svc.Port)
-		value := fmt.Sprintf("%s/%s:%d", namespace, svc.ServiceName, svc.ServicePort)
-		data[key] = value
+		data = make(map[string]string)
+		for _, s := range svc {
+			namespace := s.Namespace
+			if namespace == "" {
+				namespace = m.IngressConfig.Namespace
+			}
+			key := fmt.Sprintf("%d", s.Port)
+			value := fmt.Sprintf("%s/%s:%d", namespace, s.ServiceName, s.ServicePort)
+			data[key] = value
+		}
+	case []config.UDPService:
+		if len(svc) == 0 {
+			return nil
+		}
+		data = make(map[string]string)
+		for _, s := range svc {
+			namespace := s.Namespace
+			if namespace == "" {
+				namespace = m.IngressConfig.Namespace
+			}
+			key := fmt.Sprintf("%d", s.Port)
+			value := fmt.Sprintf("%s/%s:%d", namespace, s.ServiceName, s.ServicePort)
+			data[key] = value
+		}
+	default:
+		return nil
 	}
 
 	return &corev1.ConfigMap{
@@ -315,7 +336,7 @@ func (m *IngressModule) prepareTCPConfigMap() *corev1.ConfigMap {
 			Kind:       "ConfigMap",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-tcp", m.IngressConfig.Name),
+			Name:      fmt.Sprintf("%s-%s", m.IngressConfig.Name, suffix),
 			Namespace: m.IngressConfig.Namespace,
 			Labels: map[string]string{
 				"managed-by": "personal-server",
@@ -325,37 +346,12 @@ func (m *IngressModule) prepareTCPConfigMap() *corev1.ConfigMap {
 	}
 }
 
+func (m *IngressModule) prepareTCPConfigMap() *corev1.ConfigMap {
+	return m.preparePortConfigMap(m.IngressConfig.TCPServices, "tcp")
+}
+
 func (m *IngressModule) prepareUDPConfigMap() *corev1.ConfigMap {
-	if len(m.IngressConfig.UDPServices) == 0 {
-		return nil
-	}
-
-	data := make(map[string]string)
-	for _, svc := range m.IngressConfig.UDPServices {
-		namespace := svc.Namespace
-		if namespace == "" {
-			namespace = m.IngressConfig.Namespace
-		}
-		// Format: "<port>": "<namespace>/<service-name>:<service-port>"
-		key := fmt.Sprintf("%d", svc.Port)
-		value := fmt.Sprintf("%s/%s:%d", namespace, svc.ServiceName, svc.ServicePort)
-		data[key] = value
-	}
-
-	return &corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-udp", m.IngressConfig.Name),
-			Namespace: m.IngressConfig.Namespace,
-			Labels: map[string]string{
-				"managed-by": "personal-server",
-			},
-		},
-		Data: data,
-	}
+	return m.preparePortConfigMap(m.IngressConfig.UDPServices, "udp")
 }
 
 func (m *IngressModule) Clean(ctx context.Context) error {

@@ -98,13 +98,18 @@ func (a *App) Run(ctx context.Context, args []string) error {
 		return nil
 	}
 
+	// Handle commands
+	cmd := cmdArgs[0]
+
+	// Handle update command (doesn't require config)
+	if cmd == "update" {
+		return a.handleUpdateCommand(ctx)
+	}
+
 	cfg, err := a.configLoader(configFile)
 	if err != nil {
 		return fmt.Errorf("loading config %s: %w", configFile, err)
 	}
-
-	// Handle commands
-	cmd := cmdArgs[0]
 
 	// Handle config command separately (not a module)
 	if cmd == "config" {
@@ -233,6 +238,7 @@ func (a *App) printUsage() {
 
 	a.logger.Println("\nCommands:")
 	a.logger.Println("  help                          Show help information")
+	a.logger.Println("  update                        Check for updates and update the CLI to the latest version")
 	a.logger.Println("  config                        Parse and print loaded configuration")
 	a.logger.Println("  backup                        Trigger a global backup including all modules")
 	a.logger.Println("  backup download <file>        Download a backup archive from WebDAV")
@@ -256,6 +262,11 @@ func (a *App) printUsage() {
 
 func (a *App) printVersion() {
 	a.logger.Info("%s version %s\n", Name, Version)
+}
+
+func (a *App) handleUpdateCommand(ctx context.Context) error {
+	checker := NewUpdateChecker(a.logger, Version)
+	return checker.CheckAndUpdate(ctx)
 }
 
 func (a *App) handleConfigCommand(cfg *config.Config) error {

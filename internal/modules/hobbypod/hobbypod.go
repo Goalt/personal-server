@@ -191,7 +191,7 @@ func (m *HobbyPodModule) prepare() (*corev1.PersistentVolumeClaim, *appsv1.Deplo
 					Containers: []corev1.Container{
 						{
 							Name:  "hobby",
-							Image: "ghcr.io/goalt/workconfig:sha-595cb6c",
+							Image: "ghcr.io/goalt/work-config:sha-942241f",
 							Env: []corev1.EnvVar{
 								{
 									Name:  "DEBIAN_FRONTEND",

@@ -191,7 +191,7 @@ func (m *WorkPodModule) prepare() (*corev1.PersistentVolumeClaim, *appsv1.Deploy
 					Containers: []corev1.Container{
 						{
 							Name:  "debian",
-							Image: "ghcr.io/goalt/workconfig:sha-afd12b4",
+							Image: "ghcr.io/goalt/work-config:sha-942241f",
 							Env: []corev1.EnvVar{
 								{
 									Name:  "DEBIAN_FRONTEND",

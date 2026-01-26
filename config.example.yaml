@@ -22,8 +22,14 @@ modules:
       webdav_password: secret_password
   - name: hobby-pod
     namespace: infra
+    # Optional configuration:
+    # secrets:
+    #   image_tag: ghcr.io/goalt/work-config:custom-tag  # Custom container image tag
   - name: work-pod
     namespace: infra
+    # Optional configuration:
+    # secrets:
+    #   image_tag: ghcr.io/goalt/work-config:custom-tag  # Custom container image tag
   - name: drone
     namespace: infra
     secrets:

@@ -21,7 +21,7 @@ spec:
                 - env:
                     - name: DEBIAN_FRONTEND
                       value: noninteractive
-                  image: ghcr.io/goalt/workconfig:sha-595cb6c
+                  image: ghcr.io/goalt/work-config:sha-942241f
                   name: hobby
                   resources: {}
                   securityContext:

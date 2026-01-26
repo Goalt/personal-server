@@ -165,6 +165,9 @@ func (m *WorkPodModule) prepare() (*corev1.PersistentVolumeClaim, *appsv1.Deploy
 	allowPrivilegeEscalation := true
 	privileged := true
 
+	// Get custom image tag or use default
+	imageTag := k8s.GetSecretOrDefault(m.ModuleConfig.Secrets, "image_tag", "ghcr.io/goalt/work-config:sha-942241f")
+
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "work-pod",
@@ -191,7 +194,7 @@ func (m *WorkPodModule) prepare() (*corev1.PersistentVolumeClaim, *appsv1.Deploy
 					Containers: []corev1.Container{
 						{
 							Name:  "debian",
-							Image: "ghcr.io/goalt/work-config:sha-942241f",
+							Image: imageTag,
 							Env: []corev1.EnvVar{
 								{
 									Name:  "DEBIAN_FRONTEND",

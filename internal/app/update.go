@@ -77,7 +77,7 @@ func (u *UpdateChecker) CheckAndUpdate(ctx context.Context) error {
 	u.logger.Info("📦 New version available: %s\n", latestVersion)
 
 	// Determine the appropriate binary for this platform
-	assetName := u.getBinaryName(latestVersion)
+	assetName := u.getBinaryName()
 	downloadURL := ""
 	for _, asset := range release.Assets {
 		if asset.Name == assetName {
@@ -136,7 +136,7 @@ func (u *UpdateChecker) fetchLatestRelease(ctx context.Context) (*GitHubRelease,
 }
 
 // getBinaryName returns the expected binary name for the current platform
-func (u *UpdateChecker) getBinaryName(version string) string {
+func (u *UpdateChecker) getBinaryName() string {
 	baseName := fmt.Sprintf("personal-server-%s-%s", runtime.GOOS, runtime.GOARCH)
 	if runtime.GOOS == "windows" {
 		baseName += ".exe"

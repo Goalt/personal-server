@@ -16,28 +16,15 @@ import (
 )
 
 func TestCheckAndUpdate_AlreadyLatest(t *testing.T) {
-	// Create mock server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		release := GitHubRelease{
-			TagName: "v1.0.0",
-			Name:    "v1.0.0",
-		}
-		json.NewEncoder(w).Encode(release)
-	}))
-	defer server.Close()
-
 	// Create logger that writes to a buffer for testing
 	var logBuf strings.Builder
 	log := logger.NewStdLogger(&logBuf)
-
-	checker := NewUpdateChecker(log, "v1.0.0")
-	checker.httpClient = server.Client()
 
 	// Create a custom checker to test
 	customChecker := &UpdateChecker{
 		logger:     log,
 		currentVer: "v1.0.0",
-		httpClient: server.Client(),
+		httpClient: &http.Client{},
 	}
 
 	// Mock fetchLatestRelease to use test server
@@ -120,7 +107,7 @@ func TestGetBinaryName(t *testing.T) {
 			log := logger.NewStdLogger(&logBuf)
 			checker := NewUpdateChecker(log, "v1.0.0")
 
-			result := checker.getBinaryName("v1.0.0")
+			result := checker.getBinaryName()
 
 			// Verify it matches the expected format for current platform
 			expectedForCurrent := fmt.Sprintf("personal-server-%s-%s", runtime.GOOS, runtime.GOARCH)

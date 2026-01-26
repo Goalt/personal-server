@@ -395,6 +395,294 @@ func TestGenerate_NoRules(t *testing.T) {
 	err := module.Generate(ctx)
 
 	if err == nil {
-		t.Error("Expected error for ingress with no rules, got nil")
+		t.Error("Expected error for ingress with no rules or services, got nil")
+	}
+}
+
+func TestPrepareTCPConfigMap(t *testing.T) {
+	tests := []struct {
+		name        string
+		tcpServices []config.TCPService
+		namespace   string
+		wantNil     bool
+		wantData    map[string]string
+	}{
+		{
+			name:        "no TCP services",
+			tcpServices: []config.TCPService{},
+			namespace:   "default",
+			wantNil:     true,
+		},
+		{
+			name: "single TCP service",
+			tcpServices: []config.TCPService{
+				{
+					Port:        5432,
+					ServiceName: "postgres",
+					ServicePort: 5432,
+				},
+			},
+			namespace: "infra",
+			wantNil:   false,
+			wantData: map[string]string{
+				"5432": "infra/postgres:5432",
+			},
+		},
+		{
+			name: "multiple TCP services",
+			tcpServices: []config.TCPService{
+				{
+					Port:        5432,
+					ServiceName: "postgres",
+					ServicePort: 5432,
+				},
+				{
+					Port:        6379,
+					ServiceName: "redis",
+					ServicePort: 6379,
+				},
+			},
+			namespace: "infra",
+			wantNil:   false,
+			wantData: map[string]string{
+				"5432": "infra/postgres:5432",
+				"6379": "infra/redis:6379",
+			},
+		},
+		{
+			name: "TCP service with custom namespace",
+			tcpServices: []config.TCPService{
+				{
+					Port:        5432,
+					ServiceName: "postgres",
+					ServicePort: 5432,
+					Namespace:   "database",
+				},
+			},
+			namespace: "infra",
+			wantNil:   false,
+			wantData: map[string]string{
+				"5432": "database/postgres:5432",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			module := &IngressModule{
+				IngressConfig: config.IngressConfig{
+					Name:        "test-ingress",
+					Namespace:   tt.namespace,
+					TCPServices: tt.tcpServices,
+				},
+			}
+
+			configMap := module.prepareTCPConfigMap()
+
+			if tt.wantNil {
+				if configMap != nil {
+					t.Errorf("Expected nil ConfigMap, got %v", configMap)
+				}
+				return
+			}
+
+			if configMap == nil {
+				t.Fatal("Expected non-nil ConfigMap")
+			}
+
+			if configMap.Name != "test-ingress-tcp" {
+				t.Errorf("ConfigMap name = %s, want test-ingress-tcp", configMap.Name)
+			}
+
+			if configMap.Namespace != tt.namespace {
+				t.Errorf("ConfigMap namespace = %s, want %s", configMap.Namespace, tt.namespace)
+			}
+
+			if len(configMap.Data) != len(tt.wantData) {
+				t.Errorf("ConfigMap data length = %d, want %d", len(configMap.Data), len(tt.wantData))
+			}
+
+			for key, value := range tt.wantData {
+				if configMap.Data[key] != value {
+					t.Errorf("ConfigMap data[%s] = %s, want %s", key, configMap.Data[key], value)
+				}
+			}
+		})
+	}
+}
+
+func TestPrepareUDPConfigMap(t *testing.T) {
+	tests := []struct {
+		name        string
+		udpServices []config.UDPService
+		namespace   string
+		wantNil     bool
+		wantData    map[string]string
+	}{
+		{
+			name:        "no UDP services",
+			udpServices: []config.UDPService{},
+			namespace:   "default",
+			wantNil:     true,
+		},
+		{
+			name: "single UDP service",
+			udpServices: []config.UDPService{
+				{
+					Port:        53,
+					ServiceName: "coredns",
+					ServicePort: 53,
+				},
+			},
+			namespace: "kube-system",
+			wantNil:   false,
+			wantData: map[string]string{
+				"53": "kube-system/coredns:53",
+			},
+		},
+		{
+			name: "UDP service with custom namespace",
+			udpServices: []config.UDPService{
+				{
+					Port:        53,
+					ServiceName: "coredns",
+					ServicePort: 53,
+					Namespace:   "dns-system",
+				},
+			},
+			namespace: "kube-system",
+			wantNil:   false,
+			wantData: map[string]string{
+				"53": "dns-system/coredns:53",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			module := &IngressModule{
+				IngressConfig: config.IngressConfig{
+					Name:        "test-ingress",
+					Namespace:   tt.namespace,
+					UDPServices: tt.udpServices,
+				},
+			}
+
+			configMap := module.prepareUDPConfigMap()
+
+			if tt.wantNil {
+				if configMap != nil {
+					t.Errorf("Expected nil ConfigMap, got %v", configMap)
+				}
+				return
+			}
+
+			if configMap == nil {
+				t.Fatal("Expected non-nil ConfigMap")
+			}
+
+			if configMap.Name != "test-ingress-udp" {
+				t.Errorf("ConfigMap name = %s, want test-ingress-udp", configMap.Name)
+			}
+
+			if configMap.Namespace != tt.namespace {
+				t.Errorf("ConfigMap namespace = %s, want %s", configMap.Namespace, tt.namespace)
+			}
+
+			if len(configMap.Data) != len(tt.wantData) {
+				t.Errorf("ConfigMap data length = %d, want %d", len(configMap.Data), len(tt.wantData))
+			}
+
+			for key, value := range tt.wantData {
+				if configMap.Data[key] != value {
+					t.Errorf("ConfigMap data[%s] = %s, want %s", key, configMap.Data[key], value)
+				}
+			}
+		})
+	}
+}
+
+//go:embed testdata/tcp-configmap.yaml
+var expectedTCPConfigMapYAML string
+
+//go:embed testdata/udp-configmap.yaml
+var expectedUDPConfigMapYAML string
+
+func TestGenerate_TCPUDPServices(t *testing.T) {
+	// Create a temporary directory for output
+	tempDir := t.TempDir()
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+
+	// Change to temp directory so Generate creates files there
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	defer os.Chdir(originalWd)
+
+	// Create module with TCP and UDP services
+	module := &IngressModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		IngressConfig: config.IngressConfig{
+			Name:      "test-ingress",
+			Namespace: "default",
+			TCPServices: []config.TCPService{
+				{
+					Port:        5432,
+					ServiceName: "postgres",
+					ServicePort: 5432,
+					Namespace:   "infra",
+				},
+				{
+					Port:        6379,
+					ServiceName: "redis",
+					ServicePort: 6379,
+					Namespace:   "infra",
+				},
+			},
+			UDPServices: []config.UDPService{
+				{
+					Port:        53,
+					ServiceName: "coredns",
+					ServicePort: 53,
+					Namespace:   "kube-system",
+				},
+			},
+		},
+		log: logger.Default(),
+	}
+
+	// Run Generate
+	ctx := context.Background()
+	if err := module.Generate(ctx); err != nil {
+		t.Fatalf("Generate() failed: %v", err)
+	}
+
+	// Verify TCP ConfigMap file exists
+	tcpConfigMapPath := filepath.Join(tempDir, "configs/ingress/test-ingress/tcp-configmap.yaml")
+	tcpContent, err := os.ReadFile(tcpConfigMapPath)
+	if err != nil {
+		t.Fatalf("failed to read TCP ConfigMap file: %v", err)
+	}
+
+	// Compare with expected
+	if string(tcpContent) != expectedTCPConfigMapYAML {
+		t.Errorf("Generated TCP ConfigMap YAML does not match expected.\nGenerated:\n%s\n\nExpected:\n%s", string(tcpContent), expectedTCPConfigMapYAML)
+	}
+
+	// Verify UDP ConfigMap file exists
+	udpConfigMapPath := filepath.Join(tempDir, "configs/ingress/test-ingress/udp-configmap.yaml")
+	udpContent, err := os.ReadFile(udpConfigMapPath)
+	if err != nil {
+		t.Fatalf("failed to read UDP ConfigMap file: %v", err)
+	}
+
+	// Compare with expected
+	if string(udpContent) != expectedUDPConfigMapYAML {
+		t.Errorf("Generated UDP ConfigMap YAML does not match expected.\nGenerated:\n%s\n\nExpected:\n%s", string(udpContent), expectedUDPConfigMapYAML)
 	}
 }

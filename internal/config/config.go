@@ -35,12 +35,30 @@ type IngressRule struct {
 	ServicePort int32  `yaml:"servicePort"`
 }
 
+// TCPService represents a TCP service exposed through the ingress controller
+type TCPService struct {
+	Port        int32  `yaml:"port"`                // External port exposed by ingress controller
+	ServiceName string `yaml:"serviceName"`         // Kubernetes service name
+	ServicePort int32  `yaml:"servicePort"`         // Service port to forward to
+	Namespace   string `yaml:"namespace,omitempty"` // Optional: service namespace (defaults to ingress namespace)
+}
+
+// UDPService represents a UDP service exposed through the ingress controller
+type UDPService struct {
+	Port        int32  `yaml:"port"`                // External port exposed by ingress controller
+	ServiceName string `yaml:"serviceName"`         // Kubernetes service name
+	ServicePort int32  `yaml:"servicePort"`         // Service port to forward to
+	Namespace   string `yaml:"namespace,omitempty"` // Optional: service namespace (defaults to ingress namespace)
+}
+
 // IngressConfig represents ingress configuration
 type IngressConfig struct {
-	Name      string        `yaml:"name"`
-	Namespace string        `yaml:"namespace"`
-	Rules     []IngressRule `yaml:"rules"`
-	TLS       bool          `yaml:"tls,omitempty"`
+	Name        string        `yaml:"name"`
+	Namespace   string        `yaml:"namespace"`
+	Rules       []IngressRule `yaml:"rules"`
+	TCPServices []TCPService  `yaml:"tcpServices,omitempty"`
+	UDPServices []UDPService  `yaml:"udpServices,omitempty"`
+	TLS         bool          `yaml:"tls,omitempty"`
 }
 
 // PetProject represents a pet project configuration

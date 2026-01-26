@@ -125,8 +125,8 @@ func TestWorkPodModule_Prepare(t *testing.T) {
 			if container.Name != "debian" {
 				t.Errorf("Container name = %s, want debian", container.Name)
 			}
-			if container.Image != "ghcr.io/goalt/workconfig:sha-afd12b4" {
-				t.Errorf("Container image = %s, want ghcr.io/goalt/workconfig:sha-afd12b4", container.Image)
+			if container.Image != "ghcr.io/goalt/work-config:sha-942241f" {
+				t.Errorf("Container image = %s, want ghcr.io/goalt/work-config:sha-942241f", container.Image)
 			}
 
 			// Verify environment variables
@@ -201,6 +201,40 @@ func TestWorkPodModule_Prepare(t *testing.T) {
 				t.Errorf("RestartPolicy = %s, want Always", deployment.Spec.Template.Spec.RestartPolicy)
 			}
 		})
+	}
+}
+
+func TestWorkPodModule_PrepareWithCustomImageTag(t *testing.T) {
+	customImageTag := "ghcr.io/goalt/work-config:custom-tag"
+	module := &WorkPodModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		ModuleConfig: config.Module{
+			Name:      "workpod",
+			Namespace: "default",
+			Secrets: map[string]string{
+				"image_tag": customImageTag,
+			},
+		},
+	}
+
+	_, deployment := module.prepare()
+
+	// Verify deployment is not nil
+	if deployment == nil {
+		t.Fatal("prepare() returned nil Deployment")
+	}
+
+	// Verify custom image tag is used
+	containers := deployment.Spec.Template.Spec.Containers
+	if len(containers) != 1 {
+		t.Fatalf("Expected 1 container, got %d", len(containers))
+	}
+
+	container := containers[0]
+	if container.Image != customImageTag {
+		t.Errorf("Container image = %s, want %s", container.Image, customImageTag)
 	}
 }
 

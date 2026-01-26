@@ -191,7 +191,7 @@ func TestHobbyPodModule_PrepareDeploymentContainer(t *testing.T) {
 	}
 
 	// Test container image
-	expectedImage := "ghcr.io/goalt/workconfig:sha-595cb6c"
+	expectedImage := "ghcr.io/goalt/work-config:sha-942241f"
 	if container.Image != expectedImage {
 		t.Errorf("Container image = %s, want %s", container.Image, expectedImage)
 	}
@@ -308,6 +308,40 @@ func TestHobbyPodModule_PrepareDeploymentVolumes(t *testing.T) {
 
 	if volume.PersistentVolumeClaim.ClaimName != "hobby-storage-pvc" {
 		t.Errorf("Volume PVC claim name = %s, want hobby-storage-pvc", volume.PersistentVolumeClaim.ClaimName)
+	}
+}
+
+func TestHobbyPodModule_PrepareWithCustomImageTag(t *testing.T) {
+	customImageTag := "ghcr.io/goalt/work-config:custom-tag"
+	module := &HobbyPodModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		ModuleConfig: config.Module{
+			Name:      "hobby-pod",
+			Namespace: "test-namespace",
+			Secrets: map[string]string{
+				"image_tag": customImageTag,
+			},
+		},
+	}
+
+	_, deployment := module.prepare()
+
+	// Verify deployment is not nil
+	if deployment == nil {
+		t.Fatal("prepare() returned nil Deployment")
+	}
+
+	// Verify custom image tag is used
+	containers := deployment.Spec.Template.Spec.Containers
+	if len(containers) != 1 {
+		t.Fatalf("Expected 1 container, got %d", len(containers))
+	}
+
+	container := containers[0]
+	if container.Image != customImageTag {
+		t.Errorf("Container image = %s, want %s", container.Image, customImageTag)
 	}
 }
 

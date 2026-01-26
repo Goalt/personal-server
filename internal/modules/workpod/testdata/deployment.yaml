@@ -20,7 +20,7 @@ spec:
                 - env:
                     - name: DEBIAN_FRONTEND
                       value: noninteractive
-                  image: ghcr.io/goalt/workconfig:sha-afd12b4
+                  image: ghcr.io/goalt/work-config:sha-942241f
                   name: debian
                   resources: {}
                   securityContext:

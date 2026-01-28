@@ -20,6 +20,7 @@ import (
 	"github.com/Goalt/personal-server/internal/modules/redis"
 	"github.com/Goalt/personal-server/internal/modules/sshlogin"
 	"github.com/Goalt/personal-server/internal/modules/webdav"
+	"github.com/Goalt/personal-server/internal/modules/webssh2"
 	"github.com/Goalt/personal-server/internal/modules/workpod"
 )
 
@@ -77,6 +78,9 @@ func DefaultRegistry(log logger.Logger) *Registry {
 	})
 	r.Register("ssh-login-notifier", func(g config.GeneralConfig, m config.Module, log logger.Logger) Module {
 		return sshlogin.New(g, m, log)
+	})
+	r.Register("webssh2", func(g config.GeneralConfig, m config.Module, log logger.Logger) Module {
+		return webssh2.New(g, m, log)
 	})
 
 	// Register default pet project factory

@@ -84,6 +84,14 @@ modules:
     namespace: infra
     secrets:
       sentry_dsn: https://public@sentry.example.com/1
+  - name: webssh2
+    namespace: infra
+    # Optional configuration:
+    # secrets:
+    #   header_text: "My WebSSH2"                        # Custom header text
+    #   ssh_host: "ssh.example.com"                      # Default SSH host
+    #   auth_allowed: "password,publickey"               # Allowed auth methods
+    #   image: "ghcr.io/billchurch/webssh2:latest"      # Docker image
 pet-projects:
   - name: myapp
     namespace: hobby

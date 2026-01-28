@@ -301,8 +301,8 @@ func (m *WebSSH2Module) prepare() (*corev1.ConfigMap, *corev1.Service, *appsv1.D
 			Namespace: m.ModuleConfig.Namespace,
 		},
 		Data: map[string]string{
-			"WEBSSH2_LISTEN_PORT": listenPort,
-			"WEBSSH2_HEADER_TEXT": headerText,
+			"WEBSSH2_LISTEN_PORT":  listenPort,
+			"WEBSSH2_HEADER_TEXT":  headerText,
 			"WEBSSH2_AUTH_ALLOWED": authAllowed,
 		},
 	}

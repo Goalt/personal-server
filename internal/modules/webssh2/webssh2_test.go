@@ -89,7 +89,7 @@ func TestWebSSH2Module_Prepare(t *testing.T) {
 
 			container := deployment.Spec.Template.Spec.Containers[0]
 			assert.Equal(t, "webssh2", container.Name)
-			
+
 			// Verify image
 			if tt.secrets["image"] != "" {
 				assert.Equal(t, tt.secrets["image"], container.Image)
@@ -204,7 +204,7 @@ func TestWebSSH2Module_PrepareWithCustomValues(t *testing.T) {
 	assert.Equal(t, "password", configMap.Data["WEBSSH2_AUTH_ALLOWED"])
 	assert.Equal(t, "3333", configMap.Data["WEBSSH2_LISTEN_PORT"])
 	assert.Equal(t, "ghcr.io/billchurch/webssh2:2.3.2", deployment.Spec.Template.Spec.Containers[0].Image)
-	
+
 	// Service port should still be 2222 (default WebSSH2 port)
 	assert.Equal(t, int32(2222), service.Spec.Ports[0].Port)
 }

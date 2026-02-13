@@ -20,8 +20,7 @@ func TestHandleConfigEditCommand_Success(t *testing.T) {
 modules:
   - name: hobby-pod
     namespace: infra
-    secrets:
-      image_tag: ghcr.io/goalt/work-config:old-tag
+    image: ghcr.io/goalt/work-config:old-tag
 `
 	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
 		t.Fatalf("Failed to create test config: %v", err)
@@ -36,7 +35,7 @@ modules:
 	log := logger.NewStdLogger(&logBuf)
 	app := &App{logger: log}
 
-	err = app.handleConfigEditCommand(cfg, []string{"hobby-pod", "image_tag", "ghcr.io/goalt/work-config:new-tag"})
+	err = app.handleConfigEditCommand(cfg, []string{"hobby-pod", "image", "ghcr.io/goalt/work-config:new-tag"})
 	if err != nil {
 		t.Fatalf("handleConfigEditCommand failed: %v", err)
 	}
@@ -47,8 +46,8 @@ modules:
 		t.Fatalf("Failed to reload config: %v", err)
 	}
 
-	if reloaded.Modules[0].Secrets["image_tag"] != "ghcr.io/goalt/work-config:new-tag" {
-		t.Errorf("Expected 'ghcr.io/goalt/work-config:new-tag', got '%s'", reloaded.Modules[0].Secrets["image_tag"])
+	if reloaded.Modules[0].Image != "ghcr.io/goalt/work-config:new-tag" {
+		t.Errorf("Expected 'ghcr.io/goalt/work-config:new-tag', got '%s'", reloaded.Modules[0].Image)
 	}
 
 	output := logBuf.String()
@@ -57,7 +56,7 @@ modules:
 	}
 }
 
-func TestHandleConfigEditCommand_NewImageSecret(t *testing.T) {
+func TestHandleConfigEditCommand_SetNewImage(t *testing.T) {
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "config.yaml")
 
@@ -81,7 +80,7 @@ modules:
 	log := logger.NewStdLogger(&logBuf)
 	app := &App{logger: log}
 
-	err = app.handleConfigEditCommand(cfg, []string{"prometheus", "prometheus_image", "prom/prometheus:v3.0.0"})
+	err = app.handleConfigEditCommand(cfg, []string{"prometheus", "image", "prom/prometheus:v3.0.0"})
 	if err != nil {
 		t.Fatalf("handleConfigEditCommand failed: %v", err)
 	}
@@ -92,8 +91,8 @@ modules:
 		t.Fatalf("Failed to reload config: %v", err)
 	}
 
-	if reloaded.Modules[0].Secrets["prometheus_image"] != "prom/prometheus:v3.0.0" {
-		t.Errorf("Expected 'prom/prometheus:v3.0.0', got '%s'", reloaded.Modules[0].Secrets["prometheus_image"])
+	if reloaded.Modules[0].Image != "prom/prometheus:v3.0.0" {
+		t.Errorf("Expected 'prom/prometheus:v3.0.0', got '%s'", reloaded.Modules[0].Image)
 	}
 }
 
@@ -113,8 +112,8 @@ func TestHandleConfigEditCommand_RejectsNonImageKey(t *testing.T) {
 		t.Error("Expected error for non-image key, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "only image-related fields") {
-		t.Errorf("Expected error about image-related fields, got: %v", err)
+	if !strings.Contains(err.Error(), "only the 'image' field can be edited") {
+		t.Errorf("Expected error about image field, got: %v", err)
 	}
 }
 
@@ -142,7 +141,7 @@ modules:
 	log := logger.NewStdLogger(&logBuf)
 	app := &App{logger: log}
 
-	err = app.handleConfigEditCommand(cfg, []string{"nonexistent", "image_tag", "value"})
+	err = app.handleConfigEditCommand(cfg, []string{"nonexistent", "image", "value"})
 	if err == nil {
 		t.Error("Expected error for non-existent module, got nil")
 	}
@@ -162,7 +161,7 @@ func TestHandleConfigEditCommand_InsufficientArgs(t *testing.T) {
 	testCases := [][]string{
 		{},
 		{"cloudflare"},
-		{"cloudflare", "image_tag"},
+		{"cloudflare", "image"},
 	}
 
 	for _, args := range testCases {

@@ -620,85 +620,55 @@ pet-projects:
 	}
 }
 
-func TestSetModuleSecret_Success(t *testing.T) {
+func TestSetModuleImage_Success(t *testing.T) {
 	config := &Config{
 		Modules: []Module{
 			{
-				Name:      "cloudflare",
+				Name:      "hobby-pod",
 				Namespace: "infra",
-				Secrets: map[string]string{
-					"api_token": "old_value",
-				},
+				Image:     "ghcr.io/goalt/work-config:old-tag",
 			},
 		},
 	}
 
-	err := config.SetModuleSecret("cloudflare", "api_token", "new_value")
+	err := config.SetModuleImage("hobby-pod", "ghcr.io/goalt/work-config:new-tag")
 	if err != nil {
-		t.Fatalf("SetModuleSecret failed: %v", err)
+		t.Fatalf("SetModuleImage failed: %v", err)
 	}
 
-	if config.Modules[0].Secrets["api_token"] != "new_value" {
-		t.Errorf("Expected api_token to be 'new_value', got '%s'", config.Modules[0].Secrets["api_token"])
+	if config.Modules[0].Image != "ghcr.io/goalt/work-config:new-tag" {
+		t.Errorf("Expected image to be 'ghcr.io/goalt/work-config:new-tag', got '%s'", config.Modules[0].Image)
 	}
 }
 
-func TestSetModuleSecret_NewKey(t *testing.T) {
+func TestSetModuleImage_SetNew(t *testing.T) {
 	config := &Config{
 		Modules: []Module{
 			{
-				Name:      "cloudflare",
-				Namespace: "infra",
-				Secrets: map[string]string{
-					"api_token": "abc123",
-				},
-			},
-		},
-	}
-
-	err := config.SetModuleSecret("cloudflare", "new_key", "new_value")
-	if err != nil {
-		t.Fatalf("SetModuleSecret failed: %v", err)
-	}
-
-	if config.Modules[0].Secrets["new_key"] != "new_value" {
-		t.Errorf("Expected new_key to be 'new_value', got '%s'", config.Modules[0].Secrets["new_key"])
-	}
-
-	// Existing secret should remain unchanged
-	if config.Modules[0].Secrets["api_token"] != "abc123" {
-		t.Errorf("Expected api_token to remain 'abc123', got '%s'", config.Modules[0].Secrets["api_token"])
-	}
-}
-
-func TestSetModuleSecret_NilSecrets(t *testing.T) {
-	config := &Config{
-		Modules: []Module{
-			{
-				Name:      "bitwarden",
+				Name:      "prometheus",
 				Namespace: "infra",
 			},
 		},
 	}
 
-	err := config.SetModuleSecret("bitwarden", "key", "value")
+	err := config.SetModuleImage("prometheus", "prom/prometheus:v3.0.0")
 	if err != nil {
-		t.Fatalf("SetModuleSecret failed: %v", err)
+		t.Fatalf("SetModuleImage failed: %v", err)
 	}
 
-	if config.Modules[0].Secrets["key"] != "value" {
-		t.Errorf("Expected key to be 'value', got '%s'", config.Modules[0].Secrets["key"])
+	if config.Modules[0].Image != "prom/prometheus:v3.0.0" {
+		t.Errorf("Expected image to be 'prom/prometheus:v3.0.0', got '%s'", config.Modules[0].Image)
 	}
 }
 
-func TestSetModuleSecret_ModuleNotFound(t *testing.T) {
+func TestSetModuleImage_ModuleNotFound(t *testing.T) {
 	config := &Config{
 		Modules: []Module{
 			{Name: "cloudflare", Namespace: "infra"},
 		},
 	}
 
-	err := config.SetModuleSecret("nonexistent", "key", "value")
+	err := config.SetModuleImage("nonexistent", "some-image:latest")
 	if err == nil {
 		t.Error("Expected error for non-existent module, got nil")
 	}

@@ -11,6 +11,7 @@ import (
 type Module struct {
 	Name      string            `yaml:"name"`
 	Namespace string            `yaml:"namespace"`
+	Image     string            `yaml:"image,omitempty"`
 	Secrets   map[string]string `yaml:"secrets"`
 }
 
@@ -160,16 +161,12 @@ func (c *Config) GetIngress(name string) (IngressConfig, error) {
 	return IngressConfig{}, fmt.Errorf("ingress not found: %s", name)
 }
 
-// SetModuleSecret sets a secret key-value pair for a module by name.
-// If the module exists, it updates or adds the secret.
+// SetModuleImage sets the image field for a module by name.
 // If the module does not exist, it returns an error.
-func (c *Config) SetModuleSecret(moduleName, key, value string) error {
+func (c *Config) SetModuleImage(moduleName, image string) error {
 	for i, module := range c.Modules {
 		if module.Name == moduleName {
-			if c.Modules[i].Secrets == nil {
-				c.Modules[i].Secrets = make(map[string]string)
-			}
-			c.Modules[i].Secrets[key] = value
+			c.Modules[i].Image = image
 			return nil
 		}
 	}

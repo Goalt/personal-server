@@ -113,6 +113,9 @@ func (a *App) Run(ctx context.Context, args []string) error {
 
 	// Handle config command separately (not a module)
 	if cmd == "config" {
+		if len(cmdArgs) > 1 && cmdArgs[1] == "edit" {
+			return a.handleConfigEditCommand(cfg, cmdArgs[2:])
+		}
 		return a.handleConfigCommand(cfg)
 	}
 
@@ -240,6 +243,7 @@ func (a *App) printUsage() {
 	a.logger.Println("  help                          Show help information")
 	a.logger.Println("  update                        Check for updates and update the CLI to the latest version")
 	a.logger.Println("  config                        Parse and print loaded configuration")
+	a.logger.Println("  config edit <module> <key> <value>  Edit a module's secret in the configuration file")
 	a.logger.Println("  backup                        Trigger a global backup including all modules")
 	a.logger.Println("  backup download <file>        Download a backup archive from WebDAV")
 	a.logger.Println("  namespace <subcommand>        Manage Kubernetes namespace configurations")

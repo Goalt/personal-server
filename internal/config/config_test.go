@@ -619,3 +619,151 @@ pet-projects:
 		t.Error("Expected second pet project to have no service configuration")
 	}
 }
+
+func TestSetModuleSecret_Success(t *testing.T) {
+	config := &Config{
+		Modules: []Module{
+			{
+				Name:      "cloudflare",
+				Namespace: "infra",
+				Secrets: map[string]string{
+					"api_token": "old_value",
+				},
+			},
+		},
+	}
+
+	err := config.SetModuleSecret("cloudflare", "api_token", "new_value")
+	if err != nil {
+		t.Fatalf("SetModuleSecret failed: %v", err)
+	}
+
+	if config.Modules[0].Secrets["api_token"] != "new_value" {
+		t.Errorf("Expected api_token to be 'new_value', got '%s'", config.Modules[0].Secrets["api_token"])
+	}
+}
+
+func TestSetModuleSecret_NewKey(t *testing.T) {
+	config := &Config{
+		Modules: []Module{
+			{
+				Name:      "cloudflare",
+				Namespace: "infra",
+				Secrets: map[string]string{
+					"api_token": "abc123",
+				},
+			},
+		},
+	}
+
+	err := config.SetModuleSecret("cloudflare", "new_key", "new_value")
+	if err != nil {
+		t.Fatalf("SetModuleSecret failed: %v", err)
+	}
+
+	if config.Modules[0].Secrets["new_key"] != "new_value" {
+		t.Errorf("Expected new_key to be 'new_value', got '%s'", config.Modules[0].Secrets["new_key"])
+	}
+
+	// Existing secret should remain unchanged
+	if config.Modules[0].Secrets["api_token"] != "abc123" {
+		t.Errorf("Expected api_token to remain 'abc123', got '%s'", config.Modules[0].Secrets["api_token"])
+	}
+}
+
+func TestSetModuleSecret_NilSecrets(t *testing.T) {
+	config := &Config{
+		Modules: []Module{
+			{
+				Name:      "bitwarden",
+				Namespace: "infra",
+			},
+		},
+	}
+
+	err := config.SetModuleSecret("bitwarden", "key", "value")
+	if err != nil {
+		t.Fatalf("SetModuleSecret failed: %v", err)
+	}
+
+	if config.Modules[0].Secrets["key"] != "value" {
+		t.Errorf("Expected key to be 'value', got '%s'", config.Modules[0].Secrets["key"])
+	}
+}
+
+func TestSetModuleSecret_ModuleNotFound(t *testing.T) {
+	config := &Config{
+		Modules: []Module{
+			{Name: "cloudflare", Namespace: "infra"},
+		},
+	}
+
+	err := config.SetModuleSecret("nonexistent", "key", "value")
+	if err == nil {
+		t.Error("Expected error for non-existent module, got nil")
+	}
+
+	expectedMsg := "module not found: nonexistent"
+	if err != nil && err.Error() != expectedMsg {
+		t.Errorf("Expected error message '%s', got '%s'", expectedMsg, err.Error())
+	}
+}
+
+func TestSaveConfig_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+
+	config := &Config{
+		Path: configFile,
+		General: GeneralConfig{
+			Domain:     "example.com",
+			Namespaces: []string{"infra"},
+		},
+		Modules: []Module{
+			{
+				Name:      "cloudflare",
+				Namespace: "infra",
+				Secrets: map[string]string{
+					"api_token": "abc123",
+				},
+			},
+		},
+	}
+
+	err := config.SaveConfig()
+	if err != nil {
+		t.Fatalf("SaveConfig failed: %v", err)
+	}
+
+	// Reload and verify
+	loaded, err := LoadConfig(configFile)
+	if err != nil {
+		t.Fatalf("LoadConfig failed after save: %v", err)
+	}
+
+	if loaded.General.Domain != "example.com" {
+		t.Errorf("Expected domain 'example.com', got '%s'", loaded.General.Domain)
+	}
+
+	if len(loaded.Modules) != 1 {
+		t.Fatalf("Expected 1 module, got %d", len(loaded.Modules))
+	}
+
+	if loaded.Modules[0].Secrets["api_token"] != "abc123" {
+		t.Errorf("Expected api_token 'abc123', got '%s'", loaded.Modules[0].Secrets["api_token"])
+	}
+}
+
+func TestSaveConfig_EmptyPath(t *testing.T) {
+	config := &Config{}
+
+	err := config.SaveConfig()
+	if err == nil {
+		t.Error("Expected error for empty path, got nil")
+	}
+
+	expectedMsg := "config path is not set"
+	if err != nil && err.Error() != expectedMsg {
+		t.Errorf("Expected error message '%s', got '%s'", expectedMsg, err.Error())
+	}
+}

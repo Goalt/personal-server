@@ -619,3 +619,121 @@ pet-projects:
 		t.Error("Expected second pet project to have no service configuration")
 	}
 }
+
+func TestSetModuleImage_Success(t *testing.T) {
+	config := &Config{
+		Modules: []Module{
+			{
+				Name:      "hobby-pod",
+				Namespace: "infra",
+				Image:     "ghcr.io/goalt/work-config:old-tag",
+			},
+		},
+	}
+
+	err := config.SetModuleImage("hobby-pod", "ghcr.io/goalt/work-config:new-tag")
+	if err != nil {
+		t.Fatalf("SetModuleImage failed: %v", err)
+	}
+
+	if config.Modules[0].Image != "ghcr.io/goalt/work-config:new-tag" {
+		t.Errorf("Expected image to be 'ghcr.io/goalt/work-config:new-tag', got '%s'", config.Modules[0].Image)
+	}
+}
+
+func TestSetModuleImage_SetNew(t *testing.T) {
+	config := &Config{
+		Modules: []Module{
+			{
+				Name:      "prometheus",
+				Namespace: "infra",
+			},
+		},
+	}
+
+	err := config.SetModuleImage("prometheus", "prom/prometheus:v3.0.0")
+	if err != nil {
+		t.Fatalf("SetModuleImage failed: %v", err)
+	}
+
+	if config.Modules[0].Image != "prom/prometheus:v3.0.0" {
+		t.Errorf("Expected image to be 'prom/prometheus:v3.0.0', got '%s'", config.Modules[0].Image)
+	}
+}
+
+func TestSetModuleImage_ModuleNotFound(t *testing.T) {
+	config := &Config{
+		Modules: []Module{
+			{Name: "cloudflare", Namespace: "infra"},
+		},
+	}
+
+	err := config.SetModuleImage("nonexistent", "some-image:latest")
+	if err == nil {
+		t.Error("Expected error for non-existent module, got nil")
+	}
+
+	expectedMsg := "module not found: nonexistent"
+	if err != nil && err.Error() != expectedMsg {
+		t.Errorf("Expected error message '%s', got '%s'", expectedMsg, err.Error())
+	}
+}
+
+func TestSaveConfig_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+
+	config := &Config{
+		Path: configFile,
+		General: GeneralConfig{
+			Domain:     "example.com",
+			Namespaces: []string{"infra"},
+		},
+		Modules: []Module{
+			{
+				Name:      "cloudflare",
+				Namespace: "infra",
+				Secrets: map[string]string{
+					"api_token": "abc123",
+				},
+			},
+		},
+	}
+
+	err := config.SaveConfig()
+	if err != nil {
+		t.Fatalf("SaveConfig failed: %v", err)
+	}
+
+	// Reload and verify
+	loaded, err := LoadConfig(configFile)
+	if err != nil {
+		t.Fatalf("LoadConfig failed after save: %v", err)
+	}
+
+	if loaded.General.Domain != "example.com" {
+		t.Errorf("Expected domain 'example.com', got '%s'", loaded.General.Domain)
+	}
+
+	if len(loaded.Modules) != 1 {
+		t.Fatalf("Expected 1 module, got %d", len(loaded.Modules))
+	}
+
+	if loaded.Modules[0].Secrets["api_token"] != "abc123" {
+		t.Errorf("Expected api_token 'abc123', got '%s'", loaded.Modules[0].Secrets["api_token"])
+	}
+}
+
+func TestSaveConfig_EmptyPath(t *testing.T) {
+	config := &Config{}
+
+	err := config.SaveConfig()
+	if err == nil {
+		t.Error("Expected error for empty path, got nil")
+	}
+
+	expectedMsg := "config path is not set"
+	if err != nil && err.Error() != expectedMsg {
+		t.Errorf("Expected error message '%s', got '%s'", expectedMsg, err.Error())
+	}
+}

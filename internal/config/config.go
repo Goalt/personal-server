@@ -11,6 +11,7 @@ import (
 type Module struct {
 	Name      string            `yaml:"name"`
 	Namespace string            `yaml:"namespace"`
+	Image     string            `yaml:"image,omitempty"`
 	Secrets   map[string]string `yaml:"secrets"`
 }
 
@@ -158,4 +159,34 @@ func (c *Config) GetIngress(name string) (IngressConfig, error) {
 		}
 	}
 	return IngressConfig{}, fmt.Errorf("ingress not found: %s", name)
+}
+
+// SetModuleImage sets the image field for a module by name.
+// If the module does not exist, it returns an error.
+func (c *Config) SetModuleImage(moduleName, image string) error {
+	for i, module := range c.Modules {
+		if module.Name == moduleName {
+			c.Modules[i].Image = image
+			return nil
+		}
+	}
+	return fmt.Errorf("module not found: %s", moduleName)
+}
+
+// SaveConfig writes the configuration back to its file
+func (c *Config) SaveConfig() error {
+	if c.Path == "" {
+		return fmt.Errorf("config path is not set")
+	}
+
+	data, err := yaml.Marshal(c)
+	if err != nil {
+		return fmt.Errorf("error marshaling config to YAML: %v", err)
+	}
+
+	if err := os.WriteFile(c.Path, data, 0600); err != nil {
+		return fmt.Errorf("error writing config file: %v", err)
+	}
+
+	return nil
 }

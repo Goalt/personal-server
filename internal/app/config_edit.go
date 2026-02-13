@@ -23,6 +23,6 @@ func (a *App) handleConfigEditCommand(cfg *config.Config, args []string) error {
 		return fmt.Errorf("saving config: %w", err)
 	}
 
-	a.logger.Success("Updated module '%s': set '%s' to '%s'\n", moduleName, key, value)
+	a.logger.Success("Updated module '%s': set '%s'\n", moduleName, key)
 	return nil
 }

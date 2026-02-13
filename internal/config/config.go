@@ -187,7 +187,7 @@ func (c *Config) SaveConfig() error {
 		return fmt.Errorf("error marshaling config to YAML: %v", err)
 	}
 
-	if err := os.WriteFile(c.Path, data, 0644); err != nil {
+	if err := os.WriteFile(c.Path, data, 0600); err != nil {
 		return fmt.Errorf("error writing config file: %v", err)
 	}
 

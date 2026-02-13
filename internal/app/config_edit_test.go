@@ -18,10 +18,10 @@ func TestHandleConfigEditCommand_Success(t *testing.T) {
   domain: example.com
   namespaces: [infra]
 modules:
-  - name: cloudflare
+  - name: hobby-pod
     namespace: infra
     secrets:
-      cloudflare_api_token: old_token
+      image_tag: ghcr.io/goalt/work-config:old-tag
 `
 	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
 		t.Fatalf("Failed to create test config: %v", err)
@@ -36,7 +36,7 @@ modules:
 	log := logger.NewStdLogger(&logBuf)
 	app := &App{logger: log}
 
-	err = app.handleConfigEditCommand(cfg, []string{"cloudflare", "cloudflare_api_token", "new_token"})
+	err = app.handleConfigEditCommand(cfg, []string{"hobby-pod", "image_tag", "ghcr.io/goalt/work-config:new-tag"})
 	if err != nil {
 		t.Fatalf("handleConfigEditCommand failed: %v", err)
 	}
@@ -47,17 +47,17 @@ modules:
 		t.Fatalf("Failed to reload config: %v", err)
 	}
 
-	if reloaded.Modules[0].Secrets["cloudflare_api_token"] != "new_token" {
-		t.Errorf("Expected 'new_token', got '%s'", reloaded.Modules[0].Secrets["cloudflare_api_token"])
+	if reloaded.Modules[0].Secrets["image_tag"] != "ghcr.io/goalt/work-config:new-tag" {
+		t.Errorf("Expected 'ghcr.io/goalt/work-config:new-tag', got '%s'", reloaded.Modules[0].Secrets["image_tag"])
 	}
 
 	output := logBuf.String()
-	if !strings.Contains(output, "cloudflare") {
-		t.Errorf("Expected log output to mention 'cloudflare', got: %s", output)
+	if !strings.Contains(output, "hobby-pod") {
+		t.Errorf("Expected log output to mention 'hobby-pod', got: %s", output)
 	}
 }
 
-func TestHandleConfigEditCommand_NewSecret(t *testing.T) {
+func TestHandleConfigEditCommand_NewImageSecret(t *testing.T) {
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "config.yaml")
 
@@ -65,7 +65,7 @@ func TestHandleConfigEditCommand_NewSecret(t *testing.T) {
   domain: example.com
   namespaces: [infra]
 modules:
-  - name: bitwarden
+  - name: prometheus
     namespace: infra
 `
 	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
@@ -81,7 +81,7 @@ modules:
 	log := logger.NewStdLogger(&logBuf)
 	app := &App{logger: log}
 
-	err = app.handleConfigEditCommand(cfg, []string{"bitwarden", "new_key", "new_value"})
+	err = app.handleConfigEditCommand(cfg, []string{"prometheus", "prometheus_image", "prom/prometheus:v3.0.0"})
 	if err != nil {
 		t.Fatalf("handleConfigEditCommand failed: %v", err)
 	}
@@ -92,8 +92,29 @@ modules:
 		t.Fatalf("Failed to reload config: %v", err)
 	}
 
-	if reloaded.Modules[0].Secrets["new_key"] != "new_value" {
-		t.Errorf("Expected 'new_value', got '%s'", reloaded.Modules[0].Secrets["new_key"])
+	if reloaded.Modules[0].Secrets["prometheus_image"] != "prom/prometheus:v3.0.0" {
+		t.Errorf("Expected 'prom/prometheus:v3.0.0', got '%s'", reloaded.Modules[0].Secrets["prometheus_image"])
+	}
+}
+
+func TestHandleConfigEditCommand_RejectsNonImageKey(t *testing.T) {
+	cfg := &config.Config{
+		Modules: []config.Module{
+			{Name: "cloudflare", Namespace: "infra"},
+		},
+	}
+
+	var logBuf strings.Builder
+	log := logger.NewStdLogger(&logBuf)
+	app := &App{logger: log}
+
+	err := app.handleConfigEditCommand(cfg, []string{"cloudflare", "cloudflare_api_token", "new_token"})
+	if err == nil {
+		t.Error("Expected error for non-image key, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "only image-related fields") {
+		t.Errorf("Expected error about image-related fields, got: %v", err)
 	}
 }
 
@@ -121,7 +142,7 @@ modules:
 	log := logger.NewStdLogger(&logBuf)
 	app := &App{logger: log}
 
-	err = app.handleConfigEditCommand(cfg, []string{"nonexistent", "key", "value"})
+	err = app.handleConfigEditCommand(cfg, []string{"nonexistent", "image_tag", "value"})
 	if err == nil {
 		t.Error("Expected error for non-existent module, got nil")
 	}
@@ -141,7 +162,7 @@ func TestHandleConfigEditCommand_InsufficientArgs(t *testing.T) {
 	testCases := [][]string{
 		{},
 		{"cloudflare"},
-		{"cloudflare", "key"},
+		{"cloudflare", "image_tag"},
 	}
 
 	for _, args := range testCases {

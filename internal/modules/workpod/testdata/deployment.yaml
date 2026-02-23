@@ -22,6 +22,10 @@ spec:
                       value: noninteractive
                   image: ghcr.io/goalt/work-config:sha-942241f
                   name: debian
+                  ports:
+                    - containerPort: 2000
+                      name: http
+                      protocol: TCP
                   resources: {}
                   securityContext:
                     allowPrivilegeEscalation: true

@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 type WorkPodModule struct {
@@ -51,7 +52,7 @@ func (m *WorkPodModule) Generate(ctx context.Context) error {
 	m.log.Info("Output directory: %s\n\n", outputDir)
 
 	// Prepare Kubernetes objects
-	pvc, deployment := m.prepare()
+	pvc, service, deployment := m.prepare()
 
 	// Helper function to write object to YAML file
 	writeYAML := func(obj interface{}, name string) error {
@@ -76,12 +77,17 @@ func (m *WorkPodModule) Generate(ctx context.Context) error {
 		return err
 	}
 
+	// Write Service
+	if err := writeYAML(service, "service"); err != nil {
+		return err
+	}
+
 	// Write Deployment
 	if err := writeYAML(deployment, "deployment"); err != nil {
 		return err
 	}
 
-	m.log.Info("\nCompleted: 2/2 work-pod configurations generated successfully\n")
+	m.log.Info("\nCompleted: 3/3 work-pod configurations generated successfully\n")
 	return nil
 }
 
@@ -111,10 +117,17 @@ func (m *WorkPodModule) Apply(ctx context.Context) error {
 		return fmt.Errorf("failed to check deployment existence: %w", err)
 	}
 
+	_, err = clientset.CoreV1().Services(m.ModuleConfig.Namespace).Get(ctx, "work-pod", metav1.GetOptions{})
+	if err == nil {
+		return fmt.Errorf("service 'work-pod' already exists in namespace '%s'", m.ModuleConfig.Namespace)
+	} else if !errors.IsNotFound(err) {
+		return fmt.Errorf("failed to check service existence: %w", err)
+	}
+
 	m.log.Info("No existing resources found, proceeding with creation...\n\n")
 
 	// Prepare Kubernetes objects
-	pvc, deployment := m.prepare()
+	pvc, service, deployment := m.prepare()
 
 	// Apply PVC
 	m.log.Progress("Applying PersistentVolumeClaim: work-storage-pvc\n")
@@ -124,6 +137,14 @@ func (m *WorkPodModule) Apply(ctx context.Context) error {
 	}
 	m.log.Success("Created PersistentVolumeClaim: %s\n", createdPVC.Name)
 
+	// Apply Service
+	m.log.Progress("Applying Service: work-pod\n")
+	createdService, err := clientset.CoreV1().Services(m.ModuleConfig.Namespace).Create(ctx, service, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to create Service: %w", err)
+	}
+	m.log.Success("Created Service: %s\n", createdService.Name)
+
 	// Apply Deployment
 	m.log.Progress("Applying Deployment: work-pod\n")
 	createdDeployment, err := clientset.AppsV1().Deployments(m.ModuleConfig.Namespace).Create(ctx, deployment, metav1.CreateOptions{})
@@ -132,11 +153,11 @@ func (m *WorkPodModule) Apply(ctx context.Context) error {
 	}
 	m.log.Success("Created Deployment: %s\n", createdDeployment.Name)
 
-	m.log.Info("\nCompleted: 2/2 resources applied successfully\n")
+	m.log.Info("\nCompleted: 3/3 resources applied successfully\n")
 	return nil
 }
 
-func (m *WorkPodModule) prepare() (*corev1.PersistentVolumeClaim, *appsv1.Deployment) {
+func (m *WorkPodModule) prepare() (*corev1.PersistentVolumeClaim, *corev1.Service, *appsv1.Deployment) {
 	// Prepare PVC
 	storageQuantity := resource.MustParse("10Gi")
 	pvc := &corev1.PersistentVolumeClaim{
@@ -195,6 +216,13 @@ func (m *WorkPodModule) prepare() (*corev1.PersistentVolumeClaim, *appsv1.Deploy
 						{
 							Name:  "debian",
 							Image: imageTag,
+							Ports: []corev1.ContainerPort{
+								{
+									Name:          "http",
+									ContainerPort: 2000,
+									Protocol:      corev1.ProtocolTCP,
+								},
+							},
 							Env: []corev1.EnvVar{
 								{
 									Name:  "DEBIAN_FRONTEND",
@@ -232,7 +260,37 @@ func (m *WorkPodModule) prepare() (*corev1.PersistentVolumeClaim, *appsv1.Deploy
 		},
 	}
 
-	return pvc, deployment
+	// Prepare Service
+	service := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "work-pod",
+			Namespace: m.ModuleConfig.Namespace,
+			Labels: map[string]string{
+				"app":        "work-pod",
+				"managed-by": "personal-server",
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeClusterIP,
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "work-pod",
+					Port:       2000,
+					TargetPort: intstr.FromInt(2000),
+					Protocol:   corev1.ProtocolTCP,
+				},
+			},
+			Selector: map[string]string{
+				"app": "work-pod",
+			},
+		},
+	}
+
+	return pvc, service, deployment
 }
 
 func (m *WorkPodModule) Clean(ctx context.Context) error {
@@ -246,7 +304,7 @@ func (m *WorkPodModule) Clean(ctx context.Context) error {
 	m.log.Info("Target namespace: %s\n\n", m.ModuleConfig.Namespace)
 
 	successCount := 0
-	totalResources := 2 // Deployment, PVC
+	totalResources := 3 // Deployment, Service, PVC
 
 	deletePolicy := metav1.DeletePropagationForeground
 	deleteOptions := metav1.DeleteOptions{
@@ -264,6 +322,20 @@ func (m *WorkPodModule) Clean(ctx context.Context) error {
 		}
 	} else {
 		m.log.Success("Deleted Deployment: work-pod\n")
+		successCount++
+	}
+
+	// Delete Service
+	m.log.Info("🗑️  Deleting Service: work-pod\n")
+	err = clientset.CoreV1().Services(m.ModuleConfig.Namespace).Delete(ctx, "work-pod", deleteOptions)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			m.log.Warn("Service 'work-pod' not found (already deleted or never existed)\n")
+		} else {
+			m.log.Error("Failed to delete Service: %v\n", err)
+		}
+	} else {
+		m.log.Success("Deleted Service: work-pod\n")
 		successCount++
 	}
 
@@ -331,6 +403,23 @@ func (m *WorkPodModule) Status(ctx context.Context) error {
 		m.log.Info("  Volume: %s\n", pvc.Spec.VolumeName)
 		m.log.Info("  Capacity: %s\n", pvc.Status.Capacity.Storage())
 		m.log.Info("  Access Modes: %v\n", pvc.Spec.AccessModes)
+		m.log.Info("  Age: %s\n", k8s.FormatAge(age))
+	}
+
+	m.log.Println("\nSERVICE:")
+	svc, err := clientset.CoreV1().Services(m.ModuleConfig.Namespace).Get(ctx, "work-pod", metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			m.log.Error("  Service 'work-pod' not found\n")
+		} else {
+			m.log.Error("  Error getting Service: %v\n", err)
+		}
+	} else {
+		age := time.Since(svc.CreationTimestamp.Time).Round(time.Second)
+		m.log.Info("  Name: %s\n", svc.Name)
+		m.log.Info("  Namespace: %s\n", svc.Namespace)
+		m.log.Info("  Type: %s\n", svc.Spec.Type)
+		m.log.Info("  ClusterIP: %s\n", svc.Spec.ClusterIP)
 		m.log.Info("  Age: %s\n", k8s.FormatAge(age))
 	}
 

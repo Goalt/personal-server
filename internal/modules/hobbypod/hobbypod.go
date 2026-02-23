@@ -246,6 +246,13 @@ func (m *HobbyPodModule) prepare() (*corev1.PersistentVolumeClaim, *corev1.Servi
 						{
 							Name:  "hobby",
 							Image: imageTag,
+							Ports: []corev1.ContainerPort{
+								{
+									Name:          "http",
+									ContainerPort: 2000,
+									Protocol:      corev1.ProtocolTCP,
+								},
+							},
 							Env: []corev1.EnvVar{
 								{
 									Name:  "DEBIAN_FRONTEND",

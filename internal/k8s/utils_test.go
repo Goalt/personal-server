@@ -355,3 +355,31 @@ func TestGetSecretOrDefault(t *testing.T) {
 		t.Errorf("GetSecretOrDefault for missing key = %s, want default", result)
 	}
 }
+
+func TestGenerateConnectionToken(t *testing.T) {
+	token, err := GenerateConnectionToken()
+	if err != nil {
+		t.Fatalf("GenerateConnectionToken() returned error: %v", err)
+	}
+
+	// Token should be 32 hex characters (16 bytes)
+	if len(token) != 32 {
+		t.Errorf("GenerateConnectionToken() length = %d, want 32", len(token))
+	}
+
+	// Token should contain only hex characters
+	for _, c := range token {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+			t.Errorf("GenerateConnectionToken() contains non-hex character: %c", c)
+		}
+	}
+
+	// Two tokens should be different
+	token2, err := GenerateConnectionToken()
+	if err != nil {
+		t.Fatalf("GenerateConnectionToken() second call returned error: %v", err)
+	}
+	if token == token2 {
+		t.Error("GenerateConnectionToken() returned the same token twice")
+	}
+}

@@ -664,3 +664,31 @@ func (m *WorkPodModule) Restore(ctx context.Context, args []string) error {
 	m.log.Success("🎉 Restore complete!\n")
 	return nil
 }
+
+func (m *WorkPodModule) CodeServeWeb(ctx context.Context) error {
+	token, err := k8s.GenerateConnectionToken()
+	if err != nil {
+		return fmt.Errorf("failed to generate connection token: %w", err)
+	}
+
+	kubectlBin := "kubectl"
+	var kubectlArgs []string
+	if _, err := os.Stat("/snap/bin/microk8s"); err == nil {
+		kubectlBin = "/snap/bin/microk8s"
+		kubectlArgs = append(kubectlArgs, "kubectl")
+	}
+
+	shellCmd := fmt.Sprintf("nohup code serve-web --host 0.0.0.0 --port 20000 --connection-token %s > /dev/null 2>&1 &", token)
+	kubectlArgs = append(kubectlArgs, "exec", "-n", m.ModuleConfig.Namespace, "deployment/work-pod", "--", "sh", "-c", shellCmd)
+	cmd := exec.CommandContext(ctx, kubectlBin, kubectlArgs...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to start code serve-web: %w", err)
+	}
+
+	m.log.Success("code serve-web started successfully\n")
+	m.log.Info("Connection token: %s\n", token)
+	return nil
+}

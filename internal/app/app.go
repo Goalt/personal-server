@@ -169,7 +169,7 @@ func (a *App) Run(ctx context.Context, args []string) error {
 
 func (a *App) handleModuleCommand(ctx context.Context, args []string, module modules.Module) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: %s <subcommand>\nAvailable subcommands: generate, apply, clean, status, backup, restore, add-db, remove-db, notify, test, rollout", module.Name())
+		return fmt.Errorf("usage: %s <subcommand>\nAvailable subcommands: generate, apply, clean, status, backup, restore, add-db, remove-db, notify, test, rollout, code-serve-web", module.Name())
 	}
 
 	subcommand := args[0]
@@ -223,8 +223,13 @@ func (a *App) handleModuleCommand(ctx context.Context, args []string, module mod
 			return rollouter.Rollout(ctx, args[1:])
 		}
 		return fmt.Errorf("module '%s' does not support rollout", module.Name())
+	case "code-serve-web":
+		if runner, ok := module.(modules.CodeServeWebRunner); ok {
+			return runner.CodeServeWeb(ctx)
+		}
+		return fmt.Errorf("module '%s' does not support code-serve-web", module.Name())
 	default:
-		return fmt.Errorf("unknown subcommand: %s\nAvailable subcommands: generate, apply, clean, status, backup, restore, add-db, remove-db, notify, test, rollout", subcommand)
+		return fmt.Errorf("unknown subcommand: %s\nAvailable subcommands: generate, apply, clean, status, backup, restore, add-db, remove-db, notify, test, rollout, code-serve-web", subcommand)
 	}
 }
 
@@ -251,7 +256,9 @@ func (a *App) printUsage() {
 	a.logger.Println("  bitwarden <subcommand>        Manage Bitwarden configurations")
 	a.logger.Println("  webdav <subcommand>           Manage WebDAV configurations")
 	a.logger.Println("  hobby-pod <subcommand>        Manage hobby-pod configurations")
+	a.logger.Println("    hobby-pod code-serve-web      Start code serve-web in the hobby-pod deployment")
 	a.logger.Println("  work-pod <subcommand>         Generate work-pod configurations to configs/work-pod/")
+	a.logger.Println("    work-pod code-serve-web       Start code serve-web in the work-pod deployment")
 	a.logger.Println("  drone <subcommand>            Manage Drone configurations")
 	a.logger.Println("  gitea <subcommand>            Manage Gitea configurations")
 	a.logger.Println("  grafana <subcommand>          Manage Grafana configurations")

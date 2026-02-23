@@ -11,6 +11,7 @@ import (
 	"github.com/Goalt/personal-server/internal/logger"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func TestHobbyPodModule_Name(t *testing.T) {
@@ -47,11 +48,14 @@ func TestHobbyPodModule_Prepare(t *testing.T) {
 				},
 			}
 
-			pvc, deployment := module.prepare()
+			pvc, service, deployment := module.prepare()
 
 			// Verify all objects are not nil
 			if pvc == nil {
 				t.Fatal("prepare() returned nil PVC")
+			}
+			if service == nil {
+				t.Fatal("prepare() returned nil Service")
 			}
 			if deployment == nil {
 				t.Fatal("prepare() returned nil Deployment")
@@ -60,6 +64,9 @@ func TestHobbyPodModule_Prepare(t *testing.T) {
 			// Verify namespace is set correctly
 			if pvc.Namespace != tt.namespace {
 				t.Errorf("PVC namespace = %s, want %s", pvc.Namespace, tt.namespace)
+			}
+			if service.Namespace != tt.namespace {
+				t.Errorf("Service namespace = %s, want %s", service.Namespace, tt.namespace)
 			}
 			if deployment.Namespace != tt.namespace {
 				t.Errorf("Deployment namespace = %s, want %s", deployment.Namespace, tt.namespace)
@@ -79,7 +86,7 @@ func TestHobbyPodModule_PreparePVC(t *testing.T) {
 		},
 	}
 
-	pvc, _ := module.prepare()
+	pvc, _, _ := module.prepare()
 
 	// Test PVC name
 	if pvc.Name != "hobby-storage-pvc" {
@@ -126,7 +133,7 @@ func TestHobbyPodModule_PrepareDeployment(t *testing.T) {
 		},
 	}
 
-	_, deployment := module.prepare()
+	_, _, deployment := module.prepare()
 
 	// Test Deployment name
 	if deployment.Name != "hobby-pod" {
@@ -176,7 +183,7 @@ func TestHobbyPodModule_PrepareDeploymentContainer(t *testing.T) {
 		},
 	}
 
-	_, deployment := module.prepare()
+	_, _, deployment := module.prepare()
 
 	// Verify container count
 	if len(deployment.Spec.Template.Spec.Containers) != 1 {
@@ -235,7 +242,7 @@ func TestHobbyPodModule_PrepareDeploymentContainerSecurityContext(t *testing.T) 
 		},
 	}
 
-	_, deployment := module.prepare()
+	_, _, deployment := module.prepare()
 
 	container := deployment.Spec.Template.Spec.Containers[0]
 
@@ -290,7 +297,7 @@ func TestHobbyPodModule_PrepareDeploymentVolumes(t *testing.T) {
 		},
 	}
 
-	_, deployment := module.prepare()
+	_, _, deployment := module.prepare()
 
 	// Test volumes
 	if len(deployment.Spec.Template.Spec.Volumes) != 1 {
@@ -326,7 +333,7 @@ func TestHobbyPodModule_PrepareWithCustomImageTag(t *testing.T) {
 		},
 	}
 
-	_, deployment := module.prepare()
+	_, _, deployment := module.prepare()
 
 	// Verify deployment is not nil
 	if deployment == nil {
@@ -345,11 +352,76 @@ func TestHobbyPodModule_PrepareWithCustomImageTag(t *testing.T) {
 	}
 }
 
+func TestHobbyPodModule_PrepareService(t *testing.T) {
+	module := &HobbyPodModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		ModuleConfig: config.Module{
+			Name:      "hobby-pod",
+			Namespace: "test-namespace",
+		},
+	}
+
+	_, service, _ := module.prepare()
+
+	// Test Service name
+	if service.Name != "hobby-pod" {
+		t.Errorf("Service name = %s, want hobby-pod", service.Name)
+	}
+
+	// Test Service namespace
+	if service.Namespace != "test-namespace" {
+		t.Errorf("Service namespace = %s, want test-namespace", service.Namespace)
+	}
+
+	// Test Service labels
+	expectedLabels := map[string]string{
+		"app":        "hobby-pod",
+		"managed-by": "personal-server",
+	}
+	for key, expectedValue := range expectedLabels {
+		if actualValue, ok := service.Labels[key]; !ok {
+			t.Errorf("Service missing label: %s", key)
+		} else if actualValue != expectedValue {
+			t.Errorf("Service label %s = %s, want %s", key, actualValue, expectedValue)
+		}
+	}
+
+	// Test Service type
+	if service.Spec.Type != corev1.ServiceTypeClusterIP {
+		t.Errorf("Service type = %s, want ClusterIP", service.Spec.Type)
+	}
+
+	// Test Service ports
+	if len(service.Spec.Ports) != 1 {
+		t.Fatalf("Service ports count = %d, want 1", len(service.Spec.Ports))
+	}
+	port := service.Spec.Ports[0]
+	if port.Port != 20000 {
+		t.Errorf("Service port = %d, want 20000", port.Port)
+	}
+	if port.TargetPort != intstr.FromInt(20000) {
+		t.Errorf("Service targetPort = %v, want 20000", port.TargetPort)
+	}
+	if port.Protocol != corev1.ProtocolTCP {
+		t.Errorf("Service protocol = %s, want TCP", port.Protocol)
+	}
+
+	// Test Service selector
+	if service.Spec.Selector["app"] != "hobby-pod" {
+		t.Errorf("Service selector app = %s, want hobby-pod", service.Spec.Selector["app"])
+	}
+}
+
 //go:embed testdata/deployment.yaml
 var expectedDeploymentYAML string
 
 //go:embed testdata/pvc.yaml
 var expectedPvcYAML string
+
+//go:embed testdata/service.yaml
+var expectedServiceYAML string
 
 func TestGenerate(t *testing.T) {
 	tempDir := t.TempDir()
@@ -386,6 +458,7 @@ func TestGenerate(t *testing.T) {
 		expected string
 	}{
 		{"pvc", "configs/hobbypod/pvc.yaml", expectedPvcYAML},
+		{"service", "configs/hobbypod/service.yaml", expectedServiceYAML},
 		{"deployment", "configs/hobbypod/deployment.yaml", expectedDeploymentYAML},
 	}
 

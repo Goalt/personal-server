@@ -33,6 +33,14 @@ modules:
       admin_postgres_user: e2e-admin
       admin_postgres_password: e2e-test-password
 
+  - name: postgres-exporter
+    namespace: e2e-test-infra
+    secrets:
+      data_source_uri: postgres:5432/postgres?sslmode=disable
+      data_source_user: e2e-admin
+      data_source_pass: e2e-test-password
+      include_databases: postgres
+
   - name: pgadmin
     namespace: e2e-test-infra
     secrets:

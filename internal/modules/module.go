@@ -50,3 +50,8 @@ type Notifier interface {
 type Rollouter interface {
 	Rollout(ctx context.Context, args []string) error
 }
+
+// CodeServeWebRunner defines the interface for modules that support starting code serve-web
+type CodeServeWebRunner interface {
+	CodeServeWeb(ctx context.Context) error
+}

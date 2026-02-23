@@ -414,6 +414,15 @@ func TestHobbyPodModule_PrepareService(t *testing.T) {
 	}
 }
 
+func TestHobbyPodModule_ImplementsCodeServeWebRunner(t *testing.T) {
+	module := &HobbyPodModule{}
+	if _, ok := interface{}(module).(interface {
+		CodeServeWeb(ctx context.Context) error
+	}); !ok {
+		t.Error("HobbyPodModule does not implement CodeServeWebRunner interface")
+	}
+}
+
 //go:embed testdata/deployment.yaml
 var expectedDeploymentYAML string
 

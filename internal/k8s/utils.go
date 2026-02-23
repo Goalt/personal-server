@@ -1,6 +1,8 @@
 package k8s
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -54,6 +56,15 @@ func GetSecretOrDefault(secrets map[string]string, key, defaultValue string) str
 		return value
 	}
 	return defaultValue
+}
+
+// GenerateConnectionToken generates a random 32-character hex connection token
+func GenerateConnectionToken() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("failed to generate random bytes: %w", err)
+	}
+	return hex.EncodeToString(b), nil
 }
 
 // BoolPtr returns a pointer to a bool value

@@ -219,7 +219,7 @@ func (m *WorkPodModule) prepare() (*corev1.PersistentVolumeClaim, *corev1.Servic
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          "http",
-									ContainerPort: 2000,
+									ContainerPort: 20000,
 									Protocol:      corev1.ProtocolTCP,
 								},
 							},
@@ -279,8 +279,8 @@ func (m *WorkPodModule) prepare() (*corev1.PersistentVolumeClaim, *corev1.Servic
 			Ports: []corev1.ServicePort{
 				{
 					Name:       "work-pod",
-					Port:       2000,
-					TargetPort: intstr.FromInt(2000),
+					Port:       20000,
+					TargetPort: intstr.FromInt(20000),
 					Protocol:   corev1.ProtocolTCP,
 				},
 			},

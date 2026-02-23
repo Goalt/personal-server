@@ -249,7 +249,7 @@ func (m *HobbyPodModule) prepare() (*corev1.PersistentVolumeClaim, *corev1.Servi
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          "http",
-									ContainerPort: 2000,
+									ContainerPort: 20000,
 									Protocol:      corev1.ProtocolTCP,
 								},
 							},

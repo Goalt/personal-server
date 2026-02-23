@@ -23,7 +23,7 @@ spec:
                   image: ghcr.io/goalt/work-config:sha-942241f
                   name: debian
                   ports:
-                    - containerPort: 2000
+                    - containerPort: 20000
                       name: http
                       protocol: TCP
                   resources: {}

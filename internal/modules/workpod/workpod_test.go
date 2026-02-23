@@ -154,8 +154,8 @@ func TestWorkPodModule_Prepare(t *testing.T) {
 			if container.Ports[0].Name != "http" {
 				t.Errorf("Container port name = %s, want http", container.Ports[0].Name)
 			}
-			if container.Ports[0].ContainerPort != 2000 {
-				t.Errorf("Container port = %d, want 2000", container.Ports[0].ContainerPort)
+			if container.Ports[0].ContainerPort != 20000 {
+				t.Errorf("Container port = %d, want 20000", container.Ports[0].ContainerPort)
 			}
 			if container.Ports[0].Protocol != corev1.ProtocolTCP {
 				t.Errorf("Container port protocol = %s, want TCP", container.Ports[0].Protocol)
@@ -234,11 +234,11 @@ func TestWorkPodModule_Prepare(t *testing.T) {
 			if len(service.Spec.Ports) != 1 {
 				t.Fatalf("Service ports count = %d, want 1", len(service.Spec.Ports))
 			}
-			if service.Spec.Ports[0].Port != 2000 {
-				t.Errorf("Service port = %d, want 2000", service.Spec.Ports[0].Port)
+			if service.Spec.Ports[0].Port != 20000 {
+				t.Errorf("Service port = %d, want 20000", service.Spec.Ports[0].Port)
 			}
-			if service.Spec.Ports[0].TargetPort != intstr.FromInt(2000) {
-				t.Errorf("Service targetPort = %v, want 2000", service.Spec.Ports[0].TargetPort)
+			if service.Spec.Ports[0].TargetPort != intstr.FromInt(20000) {
+				t.Errorf("Service targetPort = %v, want 20000", service.Spec.Ports[0].TargetPort)
 			}
 			if service.Spec.Selector["app"] != "work-pod" {
 				t.Errorf("Service selector app = %s, want work-pod", service.Spec.Selector["app"])

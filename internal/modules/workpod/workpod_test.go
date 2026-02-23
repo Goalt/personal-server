@@ -283,7 +283,9 @@ func TestWorkPodModule_PrepareWithCustomImageTag(t *testing.T) {
 
 func TestWorkPodModule_ImplementsCodeServeWebRunner(t *testing.T) {
 	module := &WorkPodModule{}
-	if _, ok := interface{}(module).(interface{ CodeServeWeb(ctx context.Context) error }); !ok {
+	if _, ok := interface{}(module).(interface {
+		CodeServeWeb(ctx context.Context) error
+	}); !ok {
 		t.Error("WorkPodModule does not implement CodeServeWebRunner interface")
 	}
 }

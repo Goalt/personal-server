@@ -23,6 +23,10 @@ spec:
                       value: noninteractive
                   image: ghcr.io/goalt/work-config:sha-942241f
                   name: hobby
+                  ports:
+                    - containerPort: 20000
+                      name: http
+                      protocol: TCP
                   resources: {}
                   securityContext:
                     allowPrivilegeEscalation: true

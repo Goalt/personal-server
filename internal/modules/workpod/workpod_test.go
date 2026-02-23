@@ -11,6 +11,7 @@ import (
 	"github.com/Goalt/personal-server/internal/logger"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func TestWorkPodModule_Name(t *testing.T) {
@@ -51,11 +52,16 @@ func TestWorkPodModule_Prepare(t *testing.T) {
 				},
 			}
 
-			pvc, deployment := module.prepare()
+			pvc, service, deployment := module.prepare()
 
 			// Verify PVC is not nil
 			if pvc == nil {
 				t.Fatal("prepare() returned nil PersistentVolumeClaim")
+			}
+
+			// Verify Service is not nil
+			if service == nil {
+				t.Fatal("prepare() returned nil Service")
 			}
 
 			// Verify Deployment is not nil
@@ -141,6 +147,20 @@ func TestWorkPodModule_Prepare(t *testing.T) {
 				t.Error("Container missing DEBIAN_FRONTEND=noninteractive env var")
 			}
 
+			// Verify container ports
+			if len(container.Ports) != 1 {
+				t.Fatalf("Expected 1 container port, got %d", len(container.Ports))
+			}
+			if container.Ports[0].Name != "http" {
+				t.Errorf("Container port name = %s, want http", container.Ports[0].Name)
+			}
+			if container.Ports[0].ContainerPort != 20000 {
+				t.Errorf("Container port = %d, want 20000", container.Ports[0].ContainerPort)
+			}
+			if container.Ports[0].Protocol != corev1.ProtocolTCP {
+				t.Errorf("Container port protocol = %s, want TCP", container.Ports[0].Protocol)
+			}
+
 			// Verify volume mounts
 			if len(container.VolumeMounts) != 1 {
 				t.Fatalf("Expected 1 volume mount, got %d", len(container.VolumeMounts))
@@ -200,6 +220,29 @@ func TestWorkPodModule_Prepare(t *testing.T) {
 			if deployment.Spec.Template.Spec.RestartPolicy != corev1.RestartPolicyAlways {
 				t.Errorf("RestartPolicy = %s, want Always", deployment.Spec.Template.Spec.RestartPolicy)
 			}
+
+			// Verify Service properties
+			if service.Name != "work-pod" {
+				t.Errorf("Service name = %s, want work-pod", service.Name)
+			}
+			if service.Namespace != tt.namespace {
+				t.Errorf("Service namespace = %s, want %s", service.Namespace, tt.namespace)
+			}
+			if service.Spec.Type != corev1.ServiceTypeClusterIP {
+				t.Errorf("Service type = %s, want ClusterIP", service.Spec.Type)
+			}
+			if len(service.Spec.Ports) != 1 {
+				t.Fatalf("Service ports count = %d, want 1", len(service.Spec.Ports))
+			}
+			if service.Spec.Ports[0].Port != 20000 {
+				t.Errorf("Service port = %d, want 20000", service.Spec.Ports[0].Port)
+			}
+			if service.Spec.Ports[0].TargetPort != intstr.FromInt(20000) {
+				t.Errorf("Service targetPort = %v, want 20000", service.Spec.Ports[0].TargetPort)
+			}
+			if service.Spec.Selector["app"] != "work-pod" {
+				t.Errorf("Service selector app = %s, want work-pod", service.Spec.Selector["app"])
+			}
 		})
 	}
 }
@@ -219,7 +262,7 @@ func TestWorkPodModule_PrepareWithCustomImageTag(t *testing.T) {
 		},
 	}
 
-	_, deployment := module.prepare()
+	_, _, deployment := module.prepare()
 
 	// Verify deployment is not nil
 	if deployment == nil {
@@ -243,6 +286,9 @@ var expectedDeploymentYAML string
 
 //go:embed testdata/pvc.yaml
 var expectedPvcYAML string
+
+//go:embed testdata/service.yaml
+var expectedServiceYAML string
 
 func TestGenerate(t *testing.T) {
 	tempDir := t.TempDir()
@@ -279,6 +325,7 @@ func TestGenerate(t *testing.T) {
 		expected string
 	}{
 		{"pvc", "configs/workpod/pvc.yaml", expectedPvcYAML},
+		{"service", "configs/workpod/service.yaml", expectedServiceYAML},
 		{"deployment", "configs/workpod/deployment.yaml", expectedDeploymentYAML},
 	}
 

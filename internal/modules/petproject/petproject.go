@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/Goalt/personal-server/internal/config"
@@ -19,12 +18,14 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/kubernetes"
 )
 
 type PetProjectModule struct {
 	GeneralConfig config.GeneralConfig
 	ProjectConfig config.PetProject
 	log           logger.Logger
+	k8sClientFn   func() (kubernetes.Interface, error)
 }
 
 func New(generalConfig config.GeneralConfig, projectConfig config.PetProject, log logger.Logger) *PetProjectModule {
@@ -32,6 +33,9 @@ func New(generalConfig config.GeneralConfig, projectConfig config.PetProject, lo
 		GeneralConfig: generalConfig,
 		ProjectConfig: projectConfig,
 		log:           log,
+		k8sClientFn: func() (kubernetes.Interface, error) {
+			return k8s.CreateKubernetesClient()
+		},
 	}
 }
 
@@ -505,7 +509,7 @@ func (m *PetProjectModule) Status(ctx context.Context) error {
 	return nil
 }
 
-// Rollout performs kubectl rollout operations on the pet project deployment
+// Rollout performs rollout operations on the pet project deployment
 func (m *PetProjectModule) Rollout(ctx context.Context, args []string) error {
 	deploymentName := fmt.Sprintf("pet-%s", m.ProjectConfig.Name)
 
@@ -526,33 +530,80 @@ func (m *PetProjectModule) Rollout(ctx context.Context, args []string) error {
 		return fmt.Errorf("unknown rollout operation: %s\nAvailable rollout commands: restart, status, history, undo", operation)
 	}
 
-	kubectlCmd := "kubectl"
-	if _, err := os.Stat("/snap/bin/microk8s"); err == nil {
-		kubectlCmd = "/snap/bin/microk8s kubectl"
-	}
-
 	m.log.Info("🔄 Executing rollout %s for pet project '%s'...\n", operation, m.ProjectConfig.Name)
 
-	// Build kubectl rollout command
-	cmdStr := fmt.Sprintf("%s rollout %s deployment/%s -n %s", kubectlCmd, operation, deploymentName, m.ProjectConfig.Namespace)
-	cmdParts := strings.Fields(cmdStr)
-	cmd := exec.CommandContext(ctx, cmdParts[0], cmdParts[1:]...)
-
-	// Capture output for status, history operations
-	if operation == "status" || operation == "history" {
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("rollout %s failed: %w\nOutput: %s", operation, err, string(output))
-		}
-		m.log.Info("%s", string(output))
-		m.log.Success("✅ Rollout %s completed successfully\n", operation)
-	} else {
-		// For restart and undo, just execute
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("rollout %s failed: %w", operation, err)
-		}
-		m.log.Success("✅ Rollout %s completed successfully\n", operation)
+	if operation == "restart" {
+		return m.rolloutRestart(ctx, deploymentName)
 	}
 
+	// For status, history, undo use kubectl
+	kubectlCmd := "kubectl"
+	kubectlArgs := []string{"kubectl"}
+	if _, err := os.Stat("/snap/bin/microk8s"); err == nil {
+		kubectlCmd = "/snap/bin/microk8s"
+		kubectlArgs = []string{"/snap/bin/microk8s", "kubectl"}
+	}
+
+	cmdArgs := append(kubectlArgs[1:], "rollout", operation, fmt.Sprintf("deployment/%s", deploymentName), "-n", m.ProjectConfig.Namespace)
+	cmd := exec.CommandContext(ctx, kubectlCmd, cmdArgs...)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("rollout %s failed: %w\nOutput: %s", operation, err, string(output))
+	}
+	m.log.Info("%s", string(output))
+	m.log.Success("✅ Rollout %s completed successfully\n", operation)
+
+	return nil
+}
+
+// rolloutRestart updates the image pull secret and deployment image from config, then triggers a restart
+func (m *PetProjectModule) rolloutRestart(ctx context.Context, deploymentName string) error {
+	clientset, err := m.k8sClientFn()
+	if err != nil {
+		return fmt.Errorf("failed to create Kubernetes client: %w", err)
+	}
+
+	// Update image pull secret with latest credentials from config
+	secret, secretName, err := m.prepareImagePullSecret()
+	if err != nil {
+		return fmt.Errorf("failed to prepare image pull secret: %w", err)
+	}
+	if secret != nil {
+		m.log.Progress("Updating ImagePullSecret: %s\n", secretName)
+		_, err = clientset.CoreV1().Secrets(m.ProjectConfig.Namespace).Update(ctx, secret, metav1.UpdateOptions{})
+		if errors.IsNotFound(err) {
+			_, err = clientset.CoreV1().Secrets(m.ProjectConfig.Namespace).Create(ctx, secret, metav1.CreateOptions{})
+		}
+		if err != nil {
+			return fmt.Errorf("failed to update ImagePullSecret: %w", err)
+		}
+		m.log.Success("Updated ImagePullSecret: %s\n", secretName)
+	}
+
+	// Get existing deployment
+	deployment, err := clientset.AppsV1().Deployments(m.ProjectConfig.Namespace).Get(ctx, deploymentName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get deployment: %w", err)
+	}
+
+	// Update container image to current config value
+	if len(deployment.Spec.Template.Spec.Containers) == 0 {
+		return fmt.Errorf("deployment '%s' has no containers", deploymentName)
+	}
+	deployment.Spec.Template.Spec.Containers[0].Image = m.ProjectConfig.Image
+
+	// Add restart annotation to trigger pod rollout
+	if deployment.Spec.Template.Annotations == nil {
+		deployment.Spec.Template.Annotations = make(map[string]string)
+	}
+	deployment.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.RFC3339)
+
+	_, err = clientset.AppsV1().Deployments(m.ProjectConfig.Namespace).Update(ctx, deployment, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to update deployment: %w", err)
+	}
+
+	m.log.Success("✅ Rollout restart completed successfully\n")
 	return nil
 }

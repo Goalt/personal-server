@@ -227,8 +227,25 @@ func TestPetProjectE2E(t *testing.T) {
 		}
 	})
 
-	// Test 4: Test rollout restart
+	// Test 4: Test rollout restart - verifies image and restart annotation are updated
 	t.Run("RolloutRestart", func(t *testing.T) {
+		ctx := context.Background()
+		deploymentName := "pet-test-pet-project"
+
+		// First manually change the deployment image to simulate a drift
+		deployment, err := client.AppsV1().Deployments(testNamespace).Get(ctx, deploymentName, metav1.GetOptions{})
+		if err != nil {
+			t.Fatalf("failed to get deployment before rollout: %v", err)
+		}
+		if len(deployment.Spec.Template.Spec.Containers) > 0 {
+			deployment.Spec.Template.Spec.Containers[0].Image = "nginx:old-drifted"
+			_, err = client.AppsV1().Deployments(testNamespace).Update(ctx, deployment, metav1.UpdateOptions{})
+			if err != nil {
+				t.Fatalf("failed to update deployment image to simulate drift: %v", err)
+			}
+			t.Logf("Simulated image drift: set image to nginx:old-drifted")
+		}
+
 		output, err := runCommand(t, fullBinaryPath, "-config", fullConfigPath, "test-pet-project", "rollout", "restart")
 		if err != nil {
 			t.Fatalf("failed to rollout restart petproject: %v", err)
@@ -238,6 +255,29 @@ func TestPetProjectE2E(t *testing.T) {
 		// Verify the command succeeded
 		if !strings.Contains(output, "completed successfully") && !strings.Contains(output, "restarted") {
 			t.Logf("Warning: rollout restart output doesn't indicate success")
+		}
+
+		// Verify the deployment image was updated to config value (nginx:latest from test-config.yaml)
+		updatedDeployment, err := client.AppsV1().Deployments(testNamespace).Get(ctx, deploymentName, metav1.GetOptions{})
+		if err != nil {
+			t.Fatalf("failed to get deployment after rollout: %v", err)
+		}
+
+		if len(updatedDeployment.Spec.Template.Spec.Containers) > 0 {
+			image := updatedDeployment.Spec.Template.Spec.Containers[0].Image
+			if image != "nginx:latest" {
+				t.Errorf("expected image 'nginx:latest' after rollout restart, got '%s'", image)
+			} else {
+				t.Logf("Verified deployment image updated to: %s", image)
+			}
+		}
+
+		// Verify restart annotation was set
+		annotations := updatedDeployment.Spec.Template.Annotations
+		if _, ok := annotations["kubectl.kubernetes.io/restartedAt"]; !ok {
+			t.Error("expected 'kubectl.kubernetes.io/restartedAt' annotation after rollout restart")
+		} else {
+			t.Logf("Verified restart annotation set: %s", annotations["kubectl.kubernetes.io/restartedAt"])
 		}
 	})
 

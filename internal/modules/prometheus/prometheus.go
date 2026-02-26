@@ -18,12 +18,14 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/kubernetes"
 )
 
 type PrometheusModule struct {
 	GeneralConfig config.GeneralConfig
 	ModuleConfig  config.Module
 	log           logger.Logger
+	k8sClientFn   func() (kubernetes.Interface, error)
 }
 
 func New(generalConfig config.GeneralConfig, moduleConfig config.Module, log logger.Logger) *PrometheusModule {
@@ -31,6 +33,9 @@ func New(generalConfig config.GeneralConfig, moduleConfig config.Module, log log
 		GeneralConfig: generalConfig,
 		ModuleConfig:  moduleConfig,
 		log:           log,
+		k8sClientFn: func() (kubernetes.Interface, error) {
+			return k8s.CreateKubernetesClient()
+		},
 	}
 }
 
@@ -857,7 +862,7 @@ func (m *PrometheusModule) Rollout(ctx context.Context, args []string) error {
 	}
 
 	action := args[0]
-	clientset, err := k8s.CreateKubernetesClient()
+	clientset, err := m.k8sClientFn()
 	if err != nil {
 		return fmt.Errorf("failed to create Kubernetes client: %w", err)
 	}
@@ -868,6 +873,12 @@ func (m *PrometheusModule) Rollout(ctx context.Context, args []string) error {
 		deployment, err := clientset.AppsV1().Deployments(m.ModuleConfig.Namespace).Get(ctx, "prometheus", metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to get deployment: %w", err)
+		}
+
+		// Update image to current config value
+		prometheusImage := k8s.GetSecretOrDefault(m.ModuleConfig.Secrets, "prometheus_image", "prom/prometheus:v2.48.0")
+		if len(deployment.Spec.Template.Spec.Containers) > 0 {
+			deployment.Spec.Template.Spec.Containers[0].Image = prometheusImage
 		}
 
 		if deployment.Spec.Template.Annotations == nil {

@@ -2,6 +2,7 @@ package prometheus
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -9,6 +10,9 @@ import (
 	"github.com/Goalt/personal-server/internal/config"
 	"github.com/Goalt/personal-server/internal/logger"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
 func TestPrometheusModule_Name(t *testing.T) {
@@ -515,4 +519,142 @@ func TestGenerate(t *testing.T) {
 			t.Errorf("Expected file %s does not exist", filename)
 		}
 	}
+}
+
+func TestPrometheusRollout_RestartUpdatesImage(t *testing.T) {
+module := New(
+config.GeneralConfig{Domain: "example.com"},
+config.Module{
+Name:      "prometheus",
+Namespace: "infra",
+Secrets: map[string]string{
+"prometheus_image": "prom/prometheus:v3.0.0",
+},
+},
+logger.Default(),
+)
+
+// Build existing deployment with old image
+_, _, _, _, _, _, existingDeployment, err := module.prepare()
+if err != nil {
+t.Fatalf("prepare() failed: %v", err)
+}
+existingDeployment.Spec.Template.Spec.Containers[0].Image = "prom/prometheus:v2.48.0"
+
+fakeClient := k8sfake.NewSimpleClientset(existingDeployment)
+module.k8sClientFn = func() (kubernetes.Interface, error) {
+return fakeClient, nil
+}
+
+ctx := context.Background()
+err = module.Rollout(ctx, []string{"restart"})
+if err != nil {
+t.Fatalf("Rollout restart failed: %v", err)
+}
+
+// Verify the deployment image was updated
+updatedDeployment, err := fakeClient.AppsV1().Deployments("infra").Get(ctx, "prometheus", metav1.GetOptions{})
+if err != nil {
+t.Fatalf("failed to get updated deployment: %v", err)
+}
+
+if updatedDeployment.Spec.Template.Spec.Containers[0].Image != "prom/prometheus:v3.0.0" {
+t.Errorf("expected image 'prom/prometheus:v3.0.0', got '%s'",
+updatedDeployment.Spec.Template.Spec.Containers[0].Image)
+}
+
+// Verify restart annotation was set
+if _, ok := updatedDeployment.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"]; !ok {
+t.Error("expected 'kubectl.kubernetes.io/restartedAt' annotation to be set")
+}
+}
+
+func TestPrometheusRollout_RestartDefaultImage(t *testing.T) {
+module := New(
+config.GeneralConfig{Domain: "example.com"},
+config.Module{
+Name:      "prometheus",
+Namespace: "infra",
+},
+logger.Default(),
+)
+
+// Build existing deployment with non-default image
+_, _, _, _, _, _, existingDeployment, err := module.prepare()
+if err != nil {
+t.Fatalf("prepare() failed: %v", err)
+}
+existingDeployment.Spec.Template.Spec.Containers[0].Image = "prom/prometheus:old"
+
+fakeClient := k8sfake.NewSimpleClientset(existingDeployment)
+module.k8sClientFn = func() (kubernetes.Interface, error) {
+return fakeClient, nil
+}
+
+ctx := context.Background()
+err = module.Rollout(ctx, []string{"restart"})
+if err != nil {
+t.Fatalf("Rollout restart failed: %v", err)
+}
+
+updatedDeployment, err := fakeClient.AppsV1().Deployments("infra").Get(ctx, "prometheus", metav1.GetOptions{})
+if err != nil {
+t.Fatalf("failed to get updated deployment: %v", err)
+}
+
+// Should use default image when no prometheus_image secret is set
+if updatedDeployment.Spec.Template.Spec.Containers[0].Image != "prom/prometheus:v2.48.0" {
+t.Errorf("expected default image 'prom/prometheus:v2.48.0', got '%s'",
+updatedDeployment.Spec.Template.Spec.Containers[0].Image)
+}
+}
+
+func TestPrometheusRollout_InvalidAction(t *testing.T) {
+module := New(
+config.GeneralConfig{Domain: "example.com"},
+config.Module{Name: "prometheus", Namespace: "infra"},
+logger.Default(),
+)
+
+fakeClient := k8sfake.NewSimpleClientset()
+module.k8sClientFn = func() (kubernetes.Interface, error) {
+return fakeClient, nil
+}
+
+ctx := context.Background()
+err := module.Rollout(ctx, []string{"invalid"})
+if err == nil {
+t.Error("expected error for invalid action, got nil")
+}
+}
+
+func TestPrometheusRollout_NoArgs(t *testing.T) {
+module := New(
+config.GeneralConfig{Domain: "example.com"},
+config.Module{Name: "prometheus", Namespace: "infra"},
+logger.Default(),
+)
+
+ctx := context.Background()
+err := module.Rollout(ctx, []string{})
+if err == nil {
+t.Error("expected error for no args, got nil")
+}
+}
+
+func TestPrometheusRollout_ClientFactoryError(t *testing.T) {
+module := New(
+config.GeneralConfig{Domain: "example.com"},
+config.Module{Name: "prometheus", Namespace: "infra"},
+logger.Default(),
+)
+module.k8sClientFn = func() (kubernetes.Interface, error) {
+return nil, fmt.Errorf("connection refused")
+}
+
+ctx := context.Background()
+err := module.Rollout(ctx, []string{"restart"})
+if err == nil {
+t.Error("expected error when k8s client creation fails, got nil")
+}
 }

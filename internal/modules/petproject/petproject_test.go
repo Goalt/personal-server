@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +12,9 @@ import (
 	"github.com/Goalt/personal-server/internal/config"
 	"github.com/Goalt/personal-server/internal/logger"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
 func TestNew(t *testing.T) {
@@ -376,6 +380,202 @@ func TestRollout(t *testing.T) {
 	t.Skip("Skipping integration test")
 }
 
+func TestRolloutRestart_UpdatesImageAndSecret(t *testing.T) {
+	generalConfig := config.GeneralConfig{
+		Domain:     "example.com",
+		Namespaces: []string{"hobby"},
+	}
+
+	projectConfig := config.PetProject{
+		Name:      "testapp",
+		Namespace: "hobby",
+		Image:     "nginx:1.25",
+		RegistryCredentials: &config.RegistryCredentials{
+			Server:   "https://registry.example.com",
+			Username: "user",
+			Password: "newpassword",
+			Email:    "user@example.com",
+		},
+	}
+
+	log := logger.Default()
+	module := New(generalConfig, projectConfig, log)
+
+	// Create fake Kubernetes client with existing deployment and secret
+	existingDeployment := module.prepareDeployment()
+	existingDeployment.Spec.Template.Spec.Containers[0].Image = "nginx:1.24" // old image
+
+	existingSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pet-testapp-regcred",
+			Namespace: "hobby",
+		},
+		Type: corev1.SecretTypeDockerConfigJson,
+		Data: map[string][]byte{
+			".dockerconfigjson": []byte(`{"auths":{}}`),
+		},
+	}
+
+	fakeClient := k8sfake.NewSimpleClientset(existingDeployment, existingSecret)
+	module.k8sClientFn = func() (kubernetes.Interface, error) {
+		return fakeClient, nil
+	}
+
+	ctx := context.Background()
+	err := module.Rollout(ctx, []string{"restart"})
+	if err != nil {
+		t.Fatalf("Rollout restart failed: %v", err)
+	}
+
+	// Verify the deployment image was updated
+	updatedDeployment, err := fakeClient.AppsV1().Deployments("hobby").Get(ctx, "pet-testapp", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("failed to get updated deployment: %v", err)
+	}
+
+	if updatedDeployment.Spec.Template.Spec.Containers[0].Image != "nginx:1.25" {
+		t.Errorf("expected image 'nginx:1.25', got '%s'", updatedDeployment.Spec.Template.Spec.Containers[0].Image)
+	}
+
+	// Verify restart annotation was set
+	annotations := updatedDeployment.Spec.Template.Annotations
+	if _, ok := annotations["kubectl.kubernetes.io/restartedAt"]; !ok {
+		t.Error("expected 'kubectl.kubernetes.io/restartedAt' annotation to be set")
+	}
+
+	// Verify image pull secret was updated
+	updatedSecret, err := fakeClient.CoreV1().Secrets("hobby").Get(ctx, "pet-testapp-regcred", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("failed to get updated secret: %v", err)
+	}
+	if len(updatedSecret.Data[".dockerconfigjson"]) == 0 {
+		t.Error("expected secret data to be non-empty")
+	}
+}
+
+func TestRolloutRestart_UpdatesImageWithoutSecret(t *testing.T) {
+	generalConfig := config.GeneralConfig{
+		Domain:     "example.com",
+		Namespaces: []string{"hobby"},
+	}
+
+	projectConfig := config.PetProject{
+		Name:      "simpleapp",
+		Namespace: "hobby",
+		Image:     "alpine:3.19",
+	}
+
+	log := logger.Default()
+	module := New(generalConfig, projectConfig, log)
+
+	// Create fake client with existing deployment using old image
+	existingDeployment := module.prepareDeployment()
+	existingDeployment.Spec.Template.Spec.Containers[0].Image = "alpine:3.18"
+
+	fakeClient := k8sfake.NewSimpleClientset(existingDeployment)
+	module.k8sClientFn = func() (kubernetes.Interface, error) {
+		return fakeClient, nil
+	}
+
+	ctx := context.Background()
+	err := module.Rollout(ctx, []string{"restart"})
+	if err != nil {
+		t.Fatalf("Rollout restart failed: %v", err)
+	}
+
+	// Verify image was updated
+	updatedDeployment, err := fakeClient.AppsV1().Deployments("hobby").Get(ctx, "pet-simpleapp", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("failed to get updated deployment: %v", err)
+	}
+
+	if updatedDeployment.Spec.Template.Spec.Containers[0].Image != "alpine:3.19" {
+		t.Errorf("expected image 'alpine:3.19', got '%s'", updatedDeployment.Spec.Template.Spec.Containers[0].Image)
+	}
+}
+
+func TestRolloutRestart_CreatesSecretIfMissing(t *testing.T) {
+	generalConfig := config.GeneralConfig{
+		Domain:     "example.com",
+		Namespaces: []string{"hobby"},
+	}
+
+	projectConfig := config.PetProject{
+		Name:      "privateapp",
+		Namespace: "hobby",
+		Image:     "private.registry/app:v2",
+		RegistryCredentials: &config.RegistryCredentials{
+			Server:   "https://registry.example.com",
+			Username: "user",
+			Password: "pass",
+		},
+	}
+
+	log := logger.Default()
+	module := New(generalConfig, projectConfig, log)
+
+	// Create fake client with deployment but no secret
+	existingDeployment := module.prepareDeployment()
+	existingDeployment.Spec.Template.Spec.Containers[0].Image = "private.registry/app:v1"
+
+	fakeClient := k8sfake.NewSimpleClientset(existingDeployment)
+	module.k8sClientFn = func() (kubernetes.Interface, error) {
+		return fakeClient, nil
+	}
+
+	ctx := context.Background()
+	err := module.Rollout(ctx, []string{"restart"})
+	if err != nil {
+		t.Fatalf("Rollout restart failed: %v", err)
+	}
+
+	// Verify the secret was created
+	secret, err := fakeClient.CoreV1().Secrets("hobby").Get(ctx, "pet-privateapp-regcred", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("expected secret to be created, got error: %v", err)
+	}
+	if secret.Type != corev1.SecretTypeDockerConfigJson {
+		t.Errorf("expected secret type %s, got %s", corev1.SecretTypeDockerConfigJson, secret.Type)
+	}
+
+	// Verify the deployment image was updated
+	updatedDeployment, err := fakeClient.AppsV1().Deployments("hobby").Get(ctx, "pet-privateapp", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("failed to get updated deployment: %v", err)
+	}
+	if updatedDeployment.Spec.Template.Spec.Containers[0].Image != "private.registry/app:v2" {
+		t.Errorf("expected image 'private.registry/app:v2', got '%s'", updatedDeployment.Spec.Template.Spec.Containers[0].Image)
+	}
+}
+
+func TestRolloutRestart_DeploymentNotFound(t *testing.T) {
+	generalConfig := config.GeneralConfig{
+		Domain:     "example.com",
+		Namespaces: []string{"hobby"},
+	}
+
+	projectConfig := config.PetProject{
+		Name:      "missingapp",
+		Namespace: "hobby",
+		Image:     "nginx:latest",
+	}
+
+	log := logger.Default()
+	module := New(generalConfig, projectConfig, log)
+
+	// Empty fake client - no deployment exists
+	fakeClient := k8sfake.NewSimpleClientset()
+	module.k8sClientFn = func() (kubernetes.Interface, error) {
+		return fakeClient, nil
+	}
+
+	ctx := context.Background()
+	err := module.Rollout(ctx, []string{"restart"})
+	if err == nil {
+		t.Error("expected error when deployment not found, got nil")
+	}
+}
+
 func TestRolloutValidation(t *testing.T) {
 	generalConfig := config.GeneralConfig{
 		Domain:     "example.com",
@@ -552,4 +752,28 @@ func TestPrepareServiceWithEmptyPorts(t *testing.T) {
 	if service != nil {
 		t.Error("Expected service to be nil when service has no ports")
 	}
+}
+
+func TestRolloutRestart_ClientFactoryError(t *testing.T) {
+generalConfig := config.GeneralConfig{
+Domain:     "example.com",
+Namespaces: []string{"hobby"},
+}
+projectConfig := config.PetProject{
+Name:      "testapp",
+Namespace: "hobby",
+Image:     "nginx:latest",
+}
+
+log := logger.Default()
+module := New(generalConfig, projectConfig, log)
+module.k8sClientFn = func() (kubernetes.Interface, error) {
+return nil, fmt.Errorf("connection refused")
+}
+
+ctx := context.Background()
+err := module.Rollout(ctx, []string{"restart"})
+if err == nil {
+t.Error("expected error when k8s client creation fails, got nil")
+}
 }

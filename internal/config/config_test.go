@@ -352,16 +352,17 @@ func TestLoadConfig_WithPetProjects(t *testing.T) {
 modules:
   - name: cloudflare
     namespace: infra
+registries:
+  regcred:
+    server: https://registry.example.com
+    username: user
+    password: pass
+    email: user@example.com
 pet-projects:
   - name: myapp
     namespace: hobby
     image: nginx:latest
     imagePullSecret: regcred
-    registryCredentials:
-      server: https://registry.example.com
-      username: user
-      password: pass
-      email: user@example.com
     environment:
       PORT: "8080"
       ENV: "production"
@@ -409,12 +410,9 @@ pet-projects:
 		t.Errorf("Expected imagePullSecret to be 'regcred', got '%s'", config.PetProjects[0].ImagePullSecret)
 	}
 
-	if config.PetProjects[0].RegistryCredentials == nil {
-		t.Fatal("Expected registryCredentials to be set for first pet project")
-	}
-
-	if config.PetProjects[0].RegistryCredentials.Server != "https://registry.example.com" {
-		t.Errorf("Expected registry server to be 'https://registry.example.com', got '%s'", config.PetProjects[0].RegistryCredentials.Server)
+	// RegistryCredentials should be nil until resolved via GetPetProject
+	if config.PetProjects[0].RegistryCredentials != nil {
+		t.Error("Expected RegistryCredentials to be nil before resolution")
 	}
 
 	if config.PetProjects[0].Environment["PORT"] != "8080" {
@@ -432,6 +430,102 @@ pet-projects:
 
 	if config.PetProjects[1].Image != "node:18" {
 		t.Errorf("Expected second pet project image to be 'node:18', got '%s'", config.PetProjects[1].Image)
+	}
+}
+
+func TestLoadConfig_WithRegistries(t *testing.T) {
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+
+	configContent := `general:
+  domain: example.com
+  namespaces: [infra, hobby]
+registries:
+  my-registry:
+    server: https://registry.example.com
+    username: myuser
+    password: mypassword
+    email: myuser@example.com
+  other-registry:
+    server: https://other.registry.io
+    username: otheruser
+    password: othersecret
+pet-projects:
+  - name: app1
+    namespace: hobby
+    image: private/app1:latest
+    imagePullSecret: my-registry
+  - name: app2
+    namespace: hobby
+    image: other/app2:latest
+    imagePullSecret: other-registry
+  - name: public-app
+    namespace: hobby
+    image: nginx:latest
+`
+
+	err := os.WriteFile(configFile, []byte(configContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test config file: %v", err)
+	}
+
+	config, err := LoadConfig(configFile)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	// Verify registries are loaded
+	if len(config.Registries) != 2 {
+		t.Fatalf("Expected 2 registries, got %d", len(config.Registries))
+	}
+
+	reg := config.Registries["my-registry"]
+	if reg == nil {
+		t.Fatal("Expected 'my-registry' to be set")
+	}
+	if reg.Server != "https://registry.example.com" {
+		t.Errorf("Expected server 'https://registry.example.com', got '%s'", reg.Server)
+	}
+	if reg.Username != "myuser" {
+		t.Errorf("Expected username 'myuser', got '%s'", reg.Username)
+	}
+	if reg.Password != "mypassword" {
+		t.Errorf("Expected password 'mypassword', got '%s'", reg.Password)
+	}
+	if reg.Email != "myuser@example.com" {
+		t.Errorf("Expected email 'myuser@example.com', got '%s'", reg.Email)
+	}
+
+	// Verify resolution via GetPetProject
+	app1, err := config.GetPetProject("app1")
+	if err != nil {
+		t.Fatalf("GetPetProject('app1') failed: %v", err)
+	}
+	if app1.RegistryCredentials == nil {
+		t.Fatal("Expected RegistryCredentials to be resolved for app1")
+	}
+	if app1.RegistryCredentials.Server != "https://registry.example.com" {
+		t.Errorf("Expected resolved server 'https://registry.example.com', got '%s'", app1.RegistryCredentials.Server)
+	}
+
+	app2, err := config.GetPetProject("app2")
+	if err != nil {
+		t.Fatalf("GetPetProject('app2') failed: %v", err)
+	}
+	if app2.RegistryCredentials == nil {
+		t.Fatal("Expected RegistryCredentials to be resolved for app2")
+	}
+	if app2.RegistryCredentials.Username != "otheruser" {
+		t.Errorf("Expected resolved username 'otheruser', got '%s'", app2.RegistryCredentials.Username)
+	}
+
+	// public-app has no imagePullSecret, so no credentials
+	pubApp, err := config.GetPetProject("public-app")
+	if err != nil {
+		t.Fatalf("GetPetProject('public-app') failed: %v", err)
+	}
+	if pubApp.RegistryCredentials != nil {
+		t.Error("Expected RegistryCredentials to be nil for public-app")
 	}
 }
 
@@ -517,6 +611,53 @@ func TestGetPetProject_EmptyConfig(t *testing.T) {
 	}
 
 	expectedMsg := "pet project not found: anyproject"
+	if err != nil && err.Error() != expectedMsg {
+		t.Errorf("Expected error message '%s', got '%s'", expectedMsg, err.Error())
+	}
+}
+
+func TestGetPetProject_UnknownRegistry(t *testing.T) {
+	config := &Config{
+		Registries: map[string]*RegistryCredentials{
+			"known-registry": {Server: "https://known.registry.io"},
+		},
+		PetProjects: []PetProject{
+			{
+				Name:            "myapp",
+				Namespace:       "hobby",
+				ImagePullSecret: "unknown-registry",
+			},
+		},
+	}
+
+	_, err := config.GetPetProject("myapp")
+	if err == nil {
+		t.Error("Expected error when imagePullSecret references unknown registry, got nil")
+	}
+
+	expectedMsg := `pet project "myapp" references unknown registry "unknown-registry"`
+	if err != nil && err.Error() != expectedMsg {
+		t.Errorf("Expected error message '%s', got '%s'", expectedMsg, err.Error())
+	}
+}
+
+func TestGetPetProject_ImagePullSecretWithNoRegistries(t *testing.T) {
+	config := &Config{
+		PetProjects: []PetProject{
+			{
+				Name:            "myapp",
+				Namespace:       "hobby",
+				ImagePullSecret: "some-registry",
+			},
+		},
+	}
+
+	_, err := config.GetPetProject("myapp")
+	if err == nil {
+		t.Error("Expected error when imagePullSecret is set but no registries are defined, got nil")
+	}
+
+	expectedMsg := `pet project "myapp" references registry "some-registry" but no registries are defined`
 	if err != nil && err.Error() != expectedMsg {
 		t.Errorf("Expected error message '%s', got '%s'", expectedMsg, err.Error())
 	}

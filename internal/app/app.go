@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/Goalt/personal-server/internal/config"
 	"github.com/Goalt/personal-server/internal/logger"
@@ -106,6 +107,39 @@ func (a *App) Run(ctx context.Context, args []string) error {
 		return a.handleUpdateCommand(ctx)
 	}
 
+	// Handle backup --decrypt command (doesn't require config)
+	if cmd == "backup" {
+		// Check for "schedule clear" subcommand (doesn't require config)
+		if len(cmdArgs) > 1 && cmdArgs[1] == "schedule" {
+			if len(cmdArgs) > 2 && cmdArgs[2] == "clear" {
+				return a.handleBackupScheduleClear(ctx)
+			}
+		}
+
+		// Only parse flags and handle decrypt early when --decrypt is present (no config needed)
+		hasDecryptFlag := false
+		for _, arg := range cmdArgs[1:] {
+			if arg == "--decrypt" || strings.HasPrefix(arg, "--decrypt=") {
+				hasDecryptFlag = true
+				break
+			}
+		}
+		if hasDecryptFlag {
+			backupCmd := flag.NewFlagSet("backup", flag.ContinueOnError)
+			backupCmd.SetOutput(a.stderr)
+			passphrase := backupCmd.String("passphrase", "", "Passphrase for GPG decryption")
+			decrypt := backupCmd.String("decrypt", "", "Path to archive to decrypt")
+
+			if err := backupCmd.Parse(cmdArgs[1:]); err != nil {
+				return err
+			}
+			if *passphrase == "" {
+				return fmt.Errorf("passphrase is required for decryption")
+			}
+			return a.handleGlobalDecryptCommand(ctx, *decrypt, *passphrase)
+		}
+	}
+
 	cfg, err := a.configLoader(configFile)
 	if err != nil {
 		return fmt.Errorf("loading config %s: %w", configFile, err)
@@ -123,11 +157,6 @@ func (a *App) Run(ctx context.Context, args []string) error {
 	if cmd == "backup" {
 		// potential subcommand
 		if len(cmdArgs) > 1 && cmdArgs[1] == "schedule" {
-			// Check for "clear" subcommand
-			if len(cmdArgs) > 2 && cmdArgs[2] == "clear" {
-				return a.handleBackupScheduleClear(ctx)
-			}
-
 			return a.handleBackupSchedule(ctx, cfg)
 		}
 
@@ -137,21 +166,6 @@ func (a *App) Run(ctx context.Context, args []string) error {
 				return fmt.Errorf("download requires a file name argument")
 			}
 			return a.handleBackupDownload(ctx, cfg, cmdArgs[2])
-		}
-
-		backupCmd := flag.NewFlagSet("backup", flag.ExitOnError)
-		passphrase := backupCmd.String("passphrase", "", "Passphrase for GPG decryption")
-		decrypt := backupCmd.String("decrypt", "", "Path to archive to decrypt")
-
-		if err := backupCmd.Parse(cmdArgs[1:]); err != nil {
-			return err
-		}
-
-		if *decrypt != "" {
-			if *passphrase == "" {
-				return fmt.Errorf("passphrase is required for decryption")
-			}
-			return a.handleGlobalDecryptCommand(ctx, *decrypt, *passphrase)
 		}
 
 		return a.handleGlobalBackupCommand(ctx, cfg)

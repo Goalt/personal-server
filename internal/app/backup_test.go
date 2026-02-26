@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Goalt/personal-server/internal/config"
@@ -235,5 +236,64 @@ func TestHandleBackupDownload_InvalidFilename(t *testing.T) {
 		if err == nil {
 			t.Errorf("Expected error for invalid filename %s, but got nil", tc)
 		}
+	}
+}
+
+// TestDecryptCommandNoConfigFile verifies that "backup --decrypt" works even when no config file exists.
+func TestDecryptCommandNoConfigFile(t *testing.T) {
+	var logBuf strings.Builder
+	log := logger.NewStdLogger(&logBuf)
+
+	configLoaderCalled := false
+	a := New(
+		WithLogger(log),
+		WithConfigLoader(func(path string) (*config.Config, error) {
+			configLoaderCalled = true
+			return nil, &os.PathError{Op: "open", Path: path, Err: os.ErrNotExist}
+		}),
+	)
+
+	// Run with a non-existent archive path; the important thing is that the config loader is NOT called.
+	// The command will fail because gpg isn't available or the archive doesn't exist,
+	// but it must NOT fail with "loading config" error.
+	err := a.Run(context.Background(), []string{"backup", "--decrypt", "/nonexistent.tar.gz.gpg", "--passphrase", "secret"})
+
+	if configLoaderCalled {
+		t.Error("config loader should not be called for 'backup --decrypt' command")
+	}
+
+	// The error, if any, must NOT be about config loading
+	if err != nil && strings.Contains(err.Error(), "loading config") {
+		t.Errorf("unexpected config loading error: %v", err)
+	}
+}
+
+// TestDecryptCommandMissingPassphrase verifies that "backup --decrypt" without a passphrase returns an appropriate error
+// and does not attempt to load the config file.
+func TestDecryptCommandMissingPassphrase(t *testing.T) {
+	var logBuf strings.Builder
+	log := logger.NewStdLogger(&logBuf)
+
+	configLoaderCalled := false
+	a := New(
+		WithLogger(log),
+		WithConfigLoader(func(path string) (*config.Config, error) {
+			configLoaderCalled = true
+			return nil, &os.PathError{Op: "open", Path: path, Err: os.ErrNotExist}
+		}),
+	)
+
+	err := a.Run(context.Background(), []string{"backup", "--decrypt", "/nonexistent.tar.gz.gpg"})
+
+	if configLoaderCalled {
+		t.Error("config loader should not be called for 'backup --decrypt' command")
+	}
+
+	if err == nil {
+		t.Fatal("expected error for missing passphrase, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "passphrase is required") {
+		t.Errorf("expected 'passphrase is required' error, got: %v", err)
 	}
 }

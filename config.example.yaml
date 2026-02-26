@@ -3,23 +3,23 @@ general:
   namespaces: [infra, hobby]
 backup:
   webdav_host: https://webdav.example.com
-  webdav_username: username
-  webdav_password: password
-  sentry_dsn: https://public@sentry.example.com/1
+  webdav_username: ${WEBDAV_USERNAME}
+  webdav_password: ${WEBDAV_PASSWORD}
+  sentry_dsn: ${SENTRY_DSN}
   cron: "*/30 * * * *"
-  passphrase: your-gpg-passphrase
+  passphrase: ${BACKUP_PASSPHRASE}
 modules:
   - name: cloudflare
     namespace: infra
     secrets:
-      cloudflare_api_token: your_cloudflare_api_token
+      cloudflare_api_token: ${CLOUDFLARE_API_TOKEN}
   - name: bitwarden
     namespace: infra
   - name: webdav
     namespace: infra
     secrets:
-      webdav_username: admin
-      webdav_password: secret_password
+      webdav_username: ${WEBDAV_MODULE_USERNAME}
+      webdav_password: ${WEBDAV_MODULE_PASSWORD}
   - name: hobby-pod
     namespace: infra
     # Optional configuration:
@@ -33,19 +33,19 @@ modules:
   - name: drone
     namespace: infra
     secrets:
-      drone_gitea_client_id: your_client_id
-      drone_gitea_client_secret: your_client_secret
-      drone_rpc_secret: your_rpc_secret
+      drone_gitea_client_id: ${DRONE_GITEA_CLIENT_ID}
+      drone_gitea_client_secret: ${DRONE_GITEA_CLIENT_SECRET}
+      drone_rpc_secret: ${DRONE_RPC_SECRET}
       drone_server_proto: https
   - name: monitoring
     namespace: infra
     secrets:
-      sentry_dsn: https://public@sentry.example.com/1
+      sentry_dsn: ${MONITORING_SENTRY_DSN}
   - name: postgres
     namespace: infra
     secrets:
-      admin_postgres_user: postgres
-      admin_postgres_password: secret_password
+      admin_postgres_user: ${POSTGRES_USER}
+      admin_postgres_password: ${POSTGRES_PASSWORD}
   - name: postgres-exporter
     namespace: infra
     # Optional configuration - defaults shown below:
@@ -58,22 +58,22 @@ modules:
   - name: pgadmin
     namespace: infra
     secrets:
-      pgadmin_default_email: admin@example.com
-      pgadmin_admin_password: secret_password
+      pgadmin_default_email: ${PGADMIN_DEFAULT_EMAIL}
+      pgadmin_admin_password: ${PGADMIN_ADMIN_PASSWORD}
   - name: gitea
     namespace: infra
     secrets:
-      gitea_db_user: gitea
-      gitea_db_password: secret_password
+      gitea_db_user: ${GITEA_DB_USER}
+      gitea_db_password: ${GITEA_DB_PASSWORD}
   - name: grafana
     namespace: infra
     secrets:
-      grafana_admin_user: admin
-      grafana_admin_password: secret_password
+      grafana_admin_user: ${GRAFANA_ADMIN_USER}
+      grafana_admin_password: ${GRAFANA_ADMIN_PASSWORD}
   - name: redis
     namespace: infra
     secrets:
-      redis_password: secret_password
+      redis_password: ${REDIS_PASSWORD}
   - name: prometheus
     namespace: infra
     # Optional secrets for customization:
@@ -83,7 +83,7 @@ modules:
   - name: ssh-login-notifier
     namespace: infra
     secrets:
-      sentry_dsn: https://public@sentry.example.com/1
+      sentry_dsn: ${SSH_NOTIFIER_SENTRY_DSN}
 pet-projects:
   - name: myapp
     namespace: hobby
@@ -91,8 +91,8 @@ pet-projects:
     imagePullSecret: my-registry-secret
     registryCredentials:
       server: https://registry.example.com
-      username: myuser
-      password: mypassword
+      username: ${REGISTRY_USERNAME}
+      password: ${REGISTRY_PASSWORD}
     environment:
       PORT: "8080"
       ENV: "production"

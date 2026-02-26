@@ -737,3 +737,85 @@ func TestSaveConfig_EmptyPath(t *testing.T) {
 		t.Errorf("Expected error message '%s', got '%s'", expectedMsg, err.Error())
 	}
 }
+
+func TestLoadConfig_EnvVarExpansion(t *testing.T) {
+	// Set environment variables for the test
+	t.Setenv("TEST_API_TOKEN", "secret-token-value")
+	t.Setenv("TEST_DB_PASSWORD", "secret-db-password")
+	t.Setenv("TEST_WEBDAV_PASS", "secret-webdav-pass")
+
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+
+	configContent := `general:
+  domain: example.com
+  namespaces: [infra]
+backup:
+  webdav_host: https://webdav.example.com
+  webdav_password: ${TEST_WEBDAV_PASS}
+modules:
+  - name: cloudflare
+    namespace: infra
+    secrets:
+      cloudflare_api_token: ${TEST_API_TOKEN}
+  - name: postgres
+    namespace: infra
+    secrets:
+      admin_postgres_password: $TEST_DB_PASSWORD
+`
+
+	err := os.WriteFile(configFile, []byte(configContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test config file: %v", err)
+	}
+
+	config, err := LoadConfig(configFile)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	if config.Backup.WebdavPassword != "secret-webdav-pass" {
+		t.Errorf("Expected webdav_password to be expanded, got '%s'", config.Backup.WebdavPassword)
+	}
+
+	if config.Modules[0].Secrets["cloudflare_api_token"] != "secret-token-value" {
+		t.Errorf("Expected cloudflare_api_token to be expanded, got '%s'", config.Modules[0].Secrets["cloudflare_api_token"])
+	}
+
+	if config.Modules[1].Secrets["admin_postgres_password"] != "secret-db-password" {
+		t.Errorf("Expected admin_postgres_password to be expanded, got '%s'", config.Modules[1].Secrets["admin_postgres_password"])
+	}
+}
+
+func TestLoadConfig_EnvVarExpansion_Unset(t *testing.T) {
+	// Ensure the variable is not set
+	os.Unsetenv("TEST_UNSET_VAR") //nolint:errcheck
+
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+
+	configContent := `general:
+  domain: example.com
+  namespaces: [infra]
+modules:
+  - name: cloudflare
+    namespace: infra
+    secrets:
+      cloudflare_api_token: ${TEST_UNSET_VAR}
+`
+
+	err := os.WriteFile(configFile, []byte(configContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test config file: %v", err)
+	}
+
+	config, err := LoadConfig(configFile)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	// When env var is unset, expanded value should be empty string
+	if config.Modules[0].Secrets["cloudflare_api_token"] != "" {
+		t.Errorf("Expected empty string for unset env var, got '%s'", config.Modules[0].Secrets["cloudflare_api_token"])
+	}
+}

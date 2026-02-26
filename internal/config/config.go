@@ -106,7 +106,9 @@ type Config struct {
 	Ingresses   []IngressConfig `yaml:"ingresses,omitempty"`
 }
 
-// LoadConfig loads and parses the configuration file
+// LoadConfig loads and parses the configuration file.
+// Secret values in the config may reference environment variables using
+// ${VAR_NAME} or $VAR_NAME syntax; they are expanded before parsing.
 func LoadConfig(configFile string) (*Config, error) {
 	// Check if config file exists
 	if _, err := os.Stat(configFile); os.IsNotExist(err) {
@@ -119,9 +121,12 @@ func LoadConfig(configFile string) (*Config, error) {
 		return nil, fmt.Errorf("error reading config file: %v", err)
 	}
 
+	// Expand environment variables so secrets can be provided via env vars
+	expanded := os.ExpandEnv(string(data))
+
 	// Parse YAML
 	var config Config
-	err = yaml.Unmarshal(data, &config)
+	err = yaml.Unmarshal([]byte(expanded), &config)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing YAML config: %v", err)
 	}

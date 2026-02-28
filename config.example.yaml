@@ -80,6 +80,13 @@ modules:
     # secrets:
     #   prometheus_image: prom/prometheus:v2.48.0  # Customize Prometheus version
     #   storage_size: 10Gi                         # Customize storage size
+  # To deploy prometheus in an additional namespace, use a unique name with the "prometheus-" prefix:
+  # - name: prometheus-hobby
+  #   namespace: hobby
+  #   # Optional secrets for customization:
+  #   # secrets:
+  #   #   prometheus_image: prom/prometheus:v2.48.0
+  #   #   storage_size: 5Gi
   - name: ssh-login-notifier
     namespace: infra
     secrets:

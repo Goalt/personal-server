@@ -2,6 +2,7 @@ package modules
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Goalt/personal-server/internal/config"
 	"github.com/Goalt/personal-server/internal/logger"
@@ -61,9 +62,25 @@ func (r *Registry) RegisterIngress(name string, factory IngressFactory) {
 	r.ingressFactories[name] = factory
 }
 
+// findFactory looks up a factory by exact name first, then by prefix match.
+// Returns the factory, the registered factory key, and whether it was found.
+// Prefix matching allows "prometheus-infra" to resolve to the "prometheus" factory.
+func (r *Registry) findFactory(name string) (ModuleFactory, string, bool) {
+	if f, ok := r.factories[name]; ok {
+		return f, name, true
+	}
+	// Try prefix match: "prometheus-infra" matches "prometheus" factory
+	for registeredName, f := range r.factories {
+		if strings.HasPrefix(name, registeredName+"-") {
+			return f, registeredName, true
+		}
+	}
+	return nil, "", false
+}
+
 // Get creates a module by name
 func (r *Registry) Get(name string, cfg *config.Config) (Module, error) {
-	factory, ok := r.factories[name]
+	factory, factoryKey, ok := r.findFactory(name)
 	if !ok {
 		// Check if it's a pet project
 		if module, err := r.GetPetProject(name, cfg); err == nil {
@@ -77,7 +94,7 @@ func (r *Registry) Get(name string, cfg *config.Config) (Module, error) {
 	}
 
 	var modCfg config.Module
-	if r.requiresModuleConfig[name] {
+	if r.requiresModuleConfig[factoryKey] {
 		var err error
 		modCfg, err = cfg.GetModule(name)
 		if err != nil {
@@ -139,8 +156,8 @@ func (r *Registry) Commands() []string {
 	return names
 }
 
-// Has checks if a command is registered
+// Has checks if a command is registered (exact match or prefix match)
 func (r *Registry) Has(name string) bool {
-	_, ok := r.factories[name]
+	_, _, ok := r.findFactory(name)
 	return ok
 }

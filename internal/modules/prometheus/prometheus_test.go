@@ -12,9 +12,20 @@ import (
 )
 
 func TestPrometheusModule_Name(t *testing.T) {
-	module := &PrometheusModule{}
+	module := &PrometheusModule{
+		ModuleConfig: config.Module{Name: "prometheus"},
+	}
 	if module.Name() != "prometheus" {
 		t.Errorf("Name() = %s, want prometheus", module.Name())
+	}
+}
+
+func TestPrometheusModule_NameCustom(t *testing.T) {
+	module := &PrometheusModule{
+		ModuleConfig: config.Module{Name: "prometheus-infra"},
+	}
+	if module.Name() != "prometheus-infra" {
+		t.Errorf("Name() = %s, want prometheus-infra", module.Name())
 	}
 }
 
@@ -156,9 +167,9 @@ func TestPrometheusModule_PrepareClusterRole(t *testing.T) {
 		t.Fatalf("prepare() error: %v", err)
 	}
 
-	// Test ClusterRole name
-	if cr.Name != "prometheus" {
-		t.Errorf("ClusterRole name = %s, want prometheus", cr.Name)
+	// Test ClusterRole name matches module name
+	if cr.Name != module.ModuleConfig.Name {
+		t.Errorf("ClusterRole name = %s, want %s", cr.Name, module.ModuleConfig.Name)
 	}
 
 	// Test ClusterRole rules
@@ -184,6 +195,7 @@ func TestPrometheusModule_PrepareClusterRole(t *testing.T) {
 
 func TestPrometheusModule_PrepareClusterRoleBinding(t *testing.T) {
 	testNamespace := "test-namespace"
+	testModuleName := "prometheus"
 	module := &PrometheusModule{
 		GeneralConfig: config.GeneralConfig{
 			Domain: "example.com",
@@ -199,9 +211,9 @@ func TestPrometheusModule_PrepareClusterRoleBinding(t *testing.T) {
 		t.Fatalf("prepare() error: %v", err)
 	}
 
-	// Test ClusterRoleBinding name
-	if crb.Name != "prometheus" {
-		t.Errorf("ClusterRoleBinding name = %s, want prometheus", crb.Name)
+	// Test ClusterRoleBinding name matches module name
+	if crb.Name != testModuleName {
+		t.Errorf("ClusterRoleBinding name = %s, want %s", crb.Name, testModuleName)
 	}
 
 	// Test RoleRef
@@ -211,8 +223,8 @@ func TestPrometheusModule_PrepareClusterRoleBinding(t *testing.T) {
 	if crb.RoleRef.Kind != "ClusterRole" {
 		t.Errorf("ClusterRoleBinding RoleRef.Kind = %s, want ClusterRole", crb.RoleRef.Kind)
 	}
-	if crb.RoleRef.Name != "prometheus" {
-		t.Errorf("ClusterRoleBinding RoleRef.Name = %s, want prometheus", crb.RoleRef.Name)
+	if crb.RoleRef.Name != testModuleName {
+		t.Errorf("ClusterRoleBinding RoleRef.Name = %s, want %s", crb.RoleRef.Name, testModuleName)
 	}
 
 	// Test Subjects
@@ -508,6 +520,110 @@ func TestGenerate(t *testing.T) {
 		"configs/prometheus/pvc.yaml",
 		"configs/prometheus/service.yaml",
 		"configs/prometheus/deployment.yaml",
+	}
+
+	for _, filename := range expectedFiles {
+		if _, err := os.Stat(filename); os.IsNotExist(err) {
+			t.Errorf("Expected file %s does not exist", filename)
+		}
+	}
+}
+
+func TestPrometheusModule_MultipleNamespaces(t *testing.T) {
+	// Verify that modules with different names produce different cluster-scoped resource names,
+	// allowing multiple prometheus instances to coexist in different namespaces.
+	type testCase struct {
+		moduleName string
+		namespace  string
+	}
+	cases := []testCase{
+		{moduleName: "prometheus-infra", namespace: "infra"},
+		{moduleName: "prometheus-hobby", namespace: "hobby"},
+	}
+	clusterRoleNames := make(map[string]bool)
+	clusterRoleBindingNames := make(map[string]bool)
+
+	for _, tc := range cases {
+		module := &PrometheusModule{
+			GeneralConfig: config.GeneralConfig{
+				Domain: "example.com",
+			},
+			ModuleConfig: config.Module{
+				Name:      tc.moduleName,
+				Namespace: tc.namespace,
+			},
+		}
+
+		_, cr, crb, _, _, _, _, err := module.prepare()
+		if err != nil {
+			t.Fatalf("prepare() for %s error: %v", tc.moduleName, err)
+		}
+
+		// ClusterRole name must match module name
+		if cr.Name != tc.moduleName {
+			t.Errorf("ClusterRole name = %s, want %s", cr.Name, tc.moduleName)
+		}
+		// ClusterRoleBinding name must match module name
+		if crb.Name != tc.moduleName {
+			t.Errorf("ClusterRoleBinding name = %s, want %s", crb.Name, tc.moduleName)
+		}
+		// ClusterRoleBinding RoleRef must point to the correct ClusterRole
+		if crb.RoleRef.Name != tc.moduleName {
+			t.Errorf("ClusterRoleBinding RoleRef.Name = %s, want %s", crb.RoleRef.Name, tc.moduleName)
+		}
+
+		clusterRoleNames[cr.Name] = true
+		clusterRoleBindingNames[crb.Name] = true
+	}
+
+	// Verify all names are unique (no conflicts between instances)
+	if len(clusterRoleNames) != len(cases) {
+		t.Errorf("ClusterRole names are not unique: %v", clusterRoleNames)
+	}
+	if len(clusterRoleBindingNames) != len(cases) {
+		t.Errorf("ClusterRoleBinding names are not unique: %v", clusterRoleBindingNames)
+	}
+}
+
+func TestGenerate_CustomName(t *testing.T) {
+	// Verify that a prometheus module with a custom name (e.g., prometheus-hobby)
+	// generates files in a directory named after the module.
+	tempDir := t.TempDir()
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	defer os.Chdir(originalWd)
+
+	module := &PrometheusModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		ModuleConfig: config.Module{
+			Name:      "prometheus-hobby",
+			Namespace: "hobby",
+		},
+		log: logger.Default(),
+	}
+
+	ctx := context.Background()
+	if err := module.Generate(ctx); err != nil {
+		t.Fatalf("Generate() failed: %v", err)
+	}
+
+	// Files should be in configs/prometheus-hobby/, not configs/prometheus/
+	expectedFiles := []string{
+		"configs/prometheus-hobby/serviceaccount.yaml",
+		"configs/prometheus-hobby/clusterrole.yaml",
+		"configs/prometheus-hobby/clusterrolebinding.yaml",
+		"configs/prometheus-hobby/configmap.yaml",
+		"configs/prometheus-hobby/pvc.yaml",
+		"configs/prometheus-hobby/service.yaml",
+		"configs/prometheus-hobby/deployment.yaml",
 	}
 
 	for _, filename := range expectedFiles {

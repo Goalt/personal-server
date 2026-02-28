@@ -35,12 +35,12 @@ func New(generalConfig config.GeneralConfig, moduleConfig config.Module, log log
 }
 
 func (m *PrometheusModule) Name() string {
-	return "prometheus"
+	return m.ModuleConfig.Name
 }
 
 func (m *PrometheusModule) Generate(ctx context.Context) error {
 	// Define output directory
-	outputDir := filepath.Join("configs", "prometheus")
+	outputDir := filepath.Join("configs", m.ModuleConfig.Name)
 
 	// Check and create output directory if it doesn't exist
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
@@ -132,16 +132,16 @@ func (m *PrometheusModule) Apply(ctx context.Context) error {
 		return fmt.Errorf("failed to check ServiceAccount existence: %w", err)
 	}
 
-	_, err = clientset.RbacV1().ClusterRoles().Get(ctx, "prometheus", metav1.GetOptions{})
+	_, err = clientset.RbacV1().ClusterRoles().Get(ctx, m.ModuleConfig.Name, metav1.GetOptions{})
 	if err == nil {
-		return fmt.Errorf("ClusterRole 'prometheus' already exists")
+		return fmt.Errorf("ClusterRole '%s' already exists", m.ModuleConfig.Name)
 	} else if !errors.IsNotFound(err) {
 		return fmt.Errorf("failed to check ClusterRole existence: %w", err)
 	}
 
-	_, err = clientset.RbacV1().ClusterRoleBindings().Get(ctx, "prometheus", metav1.GetOptions{})
+	_, err = clientset.RbacV1().ClusterRoleBindings().Get(ctx, m.ModuleConfig.Name, metav1.GetOptions{})
 	if err == nil {
-		return fmt.Errorf("ClusterRoleBinding 'prometheus' already exists")
+		return fmt.Errorf("ClusterRoleBinding '%s' already exists", m.ModuleConfig.Name)
 	} else if !errors.IsNotFound(err) {
 		return fmt.Errorf("failed to check ClusterRoleBinding existence: %w", err)
 	}
@@ -191,7 +191,7 @@ func (m *PrometheusModule) Apply(ctx context.Context) error {
 	m.log.Success("Created ServiceAccount: %s\n", createdSA.Name)
 
 	// Apply ClusterRole
-	m.log.Progress("Applying ClusterRole: prometheus\n")
+	m.log.Progress("Applying ClusterRole: %s\n", m.ModuleConfig.Name)
 	createdCR, err := clientset.RbacV1().ClusterRoles().Create(ctx, clusterRole, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to create ClusterRole: %w", err)
@@ -199,7 +199,7 @@ func (m *PrometheusModule) Apply(ctx context.Context) error {
 	m.log.Success("Created ClusterRole: %s\n", createdCR.Name)
 
 	// Apply ClusterRoleBinding
-	m.log.Progress("Applying ClusterRoleBinding: prometheus\n")
+	m.log.Progress("Applying ClusterRoleBinding: %s\n", m.ModuleConfig.Name)
 	createdCRB, err := clientset.RbacV1().ClusterRoleBindings().Create(ctx, clusterRoleBinding, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to create ClusterRoleBinding: %w", err)
@@ -258,7 +258,7 @@ func (m *PrometheusModule) prepare() (*corev1.ServiceAccount, *rbacv1.ClusterRol
 	// Prepare ClusterRole
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "prometheus",
+			Name: m.ModuleConfig.Name,
 			Labels: map[string]string{
 				"app":        "prometheus",
 				"managed-by": "personal-server",
@@ -285,7 +285,7 @@ func (m *PrometheusModule) prepare() (*corev1.ServiceAccount, *rbacv1.ClusterRol
 	// Prepare ClusterRoleBinding
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "prometheus",
+			Name: m.ModuleConfig.Name,
 			Labels: map[string]string{
 				"app":        "prometheus",
 				"managed-by": "personal-server",
@@ -294,7 +294,7 @@ func (m *PrometheusModule) prepare() (*corev1.ServiceAccount, *rbacv1.ClusterRol
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
-			Name:     "prometheus",
+			Name:     m.ModuleConfig.Name,
 		},
 		Subjects: []rbacv1.Subject{
 			{
@@ -643,7 +643,7 @@ func (m *PrometheusModule) Clean(ctx context.Context) error {
 
 	// 5. Delete ClusterRoleBinding
 	m.log.Info("🗑️  Deleting ClusterRoleBinding...\n")
-	err = clientset.RbacV1().ClusterRoleBindings().Delete(ctx, "prometheus", deleteOptions)
+	err = clientset.RbacV1().ClusterRoleBindings().Delete(ctx, m.ModuleConfig.Name, deleteOptions)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			m.log.Warn("ClusterRoleBinding not found (already deleted or never existed)\n")
@@ -651,13 +651,13 @@ func (m *PrometheusModule) Clean(ctx context.Context) error {
 			m.log.Error("Failed to delete ClusterRoleBinding: %v\n", err)
 		}
 	} else {
-		m.log.Success("Deleted ClusterRoleBinding: prometheus\n")
+		m.log.Success("Deleted ClusterRoleBinding: %s\n", m.ModuleConfig.Name)
 		successCount++
 	}
 
 	// 6. Delete ClusterRole
 	m.log.Info("🗑️  Deleting ClusterRole...\n")
-	err = clientset.RbacV1().ClusterRoles().Delete(ctx, "prometheus", deleteOptions)
+	err = clientset.RbacV1().ClusterRoles().Delete(ctx, m.ModuleConfig.Name, deleteOptions)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			m.log.Warn("ClusterRole not found (already deleted or never existed)\n")
@@ -665,7 +665,7 @@ func (m *PrometheusModule) Clean(ctx context.Context) error {
 			m.log.Error("Failed to delete ClusterRole: %v\n", err)
 		}
 	} else {
-		m.log.Success("Deleted ClusterRole: prometheus\n")
+		m.log.Success("Deleted ClusterRole: %s\n", m.ModuleConfig.Name)
 		successCount++
 	}
 
@@ -715,31 +715,31 @@ func (m *PrometheusModule) Status(ctx context.Context) error {
 
 	// Check ClusterRole
 	m.log.Println("\nCLUSTER ROLE:")
-	cr, err := clientset.RbacV1().ClusterRoles().Get(ctx, "prometheus", metav1.GetOptions{})
+	cr, err := clientset.RbacV1().ClusterRoles().Get(ctx, m.ModuleConfig.Name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			m.log.Error("  ClusterRole 'prometheus' not found\n")
+			m.log.Error("  ClusterRole '%s' not found\n", m.ModuleConfig.Name)
 		} else {
 			m.log.Error("  Error getting ClusterRole: %v\n", err)
 		}
 	} else {
 		age := time.Since(cr.CreationTimestamp.Time).Round(time.Second)
-		m.log.Success("  ClusterRole: prometheus (Age: %s)\n", k8s.FormatAge(age))
+		m.log.Success("  ClusterRole: %s (Age: %s)\n", m.ModuleConfig.Name, k8s.FormatAge(age))
 		m.log.Info("     Rules: %d\n", len(cr.Rules))
 	}
 
 	// Check ClusterRoleBinding
 	m.log.Println("\nCLUSTER ROLE BINDING:")
-	crb, err := clientset.RbacV1().ClusterRoleBindings().Get(ctx, "prometheus", metav1.GetOptions{})
+	crb, err := clientset.RbacV1().ClusterRoleBindings().Get(ctx, m.ModuleConfig.Name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			m.log.Error("  ClusterRoleBinding 'prometheus' not found\n")
+			m.log.Error("  ClusterRoleBinding '%s' not found\n", m.ModuleConfig.Name)
 		} else {
 			m.log.Error("  Error getting ClusterRoleBinding: %v\n", err)
 		}
 	} else {
 		age := time.Since(crb.CreationTimestamp.Time).Round(time.Second)
-		m.log.Success("  ClusterRoleBinding: prometheus (Age: %s)\n", k8s.FormatAge(age))
+		m.log.Success("  ClusterRoleBinding: %s (Age: %s)\n", m.ModuleConfig.Name, k8s.FormatAge(age))
 		m.log.Info("     Role: %s\n", crb.RoleRef.Name)
 		m.log.Info("     Subjects: %d\n", len(crb.Subjects))
 	}

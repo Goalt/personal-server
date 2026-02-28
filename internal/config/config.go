@@ -68,7 +68,7 @@ type PetProject struct {
 	Namespace           string               `yaml:"namespace"`
 	Image               string               `yaml:"image"`
 	ImagePullSecret     string               `yaml:"imagePullSecret,omitempty"`
-	RegistryCredentials *RegistryCredentials `yaml:"registryCredentials,omitempty"`
+	RegistryCredentials *RegistryCredentials `yaml:"-"`
 	Environment         map[string]string    `yaml:"environment"`
 	Service             *ServiceConfig       `yaml:"service,omitempty"`
 }
@@ -98,12 +98,13 @@ type BackupConfig struct {
 
 // Config represents the application configuration
 type Config struct {
-	Path        string          `yaml:"-"`
-	General     GeneralConfig   `yaml:"general"`
-	Backup      BackupConfig    `yaml:"backup"`
-	Modules     []Module        `yaml:"modules"`
-	PetProjects []PetProject    `yaml:"pet-projects"`
-	Ingresses   []IngressConfig `yaml:"ingresses,omitempty"`
+	Path        string                        `yaml:"-"`
+	General     GeneralConfig                 `yaml:"general"`
+	Backup      BackupConfig                  `yaml:"backup"`
+	Modules     []Module                      `yaml:"modules"`
+	Registries  map[string]*RegistryCredentials `yaml:"registries,omitempty"`
+	PetProjects []PetProject                  `yaml:"pet-projects"`
+	Ingresses   []IngressConfig               `yaml:"ingresses,omitempty"`
 }
 
 // LoadConfig loads and parses the configuration file
@@ -141,10 +142,20 @@ func (c *Config) GetModule(name string) (Module, error) {
 	return Module{}, fmt.Errorf("module not found: %s", name)
 }
 
-// GetPetProject retrieves a pet project by name
+// GetPetProject retrieves a pet project by name, resolving registry credentials from the top-level registries map
 func (c *Config) GetPetProject(name string) (PetProject, error) {
 	for _, project := range c.PetProjects {
 		if project.Name == name {
+			if project.ImagePullSecret != "" {
+				if c.Registries == nil {
+					return PetProject{}, fmt.Errorf("pet project %q references registry %q but no registries are defined", name, project.ImagePullSecret)
+				}
+				creds, ok := c.Registries[project.ImagePullSecret]
+				if !ok {
+					return PetProject{}, fmt.Errorf("pet project %q references unknown registry %q", name, project.ImagePullSecret)
+				}
+				project.RegistryCredentials = creds
+			}
 			return project, nil
 		}
 	}

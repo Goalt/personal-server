@@ -349,7 +349,6 @@ func TestPrepareDeploymentWithCustomPrometheusPort(t *testing.T) {
 	}
 }
 
-
 func TestApply(t *testing.T) {
 	// This test would require a Kubernetes cluster
 	// For now, we'll skip it.

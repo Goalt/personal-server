@@ -321,6 +321,35 @@ func containsSubstring(s, substr string) bool {
 	return false
 }
 
+func TestPrepareDeploymentWithCustomPrometheusPort(t *testing.T) {
+	generalConfig := config.GeneralConfig{
+		Domain:     "example.com",
+		Namespaces: []string{"hobby"},
+	}
+
+	projectConfig := config.PetProject{
+		Name:           "myapp",
+		Namespace:      "hobby",
+		Image:          "nginx:latest",
+		PrometheusPort: 7777,
+	}
+
+	log := logger.Default()
+	module := New(generalConfig, projectConfig, log)
+
+	deployment := module.prepareDeployment()
+
+	if deployment == nil {
+		t.Fatal("Expected deployment to be created, got nil")
+	}
+
+	annotations := deployment.Spec.Template.Annotations
+	if annotations["prometheus.io/port"] != "7777" {
+		t.Errorf("Expected prometheus.io/port to be '7777', got '%s'", annotations["prometheus.io/port"])
+	}
+}
+
+
 func TestApply(t *testing.T) {
 	// This test would require a Kubernetes cluster
 	// For now, we'll skip it.

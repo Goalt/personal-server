@@ -71,6 +71,7 @@ type PetProject struct {
 	RegistryCredentials *RegistryCredentials `yaml:"registryCredentials,omitempty"`
 	Environment         map[string]string    `yaml:"environment"`
 	Service             *ServiceConfig       `yaml:"service,omitempty"`
+	PrometheusPort      int32                `yaml:"prometheusPort,omitempty"`
 }
 
 type GeneralConfig struct {

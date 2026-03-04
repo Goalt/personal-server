@@ -167,6 +167,13 @@ func (m *PetProjectModule) Apply(ctx context.Context) error {
 	return nil
 }
 
+func (m *PetProjectModule) prometheusPort() string {
+	if m.ProjectConfig.PrometheusPort != 0 {
+		return fmt.Sprintf("%d", m.ProjectConfig.PrometheusPort)
+	}
+	return "8080"
+}
+
 func (m *PetProjectModule) prepareDeployment() *appsv1.Deployment {
 	replicas := int32(1)
 	deploymentName := fmt.Sprintf("pet-%s", m.ProjectConfig.Name)
@@ -206,7 +213,7 @@ func (m *PetProjectModule) prepareDeployment() *appsv1.Deployment {
 					},
 					Annotations: map[string]string{
 						"prometheus.io/scrape": "true",
-						"prometheus.io/port":   "8080",
+						"prometheus.io/port":   m.prometheusPort(),
 						"prometheus.io/path":   "/metrics",
 					},
 				},

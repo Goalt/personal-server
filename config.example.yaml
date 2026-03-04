@@ -103,6 +103,7 @@ pet-projects:
     environment:
       PORT: "8080"
       ENV: "production"
+    prometheusPort: 8080  # Port for Prometheus scraping (default: 8080)
     service:
       ports:
         - name: http
@@ -114,6 +115,7 @@ pet-projects:
     environment:
       NODE_ENV: "development"
       API_PORT: "3000"
+    prometheusPort: 3000  # Port for Prometheus scraping (default: 8080)
     service:
       ports:
         - name: http

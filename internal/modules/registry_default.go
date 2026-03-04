@@ -12,6 +12,7 @@ import (
 	"github.com/Goalt/personal-server/internal/modules/ingress"
 	"github.com/Goalt/personal-server/internal/modules/monitoring"
 	"github.com/Goalt/personal-server/internal/modules/namespace"
+	"github.com/Goalt/personal-server/internal/modules/openreplay"
 	"github.com/Goalt/personal-server/internal/modules/petproject"
 	"github.com/Goalt/personal-server/internal/modules/pgadmin"
 	"github.com/Goalt/personal-server/internal/modules/postgres"
@@ -77,6 +78,9 @@ func DefaultRegistry(log logger.Logger) *Registry {
 	})
 	r.Register("ssh-login-notifier", func(g config.GeneralConfig, m config.Module, log logger.Logger) Module {
 		return sshlogin.New(g, m, log)
+	})
+	r.Register("openreplay", func(g config.GeneralConfig, m config.Module, log logger.Logger) Module {
+		return openreplay.New(g, m, log)
 	})
 
 	// Register default pet project factory

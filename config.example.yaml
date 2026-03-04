@@ -91,6 +91,14 @@ modules:
     namespace: infra
     secrets:
       sentry_dsn: https://public@sentry.example.com/1
+  - name: openreplay
+    namespace: infra
+    secrets:
+      domain_name: openreplay.example.com
+      pg_password: secret_password
+      jwt_secret: your-jwt-secret
+      # Optional: pin to a specific image version (defaults to openreplay/openreplay-standalone:v1.21.0)
+      # openreplay_image: openreplay/openreplay-standalone:v1.21.0
 pet-projects:
   - name: myapp
     namespace: hobby

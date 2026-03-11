@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    creationTimestamp: null
+    labels:
+        app: xray
+        managed-by: personal-server
+    name: xray
+    namespace: infra
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: xray
+    strategy: {}
+    template:
+        metadata:
+            creationTimestamp: null
+            labels:
+                app: xray
+        spec:
+            containers:
+                - image: ghcr.io/xtls/xray-core:latest
+                  name: xray
+                  ports:
+                    - containerPort: 10000
+                      name: ws
+                      protocol: TCP
+                  resources: {}
+                  securityContext:
+                    allowPrivilegeEscalation: false
+                    capabilities:
+                        drop:
+                            - ALL
+                    readOnlyRootFilesystem: true
+                    runAsNonRoot: true
+                  volumeMounts:
+                    - mountPath: /etc/xray
+                      name: xray-config
+                      readOnly: true
+            restartPolicy: Always
+            volumes:
+                - configMap:
+                    name: xray-config
+                  name: xray-config
+status: {}

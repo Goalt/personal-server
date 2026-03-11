@@ -54,12 +54,13 @@ type UDPService struct {
 
 // IngressConfig represents ingress configuration
 type IngressConfig struct {
-	Name        string        `yaml:"name"`
-	Namespace   string        `yaml:"namespace"`
-	Rules       []IngressRule `yaml:"rules"`
-	TCPServices []TCPService  `yaml:"tcpServices,omitempty"`
-	UDPServices []UDPService  `yaml:"udpServices,omitempty"`
-	TLS         bool          `yaml:"tls,omitempty"`
+	Name        string            `yaml:"name"`
+	Namespace   string            `yaml:"namespace"`
+	Rules       []IngressRule     `yaml:"rules"`
+	TCPServices []TCPService      `yaml:"tcpServices,omitempty"`
+	UDPServices []UDPService      `yaml:"udpServices,omitempty"`
+	TLS         bool              `yaml:"tls,omitempty"`
+	Annotations map[string]string `yaml:"annotations,omitempty"`
 }
 
 // PetProject represents a pet project configuration

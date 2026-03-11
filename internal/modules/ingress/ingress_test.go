@@ -235,6 +235,71 @@ func TestIngressModule_PrepareLabels(t *testing.T) {
 	}
 }
 
+func TestIngressModule_PrepareAnnotations(t *testing.T) {
+	annotations := map[string]string{
+		"nginx.ingress.kubernetes.io/proxy-read-timeout":    "3600",
+		"nginx.ingress.kubernetes.io/proxy-send-timeout":    "3600",
+		"nginx.ingress.kubernetes.io/proxy-buffering":       "off",
+		"nginx.ingress.kubernetes.io/proxy-request-buffering": "off",
+	}
+	module := &IngressModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		IngressConfig: config.IngressConfig{
+			Name:      "test-ingress",
+			Namespace: "default",
+			Rules: []config.IngressRule{
+				{
+					Host:        "test.example.com",
+					Path:        "/vpn-ws",
+					ServiceName: "xray-service",
+					ServicePort: 10000,
+				},
+			},
+			Annotations: annotations,
+		},
+	}
+
+	ingress := module.prepare()
+
+	if ingress.Annotations == nil {
+		t.Fatal("Annotations is nil")
+	}
+	for key, want := range annotations {
+		if got := ingress.Annotations[key]; got != want {
+			t.Errorf("Annotation %s = %s, want %s", key, got, want)
+		}
+	}
+}
+
+func TestIngressModule_PrepareNoAnnotations(t *testing.T) {
+	module := &IngressModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		IngressConfig: config.IngressConfig{
+			Name:      "test-ingress",
+			Namespace: "default",
+			Rules: []config.IngressRule{
+				{
+					Host:        "test.example.com",
+					Path:        "/",
+					ServiceName: "test-service",
+					ServicePort: 80,
+				},
+			},
+		},
+	}
+
+	ingress := module.prepare()
+
+	// When no annotations are set, the Annotations map should be nil (not empty)
+	if len(ingress.Annotations) != 0 {
+		t.Errorf("Expected no annotations, got %v", ingress.Annotations)
+	}
+}
+
 func TestIngressModule_PrepareTLS(t *testing.T) {
 	module := &IngressModule{
 		GeneralConfig: config.GeneralConfig{

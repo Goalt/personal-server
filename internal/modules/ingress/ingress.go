@@ -258,8 +258,9 @@ func (m *IngressModule) prepare() *networkingv1.Ingress {
 	// Build Ingress object
 	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      m.IngressConfig.Name,
-			Namespace: m.IngressConfig.Namespace,
+			Name:        m.IngressConfig.Name,
+			Namespace:   m.IngressConfig.Namespace,
+			Annotations: m.IngressConfig.Annotations,
 			Labels: map[string]string{
 				"managed-by": "personal-server",
 			},

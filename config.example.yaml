@@ -91,6 +91,15 @@ modules:
     namespace: infra
     secrets:
       sentry_dsn: https://public@sentry.example.com/1
+  - name: xray
+    namespace: infra
+    secrets:
+      # Generate with: xray uuid  (or uuidgen on Linux/macOS)
+      xray_uuid: your-uuid-here
+      # Optional: customize the WebSocket path (default: /vpn-ws)
+      # xray_websocket_path: /vpn-ws
+      # Optional: pin a specific image tag (default: ghcr.io/xtls/xray-core:latest)
+      # xray_image: ghcr.io/xtls/xray-core:latest
 pet-projects:
   - name: myapp
     namespace: hobby
@@ -155,4 +164,22 @@ ingresses:
       - port: 1194           # OpenVPN port
         serviceName: openvpn
         servicePort: 1194
+  # Ingress for Xray VPN (VLESS + WebSocket + TLS)
+  # TLS is terminated at the Ingress Controller; Xray listens on plain WebSocket internally.
+  # Required nginx-ingress annotations to support long-lived WebSocket connections:
+  - name: xray-ingress
+    namespace: infra
+    rules:
+      - host: vpn.example.com
+        # The WebSocket path must match xray_websocket_path in the xray module secrets.
+        path: /vpn-ws
+        pathType: Prefix
+        serviceName: xray-service
+        servicePort: 10000
+    tls: true
+    annotations:
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+      nginx.ingress.kubernetes.io/proxy-buffering: "off"
+      nginx.ingress.kubernetes.io/proxy-request-buffering: "off"
 

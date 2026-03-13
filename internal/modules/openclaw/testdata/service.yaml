@@ -1,0 +1,16 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        app: openclaw
+        managed-by: personal-server
+    name: openclaw
+    namespace: infra
+spec:
+    ports:
+        - name: http
+          port: 5000
+          targetPort: 5000
+    selector:
+        app: openclaw
+status:
+    loadBalancer: {}

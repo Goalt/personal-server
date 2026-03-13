@@ -394,7 +394,7 @@ func (m *OpenClawModule) Clean(ctx context.Context) error {
 		successCount++
 	}
 
-	m.log.Info("\nCompleted: %d/4 openclaw resources deleted successfully\n", successCount)
+	m.log.Info("\nCompleted: %d/4 OpenClaw resources deleted successfully\n", successCount)
 	if successCount > 0 {
 		m.log.Println("\nNote: Resource deletion is asynchronous and may take some time to complete.")
 		m.log.Warn("WARNING: Deleting the PVCs will remove all OpenClaw data permanently!\n")

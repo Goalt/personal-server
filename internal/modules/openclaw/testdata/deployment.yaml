@@ -1,0 +1,40 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        app: openclaw
+        managed-by: personal-server
+    name: openclaw
+    namespace: infra
+spec:
+    replicas: 1
+    revisionHistoryLimit: 1
+    selector:
+        matchLabels:
+            app: openclaw
+    strategy: {}
+    template:
+        metadata:
+            creationTimestamp: null
+            labels:
+                app: openclaw
+        spec:
+            containers:
+                - image: openclaw/openclaw:latest
+                  name: openclaw
+                  ports:
+                    - containerPort: 5000
+                  resources: {}
+                  volumeMounts:
+                    - mountPath: /config
+                      name: openclaw-config
+                    - mountPath: /data
+                      name: openclaw-data
+            restartPolicy: Always
+            volumes:
+                - name: openclaw-config
+                  persistentVolumeClaim:
+                    claimName: openclaw-config-pvc
+                - name: openclaw-data
+                  persistentVolumeClaim:
+                    claimName: openclaw-data-pvc
+status: {}

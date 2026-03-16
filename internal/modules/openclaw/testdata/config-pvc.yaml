@@ -1,0 +1,14 @@
+metadata:
+    creationTimestamp: null
+    labels:
+        app: openclaw
+        managed-by: personal-server
+    name: openclaw-config-pvc
+    namespace: infra
+spec:
+    accessModes:
+        - ReadWriteOnce
+    resources:
+        requests:
+            storage: 100Mi
+status: {}

@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/Goalt/personal-server/internal/config"
@@ -533,5 +535,293 @@ func (m *OpenClawModule) Status(ctx context.Context) error {
 	if !resourceFound {
 		m.log.Println("\nNo OpenClaw resources found. Run 'openclaw apply' to create them.")
 	}
+	return nil
+}
+
+// detectKubectl returns the kubectl command path, preferring microk8s if available
+func detectKubectl() string {
+	if _, err := os.Stat("/snap/bin/microk8s"); err == nil {
+		return "/snap/bin/microk8s kubectl"
+	}
+	return "kubectl"
+}
+
+func (m *OpenClawModule) Backup(ctx context.Context, destDir string) error {
+	// Create Kubernetes client
+	clientset, err := k8s.CreateKubernetesClient()
+	if err != nil {
+		return fmt.Errorf("failed to create Kubernetes client: %w", err)
+	}
+
+	timestamp := time.Now().Format("20060102_150405")
+	var backupDir string
+	if destDir != "" {
+		backupDir = filepath.Join(destDir, "openclaw")
+	} else {
+		backupDir = filepath.Join("backups", fmt.Sprintf("openclaw_backup_%s", timestamp))
+	}
+
+	m.log.Info("🔄 Starting OpenClaw backup...\n")
+	m.log.Info("Backup directory: %s\n", backupDir)
+
+	// Create backup directory
+	if err := os.MkdirAll(backupDir, 0755); err != nil {
+		return fmt.Errorf("failed to create backup directory: %w", err)
+	}
+
+	// Find Pod
+	pods, err := clientset.CoreV1().Pods(m.ModuleConfig.Namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "app=openclaw",
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list pods: %w", err)
+	}
+	if len(pods.Items) == 0 {
+		return fmt.Errorf("no running pod found for app=openclaw")
+	}
+	podName := pods.Items[0].Name
+	m.log.Info("📦 Using pod: %s\n", podName)
+
+	kubectlCmd := detectKubectl()
+
+	// 1. Backup config volume
+	m.log.Info("💾 Backing up OpenClaw config (/config)...\n")
+	configBackupFile := filepath.Join(backupDir, fmt.Sprintf("openclaw_config_%s.tar.gz", timestamp))
+
+	cmdStr := fmt.Sprintf("%s exec -n %s %s -- tar czf - /config", kubectlCmd, m.ModuleConfig.Namespace, podName)
+	cmdParts := strings.Fields(cmdStr)
+	cmd := exec.CommandContext(ctx, cmdParts[0], cmdParts[1:]...)
+
+	configOutFile, err := os.Create(configBackupFile)
+	if err != nil {
+		return fmt.Errorf("failed to create config backup file: %w", err)
+	}
+	defer configOutFile.Close()
+
+	cmd.Stdout = configOutFile
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to archive config: %w", err)
+	}
+
+	configFileInfo, err := configOutFile.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to stat config backup file: %w", err)
+	}
+	m.log.Success("✅ Config archived (%d bytes)\n", configFileInfo.Size())
+
+	// 2. Backup data volume
+	m.log.Info("💾 Backing up OpenClaw data (/data)...\n")
+	dataBackupFile := filepath.Join(backupDir, fmt.Sprintf("openclaw_data_%s.tar.gz", timestamp))
+
+	cmdStr = fmt.Sprintf("%s exec -n %s %s -- tar czf - /data", kubectlCmd, m.ModuleConfig.Namespace, podName)
+	cmdParts = strings.Fields(cmdStr)
+	cmd = exec.CommandContext(ctx, cmdParts[0], cmdParts[1:]...)
+
+	dataOutFile, err := os.Create(dataBackupFile)
+	if err != nil {
+		return fmt.Errorf("failed to create data backup file: %w", err)
+	}
+	defer dataOutFile.Close()
+
+	cmd.Stdout = dataOutFile
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to archive data: %w", err)
+	}
+
+	dataFileInfo, err := dataOutFile.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to stat data backup file: %w", err)
+	}
+	m.log.Success("✅ Data archived (%d bytes)\n", dataFileInfo.Size())
+
+	// 3. Metadata
+	m.log.Info("📋 Writing metadata...\n")
+	metadataFile := filepath.Join(backupDir, "backup_info.txt")
+	metadata := fmt.Sprintf(`OpenClaw Backup Information
+===========================
+Backup Date: %s
+Backup Directory: %s
+Namespace: %s
+Deployment: openclaw
+Pod: %s
+
+Config Archive:
+%s
+
+Data Archive:
+%s
+
+Restore Command:
+personal-server openclaw restore %s
+`, time.Now().Format(time.RFC1123), backupDir, m.ModuleConfig.Namespace, podName, filepath.Base(configBackupFile), filepath.Base(dataBackupFile), timestamp)
+
+	if err := os.WriteFile(metadataFile, []byte(metadata), 0644); err != nil {
+		return fmt.Errorf("failed to write metadata: %w", err)
+	}
+	m.log.Success("✅ Metadata written\n")
+
+	m.log.Success("🎉 Backup complete!\n")
+	m.log.Info("💡 To restore: personal-server openclaw restore %s\n", timestamp)
+
+	return nil
+}
+
+func (m *OpenClawModule) Restore(ctx context.Context, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: personal-server openclaw restore [TIMESTAMP|latest]")
+	}
+
+	timestamp := args[0]
+	backupDir := "backups"
+
+	// Resolve latest
+	if timestamp == "latest" {
+		entries, err := os.ReadDir(backupDir)
+		if err != nil {
+			return fmt.Errorf("failed to read backup directory: %w", err)
+		}
+
+		var latestTime time.Time
+		var latestDir string
+
+		for _, entry := range entries {
+			if entry.IsDir() && strings.HasPrefix(entry.Name(), "openclaw_backup_") {
+				tsStr := strings.TrimPrefix(entry.Name(), "openclaw_backup_")
+				ts, err := time.Parse("20060102_150405", tsStr)
+				if err == nil {
+					if ts.After(latestTime) {
+						latestTime = ts
+						latestDir = entry.Name()
+					}
+				}
+			}
+		}
+
+		if latestDir == "" {
+			return fmt.Errorf("no backups found")
+		}
+		timestamp = strings.TrimPrefix(latestDir, "openclaw_backup_")
+		m.log.Info("Using latest backup: %s\n", timestamp)
+	}
+
+	targetBackupDir := filepath.Join(backupDir, fmt.Sprintf("openclaw_backup_%s", timestamp))
+	if _, err := os.Stat(targetBackupDir); os.IsNotExist(err) {
+		return fmt.Errorf("backup not found: %s", targetBackupDir)
+	}
+
+	configBackupFile := filepath.Join(targetBackupDir, fmt.Sprintf("openclaw_config_%s.tar.gz", timestamp))
+	if _, err := os.Stat(configBackupFile); os.IsNotExist(err) {
+		return fmt.Errorf("config archive missing: %s", configBackupFile)
+	}
+
+	dataBackupFile := filepath.Join(targetBackupDir, fmt.Sprintf("openclaw_data_%s.tar.gz", timestamp))
+	if _, err := os.Stat(dataBackupFile); os.IsNotExist(err) {
+		return fmt.Errorf("data archive missing: %s", dataBackupFile)
+	}
+
+	m.log.Info("🔄 Starting OpenClaw restore (timestamp: %s)...\n", timestamp)
+	m.log.Info("💾 Config will be restored from %s\n", configBackupFile)
+	m.log.Info("💾 Data will be restored from %s\n", dataBackupFile)
+
+	// Create Kubernetes client
+	clientset, err := k8s.CreateKubernetesClient()
+	if err != nil {
+		return fmt.Errorf("failed to create Kubernetes client: %w", err)
+	}
+
+	// Find Pod
+	pods, err := clientset.CoreV1().Pods(m.ModuleConfig.Namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "app=openclaw",
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list pods: %w", err)
+	}
+	if len(pods.Items) == 0 {
+		return fmt.Errorf("no running pod found for app=openclaw")
+	}
+	podName := pods.Items[0].Name
+	m.log.Info("📦 Using pod: %s\n", podName)
+
+	kubectlCmd := detectKubectl()
+
+	// 1. Restore config volume
+	m.log.Info("💾 Restoring config...\n")
+
+	// Clean existing config
+	cleanCmdStr := fmt.Sprintf("%s exec -n %s %s -- rm -rf /config/*", kubectlCmd, m.ModuleConfig.Namespace, podName)
+	cleanCmdParts := strings.Fields(cleanCmdStr)
+	cleanCmd := exec.CommandContext(ctx, cleanCmdParts[0], cleanCmdParts[1:]...)
+	if err := cleanCmd.Run(); err != nil {
+		m.log.Warn("Warning during config clean: %v\n", err)
+	}
+
+	// Restore config from tar
+	restoreCmdStr := fmt.Sprintf("%s exec -i -n %s %s -- tar xzf - -C /", kubectlCmd, m.ModuleConfig.Namespace, podName)
+	restoreCmdParts := strings.Fields(restoreCmdStr)
+	restoreCmd := exec.CommandContext(ctx, restoreCmdParts[0], restoreCmdParts[1:]...)
+
+	configInFile, err := os.Open(configBackupFile)
+	if err != nil {
+		return fmt.Errorf("failed to open config backup file: %w", err)
+	}
+	defer configInFile.Close()
+
+	restoreCmd.Stdin = configInFile
+	restoreCmd.Stdout = os.Stdout
+	restoreCmd.Stderr = os.Stderr
+
+	if err := restoreCmd.Run(); err != nil {
+		return fmt.Errorf("failed to restore config: %w", err)
+	}
+	m.log.Success("✅ Config restored\n")
+
+	// 2. Restore data volume
+	m.log.Info("💾 Restoring data...\n")
+
+	// Clean existing data
+	cleanCmdStr = fmt.Sprintf("%s exec -n %s %s -- rm -rf /data/*", kubectlCmd, m.ModuleConfig.Namespace, podName)
+	cleanCmdParts = strings.Fields(cleanCmdStr)
+	cleanCmd = exec.CommandContext(ctx, cleanCmdParts[0], cleanCmdParts[1:]...)
+	if err := cleanCmd.Run(); err != nil {
+		m.log.Warn("Warning during data clean: %v\n", err)
+	}
+
+	// Restore data from tar
+	restoreCmdStr = fmt.Sprintf("%s exec -i -n %s %s -- tar xzf - -C /", kubectlCmd, m.ModuleConfig.Namespace, podName)
+	restoreCmdParts = strings.Fields(restoreCmdStr)
+	restoreCmd = exec.CommandContext(ctx, restoreCmdParts[0], restoreCmdParts[1:]...)
+
+	dataInFile, err := os.Open(dataBackupFile)
+	if err != nil {
+		return fmt.Errorf("failed to open data backup file: %w", err)
+	}
+	defer dataInFile.Close()
+
+	restoreCmd.Stdin = dataInFile
+	restoreCmd.Stdout = os.Stdout
+	restoreCmd.Stderr = os.Stderr
+
+	if err := restoreCmd.Run(); err != nil {
+		return fmt.Errorf("failed to restore data: %w", err)
+	}
+	m.log.Success("✅ Data restored\n")
+
+	// Restart deployment
+	m.log.Info("🔄 Restarting deployment 'openclaw'...\n")
+	restartCmdStr := fmt.Sprintf("%s rollout restart deployment/openclaw -n %s", kubectlCmd, m.ModuleConfig.Namespace)
+	restartCmdParts := strings.Fields(restartCmdStr)
+	restartCmd := exec.CommandContext(ctx, restartCmdParts[0], restartCmdParts[1:]...)
+
+	if err := restartCmd.Run(); err != nil {
+		m.log.Warn("Failed to trigger rollout restart: %v\n", err)
+	} else {
+		m.log.Success("✅ Deployment restarted successfully\n")
+	}
+
+	m.log.Success("🎉 Restore complete!\n")
 	return nil
 }

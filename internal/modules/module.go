@@ -55,3 +55,32 @@ type Rollouter interface {
 type CodeServeWebRunner interface {
 	CodeServeWeb(ctx context.Context) error
 }
+
+// SupportedSubcommands returns the list of subcommands supported by a module.
+// All modules support generate, apply, clean, and status. Additional subcommands
+// depend on which optional interfaces the module implements.
+func SupportedSubcommands(m Module) []string {
+	cmds := []string{"generate", "apply", "clean", "status"}
+	if _, ok := m.(Backuper); ok {
+		cmds = append(cmds, "backup")
+	}
+	if _, ok := m.(Restorer); ok {
+		cmds = append(cmds, "restore")
+	}
+	if _, ok := m.(DatabaseManager); ok {
+		cmds = append(cmds, "add-db", "remove-db")
+	}
+	if _, ok := m.(Notifier); ok {
+		cmds = append(cmds, "notify")
+	}
+	if _, ok := m.(Tester); ok {
+		cmds = append(cmds, "test")
+	}
+	if _, ok := m.(Rollouter); ok {
+		cmds = append(cmds, "rollout")
+	}
+	if _, ok := m.(CodeServeWebRunner); ok {
+		cmds = append(cmds, "code-serve-web")
+	}
+	return cmds
+}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/Goalt/personal-server/internal/config"
 	"github.com/Goalt/personal-server/internal/logger"
@@ -244,31 +245,32 @@ func (a *App) printUsage() {
 	a.logger.Println("  -h, --help     Show this help message")
 	a.logger.Println("  -v, --version  Show version information")
 
-	a.logger.Println("\nCommands:")
-	a.logger.Println("  help                          Show help information")
-	a.logger.Println("  update                        Check for updates and update the CLI to the latest version")
-	a.logger.Println("  config                        Parse and print loaded configuration")
+	a.logger.Println("\nGlobal Commands:")
+	a.logger.Println("  help                                Show help information")
+	a.logger.Println("  update                              Check for updates and update the CLI to the latest version")
+	a.logger.Println("  config                              Parse and print loaded configuration")
 	a.logger.Println("  config edit <module> image <value>  Edit a module's image in the configuration file")
-	a.logger.Println("  backup                        Trigger a global backup including all modules")
-	a.logger.Println("  backup download <file>        Download a backup archive from WebDAV")
-	a.logger.Println("  namespace <subcommand>        Manage Kubernetes namespace configurations")
-	a.logger.Println("  cloudflare <subcommand>       Manage Cloudflare tunnel configurations")
-	a.logger.Println("  bitwarden <subcommand>        Manage Bitwarden configurations")
-	a.logger.Println("  webdav <subcommand>           Manage WebDAV configurations")
-	a.logger.Println("  hobby-pod <subcommand>        Manage hobby-pod configurations")
-	a.logger.Println("    hobby-pod code-serve-web      Start code serve-web in the hobby-pod deployment")
-	a.logger.Println("  work-pod <subcommand>         Generate work-pod configurations to configs/work-pod/")
-	a.logger.Println("    work-pod code-serve-web       Start code serve-web in the work-pod deployment")
-	a.logger.Println("  drone <subcommand>            Manage Drone configurations")
-	a.logger.Println("  gitea <subcommand>            Manage Gitea configurations")
-	a.logger.Println("  grafana <subcommand>          Manage Grafana configurations")
-	a.logger.Println("  monitoring <subcommand>       Manage Monitoring configurations")
-	a.logger.Println("  postgres <subcommand>         Manage Postgres configurations")
-	a.logger.Println("  postgres-exporter <subcommand>  Manage Postgres Exporter configurations")
-	a.logger.Println("  pgadmin <subcommand>          Manage pgadmin configurations")
-	a.logger.Println("  redis <subcommand>            Manage Redis configurations")
-	a.logger.Println("  prometheus <subcommand>       Manage Prometheus monitoring configurations")
-	a.logger.Println("  ssh-login-notifier <subcommand>  Manage SSH login notification configurations")
+	a.logger.Println("  backup                              Trigger a global backup including all modules")
+	a.logger.Println("  backup download <file>              Download a backup archive from WebDAV")
+
+	a.logger.Println("\nModule Commands:")
+	for _, entry := range a.registry.GetAllWithEmptyConfig() {
+		name := entry.CommandName
+		desc := a.registry.GetDescription(name)
+		subcommands := modules.SupportedSubcommands(entry.Module)
+		if desc != "" {
+			a.logger.Info("  %-32s %s\n", name+" <subcommand>", desc)
+		} else {
+			a.logger.Info("  %s <subcommand>\n", name)
+		}
+		a.logger.Info("    Subcommands: %s\n", strings.Join(subcommands, ", "))
+	}
+
+	a.logger.Println("\nNote: Additional module commands may be available based on your configuration:")
+	a.logger.Println("  <pet-project-name> <subcommand>     Manage pet project configurations")
+	a.logger.Println("    Subcommands: generate, apply, clean, status, rollout")
+	a.logger.Println("  <ingress-name> <subcommand>         Manage ingress configurations")
+	a.logger.Println("    Subcommands: generate, apply, clean, status")
 }
 
 func (a *App) printVersion() {

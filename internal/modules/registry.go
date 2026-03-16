@@ -2,6 +2,7 @@ package modules
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/Goalt/personal-server/internal/config"
@@ -24,6 +25,7 @@ type Registry struct {
 	ingressFactories    map[string]IngressFactory
 	// requiresModuleConfig tracks which modules need module-specific config
 	requiresModuleConfig map[string]bool
+	descriptions         map[string]string
 	logger               logger.Logger
 }
 
@@ -34,6 +36,7 @@ func NewRegistry(log logger.Logger) *Registry {
 		petProjectFactories:  make(map[string]PetProjectFactory),
 		ingressFactories:     make(map[string]IngressFactory),
 		requiresModuleConfig: make(map[string]bool),
+		descriptions:         make(map[string]string),
 		logger:               log,
 	}
 }
@@ -147,13 +150,47 @@ func (r *Registry) GetIngress(name string, cfg *config.Config) (Module, error) {
 	return nil, fmt.Errorf("no ingress factory registered")
 }
 
-// Commands returns all registered command names
+// Commands returns all registered command names in alphabetical order
 func (r *Registry) Commands() []string {
 	names := make([]string, 0, len(r.factories))
 	for name := range r.factories {
 		names = append(names, name)
 	}
+	sort.Strings(names)
 	return names
+}
+
+// Describe sets a human-readable description for a registered module
+func (r *Registry) Describe(name, description string) {
+	r.descriptions[name] = description
+}
+
+// GetDescription returns the description for a registered module
+func (r *Registry) GetDescription(name string) string {
+	return r.descriptions[name]
+}
+
+// ModuleEntry holds a registry command-name together with its module instance.
+// Use CommandName (the registry key) to display commands and look up descriptions.
+type ModuleEntry struct {
+	CommandName string
+	Module      Module
+}
+
+// GetAllWithEmptyConfig returns all registered built-in modules as ModuleEntry
+// values, instantiated with empty configs. Entries are in alphabetical order by
+// command name and are intended for inspection only (e.g., checking supported
+// subcommands).
+func (r *Registry) GetAllWithEmptyConfig() []ModuleEntry {
+	names := r.Commands() // already sorted
+	entries := make([]ModuleEntry, 0, len(names))
+	emptyGeneral := config.GeneralConfig{}
+	emptyModule := config.Module{}
+	for _, name := range names {
+		m := r.factories[name](emptyGeneral, emptyModule, r.logger)
+		entries = append(entries, ModuleEntry{CommandName: name, Module: m})
+	}
+	return entries
 }
 
 // Has checks if a command is registered (exact match or prefix match)

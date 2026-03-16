@@ -93,5 +93,24 @@ func DefaultRegistry(log logger.Logger) *Registry {
 		return ingress.New(g, i, log)
 	})
 
+	// Register descriptions for built-in modules
+	r.Describe("namespace", "Manage Kubernetes namespace configurations")
+	r.Describe("cloudflare", "Manage Cloudflare tunnel configurations")
+	r.Describe("bitwarden", "Manage Bitwarden configurations")
+	r.Describe("webdav", "Manage WebDAV configurations")
+	r.Describe("hobby-pod", "Manage hobby-pod configurations")
+	r.Describe("work-pod", "Manage work-pod configurations")
+	r.Describe("drone", "Manage Drone configurations")
+	r.Describe("gitea", "Manage Gitea configurations")
+	r.Describe("grafana", "Manage Grafana configurations")
+	r.Describe("monitoring", "Manage Monitoring configurations")
+	r.Describe("postgres", "Manage Postgres configurations")
+	r.Describe("postgres-exporter", "Manage Postgres Exporter configurations")
+	r.Describe("pgadmin", "Manage pgadmin configurations")
+	r.Describe("redis", "Manage Redis configurations")
+	r.Describe("prometheus", "Manage Prometheus monitoring configurations")
+	r.Describe("ssh-login-notifier", "Manage SSH login notification configurations")
+	r.Describe("openclaw", "Manage OpenClaw configurations")
+
 	return r
 }

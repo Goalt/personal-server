@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/Goalt/personal-server/internal/config"
 	"github.com/Goalt/personal-server/internal/logger"
@@ -168,8 +170,10 @@ func (a *App) Run(ctx context.Context, args []string) error {
 }
 
 func (a *App) handleModuleCommand(ctx context.Context, args []string, module modules.Module) error {
+	availableSubcommands := strings.Join(moduleSubcommands(module), ", ")
+
 	if len(args) == 0 {
-		return fmt.Errorf("usage: %s <subcommand>\nAvailable subcommands: generate, apply, clean, status, backup, restore, add-db, remove-db, notify, test, rollout, code-serve-web", module.Name())
+		return fmt.Errorf("usage: %s <subcommand>\nAvailable subcommands: %s", module.Name(), availableSubcommands)
 	}
 
 	subcommand := args[0]
@@ -229,7 +233,7 @@ func (a *App) handleModuleCommand(ctx context.Context, args []string, module mod
 		}
 		return fmt.Errorf("module '%s' does not support code-serve-web", module.Name())
 	default:
-		return fmt.Errorf("unknown subcommand: %s\nAvailable subcommands: generate, apply, clean, status, backup, restore, add-db, remove-db, notify, test, rollout, code-serve-web", subcommand)
+		return fmt.Errorf("unknown subcommand: %s\nAvailable subcommands: %s", subcommand, availableSubcommands)
 	}
 }
 
@@ -251,24 +255,73 @@ func (a *App) printUsage() {
 	a.logger.Println("  config edit <module> image <value>  Edit a module's image in the configuration file")
 	a.logger.Println("  backup                        Trigger a global backup including all modules")
 	a.logger.Println("  backup download <file>        Download a backup archive from WebDAV")
-	a.logger.Println("  namespace <subcommand>        Manage Kubernetes namespace configurations")
-	a.logger.Println("  cloudflare <subcommand>       Manage Cloudflare tunnel configurations")
-	a.logger.Println("  bitwarden <subcommand>        Manage Bitwarden configurations")
-	a.logger.Println("  webdav <subcommand>           Manage WebDAV configurations")
-	a.logger.Println("  hobby-pod <subcommand>        Manage hobby-pod configurations")
-	a.logger.Println("    hobby-pod code-serve-web      Start code serve-web in the hobby-pod deployment")
-	a.logger.Println("  work-pod <subcommand>         Generate work-pod configurations to configs/work-pod/")
-	a.logger.Println("    work-pod code-serve-web       Start code serve-web in the work-pod deployment")
-	a.logger.Println("  drone <subcommand>            Manage Drone configurations")
-	a.logger.Println("  gitea <subcommand>            Manage Gitea configurations")
-	a.logger.Println("  grafana <subcommand>          Manage Grafana configurations")
-	a.logger.Println("  monitoring <subcommand>       Manage Monitoring configurations")
-	a.logger.Println("  postgres <subcommand>         Manage Postgres configurations")
-	a.logger.Println("  postgres-exporter <subcommand>  Manage Postgres Exporter configurations")
-	a.logger.Println("  pgadmin <subcommand>          Manage pgadmin configurations")
-	a.logger.Println("  redis <subcommand>            Manage Redis configurations")
-	a.logger.Println("  prometheus <subcommand>       Manage Prometheus monitoring configurations")
-	a.logger.Println("  ssh-login-notifier <subcommand>  Manage SSH login notification configurations")
+	a.logger.Println("\nModules:")
+	for _, line := range a.moduleUsageLines() {
+		a.logger.Println(line)
+	}
+}
+
+func moduleSubcommands(module modules.Module) []string {
+	subcommands := []string{"generate", "apply", "clean", "status"}
+
+	if _, ok := module.(modules.Backuper); ok {
+		subcommands = append(subcommands, "backup")
+	}
+	if _, ok := module.(modules.Restorer); ok {
+		subcommands = append(subcommands, "restore")
+	}
+	if _, ok := module.(modules.DatabaseManager); ok {
+		subcommands = append(subcommands, "add-db", "remove-db")
+	}
+	if _, ok := module.(modules.Notifier); ok {
+		subcommands = append(subcommands, "notify")
+	}
+	if _, ok := module.(modules.Tester); ok {
+		subcommands = append(subcommands, "test")
+	}
+	if _, ok := module.(modules.Rollouter); ok {
+		subcommands = append(subcommands, "rollout")
+	}
+	if _, ok := module.(modules.CodeServeWebRunner); ok {
+		subcommands = append(subcommands, "code-serve-web")
+	}
+
+	return subcommands
+}
+
+func (a *App) moduleUsageLines() []string {
+	if a.registry == nil {
+		return nil
+	}
+
+	moduleNames := a.registry.Commands()
+	sort.Strings(moduleNames)
+	cfg := helpConfigForModules(moduleNames)
+
+	lines := make([]string, 0, len(moduleNames))
+	for _, name := range moduleNames {
+		module, err := a.registry.Get(name, cfg)
+		if err != nil {
+			a.logger.Warn("skipping module %s in help output: %v\n", name, err)
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("  %s <%s>", name, strings.Join(moduleSubcommands(module), "|")))
+	}
+
+	return lines
+}
+
+// helpConfigForModules builds the minimal config needed to instantiate registered modules
+// for help output. Modules are created only to inspect which optional interfaces they expose.
+func helpConfigForModules(moduleNames []string) *config.Config {
+	cfg := &config.Config{
+		Modules: make([]config.Module, len(moduleNames)),
+	}
+	for i, name := range moduleNames {
+		cfg.Modules[i] = config.Module{Name: name}
+	}
+
+	return cfg
 }
 
 func (a *App) printVersion() {

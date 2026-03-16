@@ -113,6 +113,15 @@ func (r *Registry) GetPetProject(name string, cfg *config.Config) (Module, error
 		return nil, fmt.Errorf("pet project not found: %s", name)
 	}
 
+	// Resolve registry credentials by key name if specified
+	if projectCfg.Registry != "" && (projectCfg.RegistryCredentials == nil || projectCfg.RegistryCredentials.Server == "") {
+		creds, err := cfg.GetRegistry(projectCfg.Registry)
+		if err != nil {
+			return nil, fmt.Errorf("resolving registry %q for pet project %q: %w", projectCfg.Registry, name, err)
+		}
+		projectCfg.RegistryCredentials = creds
+	}
+
 	// Check if there's a specific factory registered for this pet project
 	if factory, ok := r.petProjectFactories[name]; ok {
 		return factory(cfg.General, projectCfg, r.logger), nil

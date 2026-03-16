@@ -8,6 +8,11 @@ backup:
   sentry_dsn: https://public@sentry.example.com/1
   cron: "*/30 * * * *"
   passphrase: your-gpg-passphrase
+registries:
+  my-registry:
+    server: https://registry.example.com
+    username: myuser
+    password: mypassword
 modules:
   - name: cloudflare
     namespace: infra
@@ -95,11 +100,7 @@ pet-projects:
   - name: myapp
     namespace: hobby
     image: nginx:latest
-    imagePullSecret: my-registry-secret
-    registryCredentials:
-      server: https://registry.example.com
-      username: myuser
-      password: mypassword
+    registry: my-registry  # Reference a key from the top-level registries section
     environment:
       PORT: "8080"
       ENV: "production"

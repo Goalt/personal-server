@@ -68,6 +68,7 @@ type PetProject struct {
 	Namespace           string               `yaml:"namespace"`
 	Image               string               `yaml:"image"`
 	ImagePullSecret     string               `yaml:"imagePullSecret,omitempty"`
+	Registry            string               `yaml:"registry,omitempty"`
 	RegistryCredentials *RegistryCredentials `yaml:"registryCredentials,omitempty"`
 	Environment         map[string]string    `yaml:"environment"`
 	Service             *ServiceConfig       `yaml:"service,omitempty"`
@@ -99,12 +100,13 @@ type BackupConfig struct {
 
 // Config represents the application configuration
 type Config struct {
-	Path        string          `yaml:"-"`
-	General     GeneralConfig   `yaml:"general"`
-	Backup      BackupConfig    `yaml:"backup"`
-	Modules     []Module        `yaml:"modules"`
-	PetProjects []PetProject    `yaml:"pet-projects"`
-	Ingresses   []IngressConfig `yaml:"ingresses,omitempty"`
+	Path        string                        `yaml:"-"`
+	General     GeneralConfig                 `yaml:"general"`
+	Backup      BackupConfig                  `yaml:"backup"`
+	Registries  map[string]RegistryCredentials `yaml:"registries,omitempty"`
+	Modules     []Module                      `yaml:"modules"`
+	PetProjects []PetProject                  `yaml:"pet-projects"`
+	Ingresses   []IngressConfig               `yaml:"ingresses,omitempty"`
 }
 
 // LoadConfig loads and parses the configuration file
@@ -150,6 +152,15 @@ func (c *Config) GetPetProject(name string) (PetProject, error) {
 		}
 	}
 	return PetProject{}, fmt.Errorf("pet project not found: %s", name)
+}
+
+// GetRegistry retrieves registry credentials by key name
+func (c *Config) GetRegistry(name string) (*RegistryCredentials, error) {
+	creds, ok := c.Registries[name]
+	if !ok {
+		return nil, fmt.Errorf("registry not found: %s", name)
+	}
+	return &creds, nil
 }
 
 // GetIngress retrieves an ingress configuration by name

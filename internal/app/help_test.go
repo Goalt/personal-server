@@ -91,6 +91,9 @@ func TestHandleModuleCommand_UsesModuleSupportedSubcommandsInErrors(t *testing.T
 	if err == nil {
 		t.Fatal("expected error for missing subcommand")
 	}
+	if !strings.Contains(err.Error(), "usage: advanced <subcommand>") {
+		t.Fatalf("expected usage prefix with module name, got: %v", err)
+	}
 	if !strings.Contains(err.Error(), "Available subcommands: generate, apply, clean, status, backup, restore, test") {
 		t.Fatalf("expected supported subcommands in error, got: %v", err)
 	}

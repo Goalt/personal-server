@@ -294,9 +294,26 @@ func (a *App) moduleUsageLines() []string {
 		return nil
 	}
 
-	moduleNames := append([]string(nil), a.registry.Commands()...)
+	moduleNames := a.registry.Commands()
 	sort.Strings(moduleNames)
+	cfg := helpConfigForModules(moduleNames)
 
+	lines := make([]string, 0, len(moduleNames))
+	for _, name := range moduleNames {
+		module, err := a.registry.Get(name, cfg)
+		if err != nil {
+			a.logger.Warn("skipping module %s in help output: %v\n", name, err)
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("  %s <%s>", name, strings.Join(moduleSubcommands(module), "|")))
+	}
+
+	return lines
+}
+
+// helpConfigForModules builds the minimal config needed to instantiate registered modules
+// for help output. Modules are created only to inspect which optional interfaces they expose.
+func helpConfigForModules(moduleNames []string) *config.Config {
 	cfg := &config.Config{
 		Modules: make([]config.Module, len(moduleNames)),
 	}
@@ -304,16 +321,7 @@ func (a *App) moduleUsageLines() []string {
 		cfg.Modules[i] = config.Module{Name: name}
 	}
 
-	lines := make([]string, 0, len(moduleNames))
-	for _, name := range moduleNames {
-		module, err := a.registry.Get(name, cfg)
-		if err != nil {
-			continue
-		}
-		lines = append(lines, fmt.Sprintf("  %s <%s>", name, strings.Join(moduleSubcommands(module), "|")))
-	}
-
-	return lines
+	return cfg
 }
 
 func (a *App) printVersion() {

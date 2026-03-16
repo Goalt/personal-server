@@ -20,6 +20,7 @@ spec:
         spec:
             containers:
                 - image: openclaw/openclaw:latest
+                  imagePullPolicy: Always
                   name: openclaw
                   ports:
                     - containerPort: 5000

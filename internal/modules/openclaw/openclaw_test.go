@@ -334,6 +334,11 @@ func TestOpenClawModule_PrepareDeploymentContainer(t *testing.T) {
 		t.Errorf("Container image = %s, want %s", container.Image, expectedImage)
 	}
 
+	// Test image pull policy
+	if container.ImagePullPolicy != corev1.PullAlways {
+		t.Errorf("Container ImagePullPolicy = %s, want Always", container.ImagePullPolicy)
+	}
+
 	// Test container ports
 	if len(container.Ports) != 1 {
 		t.Errorf("Container ports count = %d, want 1", len(container.Ports))

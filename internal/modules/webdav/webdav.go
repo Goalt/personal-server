@@ -403,8 +403,9 @@ users:
 					},
 					Containers: []corev1.Container{
 						{
-							Name:  "webdav",
-							Image: "ghcr.io/hacdias/webdav:latest",
+							Name:            "webdav",
+							Image:           "ghcr.io/hacdias/webdav:latest",
+							ImagePullPolicy: k8s.DefaultImagePullPolicy("ghcr.io/hacdias/webdav:latest"),
 							Args: []string{
 								"-c",
 								"/config/config.yaml",
@@ -463,8 +464,9 @@ users:
 							},
 						},
 						{
-							Name:  "backup-helper",
-							Image: "busybox:latest",
+							Name:            "backup-helper",
+							Image:           "busybox:latest",
+							ImagePullPolicy: k8s.DefaultImagePullPolicy("busybox:latest"),
 							Command: []string{
 								"sh",
 								"-c",

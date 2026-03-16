@@ -245,8 +245,9 @@ func (m *BitwardenModule) prepare() (*corev1.PersistentVolumeClaim, *corev1.Serv
 					RestartPolicy: corev1.RestartPolicyAlways,
 					Containers: []corev1.Container{
 						{
-							Name:  "bitwarden",
-							Image: "vaultwarden/server:1.32.0",
+							Name:            "bitwarden",
+							Image:           "vaultwarden/server:1.32.0",
+							ImagePullPolicy: k8s.DefaultImagePullPolicy("vaultwarden/server:1.32.0"),
 							Env: []corev1.EnvVar{
 								{
 									Name:  "WEBSOCKET_ENABLED",

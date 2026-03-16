@@ -203,6 +203,11 @@ func TestHobbyPodModule_PrepareDeploymentContainer(t *testing.T) {
 		t.Errorf("Container image = %s, want %s", container.Image, expectedImage)
 	}
 
+	// Test image pull policy
+	if container.ImagePullPolicy != corev1.PullIfNotPresent {
+		t.Errorf("Container ImagePullPolicy = %s, want IfNotPresent", container.ImagePullPolicy)
+	}
+
 	// Test environment variables
 	debianFrontendFound := false
 	for _, env := range container.Env {

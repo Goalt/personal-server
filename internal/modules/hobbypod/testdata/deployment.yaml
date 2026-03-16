@@ -22,6 +22,7 @@ spec:
                     - name: DEBIAN_FRONTEND
                       value: noninteractive
                   image: ghcr.io/goalt/work-config:sha-942241f
+                  imagePullPolicy: IfNotPresent
                   name: hobby
                   ports:
                     - containerPort: 20000

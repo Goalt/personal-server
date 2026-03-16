@@ -244,8 +244,9 @@ func (m *HobbyPodModule) prepare() (*corev1.PersistentVolumeClaim, *corev1.Servi
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:  "hobby",
-							Image: imageTag,
+							Name:            "hobby",
+							Image:           imageTag,
+							ImagePullPolicy: k8s.DefaultImagePullPolicy(imageTag),
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          "http",

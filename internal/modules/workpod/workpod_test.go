@@ -134,6 +134,9 @@ func TestWorkPodModule_Prepare(t *testing.T) {
 			if container.Image != "ghcr.io/goalt/work-config:sha-942241f" {
 				t.Errorf("Container image = %s, want ghcr.io/goalt/work-config:sha-942241f", container.Image)
 			}
+			if container.ImagePullPolicy != corev1.PullIfNotPresent {
+				t.Errorf("Container ImagePullPolicy = %s, want IfNotPresent", container.ImagePullPolicy)
+			}
 
 			// Verify environment variables
 			foundEnv := false

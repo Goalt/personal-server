@@ -23,6 +23,7 @@ spec:
                     - name: WEBSOCKET_ENABLED
                       value: "true"
                   image: vaultwarden/server:1.32.0
+                  imagePullPolicy: IfNotPresent
                   name: bitwarden
                   ports:
                     - containerPort: 80

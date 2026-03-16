@@ -220,9 +220,10 @@ func (m *PetProjectModule) prepareDeployment() *appsv1.Deployment {
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:  m.ProjectConfig.Name,
-							Image: m.ProjectConfig.Image,
-							Env:   envVars,
+							Name:            m.ProjectConfig.Name,
+							Image:           m.ProjectConfig.Image,
+							ImagePullPolicy: k8s.DefaultImagePullPolicy(m.ProjectConfig.Image),
+							Env:             envVars,
 						},
 					},
 					ImagePullSecrets: func() []corev1.LocalObjectReference {

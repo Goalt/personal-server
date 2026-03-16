@@ -91,6 +91,10 @@ func TestPrepareDeployment(t *testing.T) {
 		t.Errorf("Expected container image to be 'nginx:latest', got '%s'", container.Image)
 	}
 
+	if container.ImagePullPolicy != corev1.PullAlways {
+		t.Errorf("Expected image pull policy to be '%s', got '%s'", corev1.PullAlways, container.ImagePullPolicy)
+	}
+
 	if len(container.Env) != 2 {
 		t.Errorf("Expected 2 environment variables, got %d", len(container.Env))
 	}

@@ -313,6 +313,11 @@ func TestBitwardenModule_PrepareDeploymentContainer(t *testing.T) {
 		t.Errorf("Container image = %s, want %s", container.Image, expectedImage)
 	}
 
+	// Test image pull policy
+	if container.ImagePullPolicy != corev1.PullIfNotPresent {
+		t.Errorf("Container ImagePullPolicy = %s, want IfNotPresent", container.ImagePullPolicy)
+	}
+
 	// Test environment variables
 	if len(container.Env) != 1 {
 		t.Errorf("Container env count = %d, want 1", len(container.Env))

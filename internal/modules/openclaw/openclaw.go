@@ -278,8 +278,9 @@ func (m *OpenClawModule) prepare() (*corev1.PersistentVolumeClaim, *corev1.Persi
 					RestartPolicy: corev1.RestartPolicyAlways,
 					Containers: []corev1.Container{
 						{
-							Name:  "openclaw",
-							Image: "openclaw/openclaw:latest",
+							Name:            "openclaw",
+							Image:           "openclaw/openclaw:latest",
+							ImagePullPolicy: k8s.DefaultImagePullPolicy("openclaw/openclaw:latest"),
 							Ports: []corev1.ContainerPort{
 								{
 									ContainerPort: 5000,

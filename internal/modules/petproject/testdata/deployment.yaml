@@ -28,6 +28,7 @@ spec:
                     - name: ENV
                       value: test
                   image: nginx:latest
+                  imagePullPolicy: Always
                   name: testapp
                   resources: {}
             restartPolicy: Always

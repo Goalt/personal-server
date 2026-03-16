@@ -214,8 +214,9 @@ func (m *WorkPodModule) prepare() (*corev1.PersistentVolumeClaim, *corev1.Servic
 					RestartPolicy: corev1.RestartPolicyAlways,
 					Containers: []corev1.Container{
 						{
-							Name:  "debian",
-							Image: imageTag,
+							Name:            "debian",
+							Image:           imageTag,
+							ImagePullPolicy: k8s.DefaultImagePullPolicy(imageTag),
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          "http",

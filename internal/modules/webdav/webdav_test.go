@@ -418,6 +418,11 @@ func TestWebdavModule_PrepareDeploymentContainer(t *testing.T) {
 		t.Errorf("Container image = %s, want ghcr.io/hacdias/webdav:latest", container.Image)
 	}
 
+	// Test image pull policy
+	if container.ImagePullPolicy != corev1.PullAlways {
+		t.Errorf("Container ImagePullPolicy = %s, want Always", container.ImagePullPolicy)
+	}
+
 	// Test container args
 	expectedArgs := []string{"-c", "/config/config.yaml"}
 	if len(container.Args) != len(expectedArgs) {
@@ -508,6 +513,11 @@ func TestWebdavModule_PrepareDeploymentBackupHelperContainer(t *testing.T) {
 	// Test container image
 	if backupHelper.Image != "busybox:latest" {
 		t.Errorf("backup-helper image = %s, want busybox:latest", backupHelper.Image)
+	}
+
+	// Test image pull policy
+	if backupHelper.ImagePullPolicy != corev1.PullAlways {
+		t.Errorf("backup-helper ImagePullPolicy = %s, want Always", backupHelper.ImagePullPolicy)
 	}
 
 	// Test command

@@ -11,7 +11,16 @@ import (
 	"github.com/Goalt/personal-server/internal/config"
 	"github.com/Goalt/personal-server/internal/logger"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 )
+
+// newFakeClient returns a fake Kubernetes clientset pre-populated with the
+// provided runtime objects (deployments, secrets, etc.).
+func newFakeClient(objects ...runtime.Object) *kubefake.Clientset {
+	return kubefake.NewSimpleClientset(objects...)
+}
 
 func TestNew(t *testing.T) {
 	generalConfig := config.GeneralConfig{
@@ -433,6 +442,186 @@ func TestRolloutValidation(t *testing.T) {
 	err = module.Rollout(nil, []string{"invalid"})
 	if err == nil {
 		t.Error("Expected error for invalid operation, got nil")
+	}
+}
+
+// TestRolloutRestartUpdatesImage verifies that rollout restart updates the
+// container image in the deployment to match the module configuration.
+func TestRolloutRestartUpdatesImage(t *testing.T) {
+	const (
+		oldImage = "nginx:1.24"
+		newImage = "nginx:1.25"
+		ns       = "hobby"
+		name     = "testapp"
+	)
+
+	projectConfig := config.PetProject{
+		Name:      name,
+		Namespace: ns,
+		Image:     newImage,
+	}
+	module := New(config.GeneralConfig{Domain: "example.com"}, projectConfig, logger.Default())
+
+	deploymentName := "pet-" + name
+
+	// Seed the fake cluster with an existing deployment that has the OLD image
+	existing := module.prepareDeployment()
+	if len(existing.Spec.Template.Spec.Containers) == 0 {
+		t.Fatal("prepareDeployment returned deployment with no containers")
+	}
+	existing.Spec.Template.Spec.Containers[0].Image = oldImage
+
+	fakeClient := newFakeClient(existing)
+
+	ctx := context.Background()
+	if err := module.rolloutRestartWithClient(ctx, fakeClient, deploymentName); err != nil {
+		t.Fatalf("rolloutRestartWithClient returned unexpected error: %v", err)
+	}
+
+	// Fetch the deployment from the fake store and assert the image was updated
+	updated, err := fakeClient.AppsV1().Deployments(ns).Get(ctx, deploymentName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("failed to get deployment after rollout: %v", err)
+	}
+
+	if len(updated.Spec.Template.Spec.Containers) == 0 {
+		t.Fatal("deployment has no containers after rollout")
+	}
+	gotImage := updated.Spec.Template.Spec.Containers[0].Image
+	if gotImage != newImage {
+		t.Errorf("container image after rollout = %q, want %q", gotImage, newImage)
+	}
+
+	// Restart annotation must be present
+	if updated.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] == "" {
+		t.Error("restartedAt annotation was not set after rollout restart")
+	}
+}
+
+// TestRolloutRestartUpdatesEnvVars verifies that rollout restart propagates
+// environment variable changes from the module configuration.
+func TestRolloutRestartUpdatesEnvVars(t *testing.T) {
+	const (
+		ns   = "hobby"
+		name = "envapp"
+	)
+
+	projectConfig := config.PetProject{
+		Name:      name,
+		Namespace: ns,
+		Image:     "alpine:latest",
+		Environment: map[string]string{
+			"KEY": "new-value",
+		},
+	}
+	module := New(config.GeneralConfig{Domain: "example.com"}, projectConfig, logger.Default())
+
+	deploymentName := "pet-" + name
+
+	// Seed with deployment that has the OLD env value
+	existing := module.prepareDeployment()
+	if len(existing.Spec.Template.Spec.Containers) == 0 {
+		t.Fatal("prepareDeployment returned deployment with no containers")
+	}
+	existing.Spec.Template.Spec.Containers[0].Env = []corev1.EnvVar{
+		{Name: "KEY", Value: "old-value"},
+	}
+
+	fakeClient := newFakeClient(existing)
+
+	ctx := context.Background()
+	if err := module.rolloutRestartWithClient(ctx, fakeClient, deploymentName); err != nil {
+		t.Fatalf("rolloutRestartWithClient returned unexpected error: %v", err)
+	}
+
+	updated, err := fakeClient.AppsV1().Deployments(ns).Get(ctx, deploymentName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("failed to get deployment after rollout: %v", err)
+	}
+
+	envMap := make(map[string]string)
+	for _, e := range updated.Spec.Template.Spec.Containers[0].Env {
+		envMap[e.Name] = e.Value
+	}
+	if envMap["KEY"] != "new-value" {
+		t.Errorf("env KEY after rollout = %q, want %q", envMap["KEY"], "new-value")
+	}
+}
+
+// TestRolloutRestartUpdatesImagePullSecret verifies that the image pull secret
+// is created/updated and the deployment references it after rollout restart.
+func TestRolloutRestartUpdatesImagePullSecret(t *testing.T) {
+	const (
+		ns   = "hobby"
+		name = "privateapp"
+	)
+
+	projectConfig := config.PetProject{
+		Name:      name,
+		Namespace: ns,
+		Image:     "private.registry/app:v2",
+		RegistryCredentials: &config.RegistryCredentials{
+			Server:   "https://private.registry",
+			Username: "user",
+			Password: "newpass",
+			Email:    "user@example.com",
+		},
+	}
+	module := New(config.GeneralConfig{Domain: "example.com"}, projectConfig, logger.Default())
+
+	deploymentName := "pet-" + name
+
+	// Seed: deployment exists, secret does NOT exist yet
+	existing := module.prepareDeployment()
+	if len(existing.Spec.Template.Spec.Containers) == 0 {
+		t.Fatal("prepareDeployment returned deployment with no containers")
+	}
+	existing.Spec.Template.Spec.Containers[0].Image = "private.registry/app:v1"
+
+	fakeClient := newFakeClient(existing)
+
+	ctx := context.Background()
+	if err := module.rolloutRestartWithClient(ctx, fakeClient, deploymentName); err != nil {
+		t.Fatalf("rolloutRestartWithClient returned unexpected error: %v", err)
+	}
+
+	// Verify deployment image was updated
+	updated, err := fakeClient.AppsV1().Deployments(ns).Get(ctx, deploymentName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("failed to get deployment after rollout: %v", err)
+	}
+	if updated.Spec.Template.Spec.Containers[0].Image != "private.registry/app:v2" {
+		t.Errorf("image after rollout = %q, want %q",
+			updated.Spec.Template.Spec.Containers[0].Image, "private.registry/app:v2")
+	}
+
+	// Verify image pull secret was created
+	secretName := "pet-" + name + "-regcred"
+	if _, err := fakeClient.CoreV1().Secrets(ns).Get(ctx, secretName, metav1.GetOptions{}); err != nil {
+		t.Errorf("image pull secret %q was not created: %v", secretName, err)
+	}
+
+	// Verify deployment references the secret
+	refs := updated.Spec.Template.Spec.ImagePullSecrets
+	if len(refs) == 0 || refs[0].Name != secretName {
+		t.Errorf("deployment does not reference image pull secret %q after rollout", secretName)
+	}
+}
+
+// TestRolloutRestartDeploymentNotFound verifies that rollout restart returns an
+// error when the target deployment does not exist.
+func TestRolloutRestartDeploymentNotFound(t *testing.T) {
+	module := New(
+		config.GeneralConfig{Domain: "example.com"},
+		config.PetProject{Name: "ghost", Namespace: "hobby", Image: "nginx:latest"},
+		logger.Default(),
+	)
+
+	fakeClient := newFakeClient() // empty cluster
+	ctx := context.Background()
+	err := module.rolloutRestartWithClient(ctx, fakeClient, "pet-ghost")
+	if err == nil {
+		t.Error("expected error when deployment does not exist, got nil")
 	}
 }
 

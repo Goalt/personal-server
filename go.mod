@@ -12,7 +12,11 @@ require (
 	k8s.io/client-go v0.28.4
 )
 
-require github.com/pmezard/go-difflib v1.0.0 // indirect
+require (
+	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+)
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect

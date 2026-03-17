@@ -35,6 +35,14 @@ func (m *PostgresExporterModule) Name() string {
 	return "postgres-exporter"
 }
 
+func (m *PostgresExporterModule) Doc(ctx context.Context) error {
+	m.log.Info("Module: postgres-exporter\n\n")
+	m.log.Info("Description:\n  Deploys postgres_exporter — a Prometheus exporter for PostgreSQL metrics.\n  Manages a Deployment that scrapes metrics from a PostgreSQL instance and\n  exposes them on port 9187 for Prometheus to collect.\n\n")
+	m.log.Info("Optional configuration keys (modules[].secrets):\n  data_source_uri     PostgreSQL connection URI (default: postgres:5432/postgres?sslmode=disable)\n  data_source_user    PostgreSQL username (default: postgres)\n  data_source_pass    PostgreSQL password (default: postgres)\n  extend_query_path   Path to custom queries YAML file (default: \"\")\n  include_databases   Comma-separated list of databases to include (default: postgres)\n\n")
+	m.log.Info("Subcommands:\n  generate   Write Kubernetes YAML to configs/postgres-exporter/\n  apply      Create/update resources in the cluster\n  clean      Delete all postgres-exporter resources from the cluster\n  status     Print Deployment and Pod status\n  doc        Show this documentation\n")
+	return nil
+}
+
 func (m *PostgresExporterModule) Generate(ctx context.Context) error {
 	// Define output directory
 	outputDir := filepath.Join("configs", "postgres-exporter")

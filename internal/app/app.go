@@ -187,6 +187,8 @@ func (a *App) handleModuleCommand(ctx context.Context, args []string, module mod
 		return module.Clean(ctx)
 	case "status":
 		return module.Status(ctx)
+	case "doc":
+		return module.Doc(ctx)
 	case "backup":
 		if backuper, ok := module.(modules.Backuper); ok {
 			return backuper.Backup(ctx, "")
@@ -262,7 +264,7 @@ func (a *App) printUsage() {
 }
 
 func moduleSubcommands(module modules.Module) []string {
-	subcommands := []string{"generate", "apply", "clean", "status"}
+	subcommands := []string{"generate", "apply", "clean", "status", "doc"}
 
 	if _, ok := module.(modules.Backuper); ok {
 		subcommands = append(subcommands, "backup")

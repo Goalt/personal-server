@@ -39,6 +39,14 @@ func (m *HobbyPodModule) Name() string {
 	return "hobby-pod"
 }
 
+func (m *HobbyPodModule) Doc(ctx context.Context) error {
+	m.log.Info("Module: hobby-pod\n\n")
+	m.log.Info("Description:\n  Deploys a personal hobby development pod with a persistent workspace.\n  Manages a PersistentVolumeClaim, Service, and Deployment.\n  Supports VS Code remote tunnels via the code-serve-web subcommand.\n\n")
+	m.log.Info("Optional configuration keys (modules[].secrets):\n  image_tag   Custom container image tag (default: ghcr.io/goalt/work-config:latest)\n\n")
+	m.log.Info("Subcommands:\n  generate        Write Kubernetes YAML to configs/hobbypod/\n  apply           Create/update resources in the cluster\n  clean           Delete all hobby-pod resources from the cluster\n  status          Print Deployment and Pod status\n  doc             Show this documentation\n  backup          Archive the workspace volume to the destination directory\n  restore         Restore the workspace volume from a backup archive\n  code-serve-web  Start a VS Code remote tunnel inside the running pod\n")
+	return nil
+}
+
 func (m *HobbyPodModule) Generate(ctx context.Context) error {
 	// Define output directory
 	outputDir := filepath.Join("configs", "hobbypod")

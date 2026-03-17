@@ -40,6 +40,14 @@ func (m *PostgresModule) Name() string {
 	return "postgres"
 }
 
+func (m *PostgresModule) Doc(ctx context.Context) error {
+	m.log.Info("Module: postgres\n\n")
+	m.log.Info("Description:\n  Deploys PostgreSQL — a powerful open-source relational database.\n  Manages a Secret, PersistentVolumeClaim, Service, and Deployment.\n  Used as the database backend for Gitea, pgAdmin, and other modules.\n\n")
+	m.log.Info("Required configuration keys (modules[].secrets):\n  admin_postgres_user       PostgreSQL superuser username\n  admin_postgres_password   PostgreSQL superuser password\n\n")
+	m.log.Info("Subcommands:\n  generate    Write Kubernetes YAML to configs/postgres/\n  apply       Create/update resources in the cluster\n  clean       Delete all PostgreSQL resources from the cluster\n  status      Print Deployment and Pod status\n  doc         Show this documentation\n  backup      Dump all databases using pg_dumpall and archive to the destination directory\n  restore     Restore databases from a pg_dumpall backup archive\n  add-db      Create a new database and user (args: <dbname> [username] [password])\n  remove-db   Drop a database and its owner role (args: <dbname>)\n")
+	return nil
+}
+
 func (m *PostgresModule) Generate(ctx context.Context) error {
 	// Define output directory
 	outputDir := filepath.Join("configs", "postgres")

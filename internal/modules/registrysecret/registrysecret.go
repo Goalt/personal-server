@@ -36,7 +36,13 @@ func (m *RegistrySecretModule) Name() string {
 	return "registry"
 }
 
-// Generate writes a Kubernetes Secret YAML file for each configured registry.
+func (m *RegistrySecretModule) Doc(ctx context.Context) error {
+	m.log.Info("Module: registry\n\n")
+	m.log.Info("Description:\n  Creates Kubernetes docker-registry Secrets for each registry entry defined\n  in the top-level registries section of the configuration.\n  These secrets are referenced by pet-project Deployments to pull private images.\n\n")
+	m.log.Info("Configuration (top-level registries map):\n  <name>:\n    server     Registry server URL (e.g. https://registry.example.com)\n    username   Registry username\n    password   Registry password\n    namespace  Kubernetes namespace in which to create the secret\n\n")
+	m.log.Info("Subcommands:\n  generate   Write Kubernetes YAML to configs/registry/\n  apply      Create/update registry secrets in the cluster\n  clean      Delete all registry secrets from the cluster\n  status     Print registry secret status\n  doc        Show this documentation\n")
+	return nil
+}
 func (m *RegistrySecretModule) Generate(ctx context.Context) error {
 	if len(m.Registries) == 0 {
 		m.log.Info("No registries configured\n")

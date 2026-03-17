@@ -15,6 +15,7 @@ type helpTestModule struct {
 }
 
 func (m helpTestModule) Name() string                         { return m.name }
+func (m helpTestModule) Doc(context.Context) error            { return nil }
 func (m helpTestModule) Generate(context.Context) error       { return nil }
 func (m helpTestModule) Apply(context.Context) error          { return nil }
 func (m helpTestModule) Clean(context.Context) error          { return nil }
@@ -42,10 +43,10 @@ func TestPrintUsage_ListsRegisteredModulesAndSupportedSubcommands(t *testing.T) 
 	app.printUsage()
 
 	output := logBuf.String()
-	if !strings.Contains(output, "  advanced <generate|apply|clean|status|backup|restore|test>") {
+	if !strings.Contains(output, "  advanced <generate|apply|clean|status|doc|backup|restore|test>") {
 		t.Fatalf("expected advanced module line in help output, got:\n%s", output)
 	}
-	if !strings.Contains(output, "  basic <generate|apply|clean|status>") {
+	if !strings.Contains(output, "  basic <generate|apply|clean|status|doc>") {
 		t.Fatalf("expected basic module line in help output, got:\n%s", output)
 	}
 	if strings.Index(output, "  advanced <") > strings.Index(output, "  basic <") {
@@ -78,7 +79,7 @@ func TestRunHelp_DoesNotLoadConfig(t *testing.T) {
 	if configLoaderCalled {
 		t.Fatal("expected help command to avoid loading config")
 	}
-	if !strings.Contains(logBuf.String(), "  basic <generate|apply|clean|status>") {
+	if !strings.Contains(logBuf.String(), "  basic <generate|apply|clean|status|doc>") {
 		t.Fatalf("expected help output to include module subcommands, got:\n%s", logBuf.String())
 	}
 }
@@ -94,7 +95,7 @@ func TestHandleModuleCommand_UsesModuleSupportedSubcommandsInErrors(t *testing.T
 	if !strings.Contains(err.Error(), "usage: advanced <subcommand>") {
 		t.Fatalf("expected usage prefix with module name, got: %v", err)
 	}
-	if !strings.Contains(err.Error(), "Available subcommands: generate, apply, clean, status, backup, restore, test") {
+	if !strings.Contains(err.Error(), "Available subcommands: generate, apply, clean, status, doc, backup, restore, test") {
 		t.Fatalf("expected supported subcommands in error, got: %v", err)
 	}
 
@@ -102,7 +103,7 @@ func TestHandleModuleCommand_UsesModuleSupportedSubcommandsInErrors(t *testing.T
 	if err == nil {
 		t.Fatal("expected error for unknown subcommand")
 	}
-	if !strings.Contains(err.Error(), "Available subcommands: generate, apply, clean, status, backup, restore, test") {
+	if !strings.Contains(err.Error(), "Available subcommands: generate, apply, clean, status, doc, backup, restore, test") {
 		t.Fatalf("expected supported subcommands in error, got: %v", err)
 	}
 }
@@ -112,6 +113,7 @@ type basicHelpTestModule struct {
 }
 
 func (m basicHelpTestModule) Name() string                   { return m.name }
+func (m basicHelpTestModule) Doc(context.Context) error      { return nil }
 func (m basicHelpTestModule) Generate(context.Context) error { return nil }
 func (m basicHelpTestModule) Apply(context.Context) error    { return nil }
 func (m basicHelpTestModule) Clean(context.Context) error    { return nil }

@@ -36,6 +36,14 @@ func (m *CloudflareModule) Name() string {
 	return "cloudflare"
 }
 
+func (m *CloudflareModule) Doc(ctx context.Context) error {
+	m.log.Info("Module: cloudflare\n\n")
+	m.log.Info("Description:\n  Deploys a Cloudflare tunnel agent (cloudflared) as a Kubernetes Deployment.\n  Exposes internal services to the internet via a Cloudflare Zero Trust tunnel.\n\n")
+	m.log.Info("Required configuration keys (modules[].secrets):\n  cloudflare_api_token   Cloudflare API token used to authenticate the tunnel agent\n\n")
+	m.log.Info("Subcommands:\n  generate   Write Kubernetes YAML to configs/cloudflare/\n  apply      Create/update resources in the cluster\n  clean      Delete all Cloudflare resources from the cluster\n  status     Print Deployment and Pod status\n  doc        Show this documentation\n")
+	return nil
+}
+
 func (m *CloudflareModule) Generate(ctx context.Context) error {
 	// Get cloudflare API token
 	apiToken, exists := m.ModuleConfig.Secrets["cloudflare_api_token"]

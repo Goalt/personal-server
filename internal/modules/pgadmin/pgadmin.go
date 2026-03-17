@@ -36,6 +36,14 @@ func (m *PgadminModule) Name() string {
 	return "pgadmin"
 }
 
+func (m *PgadminModule) Doc(ctx context.Context) error {
+	m.log.Info("Module: pgadmin\n\n")
+	m.log.Info("Description:\n  Deploys pgAdmin 4 — a web-based PostgreSQL administration tool.\n  Manages a Secret, Service, and Deployment.\n  Connects to the postgres module for database administration.\n\n")
+	m.log.Info("Required configuration keys (modules[].secrets):\n  pgadmin_default_email    Admin e-mail address for the pgAdmin login\n  pgadmin_admin_password   Admin password for the pgAdmin login\n\n")
+	m.log.Info("Subcommands:\n  generate   Write Kubernetes YAML to configs/pgadmin/\n  apply      Create/update resources in the cluster\n  clean      Delete all pgAdmin resources from the cluster\n  status     Print Deployment and Pod status\n  doc        Show this documentation\n")
+	return nil
+}
+
 func (m *PgadminModule) Generate(ctx context.Context) error {
 	// Define output directory
 	outputDir := filepath.Join("configs", "pgadmin")

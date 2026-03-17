@@ -37,6 +37,14 @@ func (m *GrafanaModule) Name() string {
 	return "grafana"
 }
 
+func (m *GrafanaModule) Doc(ctx context.Context) error {
+	m.log.Info("Module: grafana\n\n")
+	m.log.Info("Description:\n  Deploys Grafana — an open-source observability and analytics platform.\n  Manages a Secret, PersistentVolumeClaim, Service, and Deployment.\n\n")
+	m.log.Info("Required configuration keys (modules[].secrets):\n  grafana_admin_user       Admin username for the Grafana web interface\n  grafana_admin_password   Admin password for the Grafana web interface\n\n")
+	m.log.Info("Subcommands:\n  generate   Write Kubernetes YAML to configs/grafana/\n  apply      Create/update resources in the cluster\n  clean      Delete all Grafana resources from the cluster\n  status     Print Deployment and Pod status\n  doc        Show this documentation\n")
+	return nil
+}
+
 func (m *GrafanaModule) Generate(ctx context.Context) error {
 	// Define output directory
 	outputDir := filepath.Join("configs", "grafana")

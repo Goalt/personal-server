@@ -358,6 +358,9 @@ personal-server config
 Each module supports the following subcommands:
 
 ```bash
+# Show module documentation (description, required secrets, subcommands)
+personal-server <module> doc
+
 # Generate Kubernetes configurations
 personal-server <module> generate
 

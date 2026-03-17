@@ -35,6 +35,14 @@ func (m *IngressModule) Name() string {
 	return "ingress"
 }
 
+func (m *IngressModule) Doc(ctx context.Context) error {
+	m.log.Info("Module: ingress (%s)\n\n", m.IngressConfig.Name)
+	m.log.Info("Description:\n  Manages HTTP/HTTPS ingress routing and TCP/UDP service exposure.\n  Generates an Ingress resource for HTTP rules and optional ConfigMaps for\n  TCP and UDP services. Each named ingress entry in the config becomes its own\n  module instance identified by the ingress name.\n\n")
+	m.log.Info("Configuration (ingresses[] entry):\n  name          Unique name for this ingress (used as the module command name)\n  namespace     Kubernetes namespace\n  rules[]       HTTP routing rules (host, path, pathType, serviceName, servicePort)\n  tls           Enable TLS/HTTPS (boolean)\n  tcpServices[] TCP services to expose (port, serviceName, servicePort, namespace)\n  udpServices[] UDP services to expose (port, serviceName, servicePort)\n\n")
+	m.log.Info("Subcommands:\n  generate   Write Kubernetes YAML to configs/ingress/%s/\n  apply      Create/update resources in the cluster\n  clean      Delete all ingress resources from the cluster\n  status     Print Ingress status\n  doc        Show this documentation\n", m.IngressConfig.Name)
+	return nil
+}
+
 func (m *IngressModule) Generate(ctx context.Context) error {
 	// Check if ingress rules or TCP/UDP services are defined
 	if len(m.IngressConfig.Rules) == 0 && len(m.IngressConfig.TCPServices) == 0 && len(m.IngressConfig.UDPServices) == 0 {

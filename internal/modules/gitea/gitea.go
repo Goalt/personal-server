@@ -39,6 +39,14 @@ func (m *GiteaModule) Name() string {
 	return "gitea"
 }
 
+func (m *GiteaModule) Doc(ctx context.Context) error {
+	m.log.Info("Module: gitea\n\n")
+	m.log.Info("Description:\n  Deploys Gitea — a self-hosted Git service.\n  Manages a Secret, PersistentVolumeClaim, Service, and Deployment.\n  Gitea is connected to the postgres module for its database.\n\n")
+	m.log.Info("Required configuration keys (modules[].secrets):\n  gitea_db_user       Database username for Gitea's PostgreSQL database\n  gitea_db_password   Database password for Gitea's PostgreSQL database\n\n")
+	m.log.Info("Subcommands:\n  generate   Write Kubernetes YAML to configs/gitea/\n  apply      Create/update resources in the cluster\n  clean      Delete all Gitea resources from the cluster\n  status     Print Deployment and Pod status\n  doc        Show this documentation\n  backup     Archive /data volume to the destination directory\n  restore    Restore /data volume from a backup archive\n")
+	return nil
+}
+
 func (m *GiteaModule) Generate(ctx context.Context) error {
 	// Define output directory
 	outputDir := filepath.Join("configs", "gitea")

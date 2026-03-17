@@ -38,6 +38,14 @@ func (m *PrometheusModule) Name() string {
 	return m.ModuleConfig.Name
 }
 
+func (m *PrometheusModule) Doc(ctx context.Context) error {
+	m.log.Info("Module: %s (prometheus)\n\n", m.ModuleConfig.Name)
+	m.log.Info("Description:\n  Deploys Prometheus — an open-source monitoring and alerting system.\n  Manages a ServiceAccount, ClusterRole, ClusterRoleBinding, ConfigMap,\n  PersistentVolumeClaim, Service, and Deployment.\n  Automatically scrapes metrics from Kubernetes pods and services.\n  Multiple Prometheus instances can be deployed using the 'prometheus-<suffix>'\n  naming convention in the modules list.\n\n")
+	m.log.Info("Optional configuration keys (modules[].secrets):\n  prometheus_image   Custom Prometheus image (default: prom/prometheus:v2.48.0)\n  storage_size       PersistentVolumeClaim size (default: 10Gi)\n\n")
+	m.log.Info("Subcommands:\n  generate   Write Kubernetes YAML to configs/%s/\n  apply      Create/update resources in the cluster\n  clean      Delete all Prometheus resources from the cluster\n  status     Print Deployment and Pod status\n  doc        Show this documentation\n  rollout    Manage rollouts (restart, status, history, undo)\n", m.ModuleConfig.Name)
+	return nil
+}
+
 func (m *PrometheusModule) Generate(ctx context.Context) error {
 	// Define output directory
 	outputDir := filepath.Join("configs", m.ModuleConfig.Name)

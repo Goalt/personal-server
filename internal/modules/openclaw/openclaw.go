@@ -39,6 +39,14 @@ func (m *OpenClawModule) Name() string {
 	return "openclaw"
 }
 
+func (m *OpenClawModule) Doc(ctx context.Context) error {
+	m.log.Info("Module: openclaw\n\n")
+	m.log.Info("Description:\n  Deploys the OpenClaw application.\n  Manages two PersistentVolumeClaims (data and assets), a Service, and a Deployment.\n\n")
+	m.log.Info("Required configuration keys (modules[].secrets):\n  (none — no secrets required)\n\n")
+	m.log.Info("Subcommands:\n  generate   Write Kubernetes YAML to configs/openclaw/\n  apply      Create/update resources in the cluster\n  clean      Delete all OpenClaw resources from the cluster\n  status     Print Deployment and Pod status\n  doc        Show this documentation\n  backup     Archive data and assets volumes to the destination directory\n  restore    Restore volumes from a backup archive\n")
+	return nil
+}
+
 func (m *OpenClawModule) Generate(ctx context.Context) error {
 	// Define output directory
 	outputDir := filepath.Join("configs", "openclaw")

@@ -39,6 +39,14 @@ func (m *RedisModule) Name() string {
 	return "redis"
 }
 
+func (m *RedisModule) Doc(ctx context.Context) error {
+	m.log.Info("Module: redis\n\n")
+	m.log.Info("Description:\n  Deploys Redis — an in-memory data structure store used as a cache and message broker.\n  Manages a Secret, PersistentVolumeClaim, Service, and Deployment.\n\n")
+	m.log.Info("Required configuration keys (modules[].secrets):\n  redis_password   Password for Redis authentication\n\n")
+	m.log.Info("Subcommands:\n  generate   Write Kubernetes YAML to configs/redis/\n  apply      Create/update resources in the cluster\n  clean      Delete all Redis resources from the cluster\n  status     Print Deployment and Pod status\n  doc        Show this documentation\n  backup     Archive the Redis data volume to the destination directory\n  restore    Restore the Redis data volume from a backup archive\n")
+	return nil
+}
+
 func (m *RedisModule) Generate(ctx context.Context) error {
 	// Define output directory
 	outputDir := filepath.Join("configs", "redis")

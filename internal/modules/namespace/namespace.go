@@ -32,6 +32,14 @@ func (m *NamespaceModule) Name() string {
 	return "namespace"
 }
 
+func (m *NamespaceModule) Doc(ctx context.Context) error {
+	m.log.Info("Module: namespace\n\n")
+	m.log.Info("Description:\n  Creates Kubernetes Namespace resources for every name listed in\n  general.namespaces in the configuration. Deploy this module first before\n  deploying any other module.\n\n")
+	m.log.Info("Required configuration keys (general.namespaces):\n  List of namespace names to create, e.g. [infra, hobby]\n\n")
+	m.log.Info("Subcommands:\n  generate   Write Kubernetes YAML to configs/namespace/\n  apply      Create/update namespaces in the cluster\n  clean      Delete all managed namespaces from the cluster\n  status     Print namespace status\n  doc        Show this documentation\n")
+	return nil
+}
+
 func (m *NamespaceModule) Generate(ctx context.Context) error {
 	// Check if namespaces are defined
 	if len(m.GeneralConfig.Namespaces) == 0 {

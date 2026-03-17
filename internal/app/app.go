@@ -108,6 +108,21 @@ func (a *App) Run(ctx context.Context, args []string) error {
 		return a.handleUpdateCommand(ctx)
 	}
 
+	// Handle backup decrypt command (doesn't require config)
+	if cmd == "backup" {
+		decryptCmd := flag.NewFlagSet("backup", flag.ContinueOnError)
+		decryptCmd.SetOutput(io.Discard)
+		passphrase := decryptCmd.String("passphrase", "", "Passphrase for GPG decryption")
+		decrypt := decryptCmd.String("decrypt", "", "Path to archive to decrypt")
+
+		if err := decryptCmd.Parse(cmdArgs[1:]); err == nil && *decrypt != "" {
+			if *passphrase == "" {
+				return fmt.Errorf("passphrase is required for decryption")
+			}
+			return a.handleGlobalDecryptCommand(ctx, *decrypt, *passphrase)
+		}
+	}
+
 	cfg, err := a.configLoader(configFile)
 	if err != nil {
 		return fmt.Errorf("loading config %s: %w", configFile, err)
@@ -141,23 +156,7 @@ func (a *App) Run(ctx context.Context, args []string) error {
 			return a.handleBackupDownload(ctx, cfg, cmdArgs[2])
 		}
 
-		backupCmd := flag.NewFlagSet("backup", flag.ExitOnError)
-		passphrase := backupCmd.String("passphrase", "", "Passphrase for GPG decryption")
-		decrypt := backupCmd.String("decrypt", "", "Path to archive to decrypt")
-
-		if err := backupCmd.Parse(cmdArgs[1:]); err != nil {
-			return err
-		}
-
-		if *decrypt != "" {
-			if *passphrase == "" {
-				return fmt.Errorf("passphrase is required for decryption")
-			}
-			return a.handleGlobalDecryptCommand(ctx, *decrypt, *passphrase)
-		}
-
 		return a.handleGlobalBackupCommand(ctx, cfg)
-
 	}
 
 	// Use registry for module commands

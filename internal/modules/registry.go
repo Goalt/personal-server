@@ -11,6 +11,9 @@ import (
 // ModuleFactory creates a module from config
 type ModuleFactory func(general config.GeneralConfig, modCfg config.Module, log logger.Logger) Module
 
+// ConfigModuleFactory creates a module from the full config
+type ConfigModuleFactory func(cfg *config.Config, log logger.Logger) Module
+
 // PetProjectFactory creates a pet project module from config
 type PetProjectFactory func(general config.GeneralConfig, projectCfg config.PetProject, log logger.Logger) Module
 
@@ -20,6 +23,7 @@ type IngressFactory func(general config.GeneralConfig, ingressCfg config.Ingress
 // Registry holds module factories indexed by command name
 type Registry struct {
 	factories           map[string]ModuleFactory
+	configFactories     map[string]ConfigModuleFactory
 	petProjectFactories map[string]PetProjectFactory
 	ingressFactories    map[string]IngressFactory
 	// requiresModuleConfig tracks which modules need module-specific config
@@ -31,6 +35,7 @@ type Registry struct {
 func NewRegistry(log logger.Logger) *Registry {
 	return &Registry{
 		factories:            make(map[string]ModuleFactory),
+		configFactories:      make(map[string]ConfigModuleFactory),
 		petProjectFactories:  make(map[string]PetProjectFactory),
 		ingressFactories:     make(map[string]IngressFactory),
 		requiresModuleConfig: make(map[string]bool),
@@ -62,6 +67,12 @@ func (r *Registry) RegisterIngress(name string, factory IngressFactory) {
 	r.ingressFactories[name] = factory
 }
 
+// RegisterConfigModule adds a module factory that receives the full config.
+// Use this for modules that need access to top-level config fields (e.g. Registries).
+func (r *Registry) RegisterConfigModule(name string, factory ConfigModuleFactory) {
+	r.configFactories[name] = factory
+}
+
 // findFactory looks up a factory by exact name first, then by prefix match.
 // Returns the factory, the registered factory key, and whether it was found.
 // Prefix matching allows "prometheus-infra" to resolve to the "prometheus" factory.
@@ -80,6 +91,11 @@ func (r *Registry) findFactory(name string) (ModuleFactory, string, bool) {
 
 // Get creates a module by name
 func (r *Registry) Get(name string, cfg *config.Config) (Module, error) {
+	// Check config-level factories first (they receive the full config)
+	if factory, ok := r.configFactories[name]; ok {
+		return factory(cfg, r.logger), nil
+	}
+
 	factory, factoryKey, ok := r.findFactory(name)
 	if !ok {
 		// Check if it's a pet project
@@ -158,8 +174,11 @@ func (r *Registry) GetIngress(name string, cfg *config.Config) (Module, error) {
 
 // Commands returns all registered command names
 func (r *Registry) Commands() []string {
-	names := make([]string, 0, len(r.factories))
+	names := make([]string, 0, len(r.factories)+len(r.configFactories)+len(r.petProjectFactories)+len(r.ingressFactories))
 	for name := range r.factories {
+		names = append(names, name)
+	}
+	for name := range r.configFactories {
 		names = append(names, name)
 	}
 	return names
@@ -167,6 +186,9 @@ func (r *Registry) Commands() []string {
 
 // Has checks if a command is registered (exact match or prefix match)
 func (r *Registry) Has(name string) bool {
+	if _, ok := r.configFactories[name]; ok {
+		return true
+	}
 	_, _, ok := r.findFactory(name)
 	return ok
 }

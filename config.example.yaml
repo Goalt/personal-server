@@ -13,6 +13,7 @@ registries:
     server: https://registry.example.com
     username: myuser
     password: mypassword
+    namespace: hobby  # Kubernetes namespace where the secret is created
 modules:
   - name: cloudflare
     namespace: infra

@@ -19,6 +19,7 @@ import (
 	"github.com/Goalt/personal-server/internal/modules/postgresexporter"
 	"github.com/Goalt/personal-server/internal/modules/prometheus"
 	"github.com/Goalt/personal-server/internal/modules/redis"
+	"github.com/Goalt/personal-server/internal/modules/registrysecret"
 	"github.com/Goalt/personal-server/internal/modules/sshlogin"
 	"github.com/Goalt/personal-server/internal/modules/webdav"
 	"github.com/Goalt/personal-server/internal/modules/workpod"
@@ -91,6 +92,11 @@ func DefaultRegistry(log logger.Logger) *Registry {
 	// Register default ingress factory
 	r.RegisterIngress("_default", func(g config.GeneralConfig, i config.IngressConfig, log logger.Logger) Module {
 		return ingress.New(g, i, log)
+	})
+
+	// Register registry secrets command (receives the full config)
+	r.RegisterConfigModule("registry", func(cfg *config.Config, log logger.Logger) Module {
+		return registrysecret.New(cfg.Registries, log)
 	})
 
 	return r

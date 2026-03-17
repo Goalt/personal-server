@@ -244,6 +244,12 @@ func (m *PetProjectModule) prepareDeployment() *appsv1.Deployment {
 }
 
 func (m *PetProjectModule) prepareImagePullSecret() (*corev1.Secret, string, error) {
+	// If the pet project references a named registry, its secret is managed by the
+	// "registry" module — do not create an inline secret here.
+	if m.ProjectConfig.Registry != "" {
+		return nil, "", nil
+	}
+
 	if m.ProjectConfig.RegistryCredentials == nil {
 		return nil, "", nil
 	}
@@ -293,6 +299,10 @@ func (m *PetProjectModule) prepareImagePullSecret() (*corev1.Secret, string, err
 }
 
 func (m *PetProjectModule) imagePullSecretName() string {
+	// Named registry: the secret is identified by the registry key name
+	if m.ProjectConfig.Registry != "" {
+		return m.ProjectConfig.Registry
+	}
 	if m.ProjectConfig.ImagePullSecret != "" {
 		return m.ProjectConfig.ImagePullSecret
 	}

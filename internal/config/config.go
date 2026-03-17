@@ -82,10 +82,11 @@ type GeneralConfig struct {
 
 // RegistryCredentials represents credentials for a container registry
 type RegistryCredentials struct {
-	Server   string `yaml:"server"`
-	Username string `yaml:"username"`
-	Password string `yaml:"password"`
-	Email    string `yaml:"email,omitempty"`
+	Server    string `yaml:"server"`
+	Username  string `yaml:"username"`
+	Password  string `yaml:"password"`
+	Email     string `yaml:"email,omitempty"`
+	Namespace string `yaml:"namespace,omitempty"`
 }
 
 // BackupConfig represents the backup configuration

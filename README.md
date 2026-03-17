@@ -24,6 +24,9 @@ A comprehensive Go application for managing Kubernetes-based personal infrastruc
 - [Support](#-support)
 - [License](#-license)
 
+> [!NOTE]
+> **For AI agents and contributors writing new modules**, see the step-by-step authoring guide in [AGENTS.md](AGENTS.md).
+
 ## ✨ Features
 
 - **Modular Architecture**: Manage multiple services through a unified interface
@@ -902,6 +905,10 @@ go test ./internal/modules/gitea/...
 
 ### Adding a New Module
 
+See **[AGENTS.md](AGENTS.md)** for a complete step-by-step guide with code examples, test patterns, and a checklist covering every integration point.
+
+Quick summary:
+
 1. Create a new directory in `internal/modules/<module-name>/`
 2. Implement the `Module` interface
 3. Optionally implement `Backuper`, `Restorer`, `DatabaseManager`, `Tester`, or `Notifier` interfaces
@@ -1205,7 +1212,7 @@ A: Yes, when you configure a GPG passphrase in your config.yaml, backups are enc
 ### Development Questions
 
 **Q: How do I add a new module?**  
-A: See the [Adding a New Module](#adding-a-new-module) section in the Development documentation. Create a new module directory, implement the required interfaces, and register it.
+A: See **[AGENTS.md](AGENTS.md)** for a complete step-by-step guide with code examples, test patterns, and a checklist covering every integration point.
 
 **Q: How do I run tests?**  
 A: Run `make test` for unit tests or `make e2e-test` for end-to-end tests (requires a Kubernetes cluster). See the [Testing](#-testing) section for more details.

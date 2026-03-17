@@ -232,7 +232,7 @@ make install
 
 ## ⚙️ Configuration
 
-Create a `config.yaml` file in the project root:
+Create a `config.yaml` file based on `config.example.yaml`:
 
 ```yaml
 general:
@@ -246,6 +246,14 @@ backup:
   sentry_dsn: your_sentry_dsn
   cron: "*/30 * * * *"  # Every 30 minutes
   passphrase: your_gpg_passphrase
+
+# Optional: define named registry credentials used by pet-projects
+registries:
+  my-registry:
+    server: https://registry.example.com
+    username: myuser
+    password: mypassword
+    namespace: hobby  # Kubernetes namespace where the secret is created
 
 modules:
   - name: cloudflare
@@ -288,6 +296,12 @@ modules:
       drone_rpc_secret: rpc_secret
       drone_server_proto: https
 
+  - name: grafana
+    namespace: infra
+    secrets:
+      grafana_admin_user: admin
+      grafana_admin_password: password
+
   - name: monitoring
     namespace: infra
     secrets:
@@ -302,15 +316,17 @@ pet-projects:
   - name: myapp
     namespace: hobby
     image: nginx:latest
-    imagePullSecret: my-registry-secret
-    registryCredentials:
-      server: https://registry.example.com
-      username: myuser
-      password: mypassword
+    registry: my-registry  # Reference a key from the top-level registries section
     environment:
       PORT: "8080"
       ENV: "production"
-  
+    prometheusPort: 8080  # Port for Prometheus scraping (default: 8080)
+    service:
+      ports:
+        - name: http
+          port: 80
+          targetPort: 8080
+
   - name: api-service
     namespace: hobby
     image: node:18-alpine
@@ -371,12 +387,16 @@ personal-server <module> rollout <restart|status|history|undo>
 - **work-pod**: Work development pod
 - **drone**: CI/CD server (Drone CI)
 - **gitea**: Git hosting server
+- **grafana**: Grafana observability dashboard
 - **monitoring**: Monitoring stack
 - **postgres**: PostgreSQL database
+- **postgres-exporter**: PostgreSQL metrics exporter for Prometheus
 - **pgadmin**: PostgreSQL administration interface
 - **redis**: Redis in-memory data store
 - **prometheus**: Prometheus monitoring and metrics collection
+- **openclaw**: OpenClaw application deployment
 - **ssh-login-notifier**: SSH login notification service
+- **registry**: Kubernetes docker-registry secret management for configured registries
 - **ingress**: HTTP routing and ingress management with TLS support, plus TCP/UDP service exposure
 
 ### Pet Projects
@@ -384,24 +404,31 @@ personal-server <module> rollout <restart|status|history|undo>
 Pet projects allow you to deploy custom containerized applications easily. Just define them in the `pet-projects` section of your config:
 
 ```yaml
+# Optional: define named registry credentials at the top level
+registries:
+  my-registry:
+    server: https://registry.example.com
+    username: myuser
+    password: mypassword
+    namespace: hobby  # Kubernetes namespace where the secret is created
+
 pet-projects:
   - name: myapp
     namespace: hobby
     image: nginx:latest
-    imagePullSecret: my-registry-secret # Optional: reference an existing registry secret
-    registryCredentials:              # Optional: create the secret automatically
-      server: https://registry.example.com
-      username: myuser
-      password: mypassword
+    registry: my-registry  # Optional: reference a key from the top-level registries section
     environment:
       PORT: "8080"
       ENV: "production"
+    prometheusPort: 8080    # Optional: port for Prometheus scraping (default: 8080)
     service:                # Optional: Create a Kubernetes Service
       ports:
         - name: http
           port: 80
           targetPort: 8080
 ```
+
+The `registry` field references a named entry from the top-level `registries` section. The corresponding Kubernetes docker-registry secret is created by the `registry` command.
 
 The `service` attribute is optional. When provided, it creates a Kubernetes Service that exposes your application on the specified ports. Each port requires:
 - `name`: A descriptive name for the port (e.g., "http", "https")
@@ -833,16 +860,26 @@ personal-server/
 │       ├── cloudflare/
 │       ├── drone/
 │       ├── gitea/
+│       ├── grafana/
 │       ├── hobbypod/
+│       ├── ingress/
 │       ├── monitoring/
 │       ├── namespace/
+│       ├── openclaw/
+│       ├── petproject/
 │       ├── pgadmin/
 │       ├── postgres/
+│       ├── postgresexporter/
+│       ├── prometheus/
+│       ├── redis/
+│       ├── registrysecret/
 │       ├── sshlogin/
 │       ├── webdav/
 │       └── workpod/
 ├── docs/                  # Documentation
-├── config.yaml            # Configuration file
+├── test/                  # Test suites
+│   └── e2e/              # End-to-end tests
+├── config.example.yaml    # Example configuration file
 ├── Makefile              # Build automation
 └── go.mod                # Go module definition
 ```

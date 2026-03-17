@@ -585,3 +585,75 @@ func TestPrepareServiceWithEmptyPorts(t *testing.T) {
 		t.Error("Expected service to be nil when service has no ports")
 	}
 }
+
+func TestImagePullSecretName_WithRegistryKey(t *testing.T) {
+	generalConfig := config.GeneralConfig{
+		Domain:     "example.com",
+		Namespaces: []string{"hobby"},
+	}
+
+	projectConfig := config.PetProject{
+		Name:      "myapp",
+		Namespace: "hobby",
+		Image:     "private.registry/app:latest",
+		Registry:  "my-registry",
+		// RegistryCredentials may be populated by GetPetProject resolution
+		RegistryCredentials: &config.RegistryCredentials{
+			Server:   "https://registry.example.com",
+			Username: "user",
+			Password: "pass",
+		},
+	}
+
+	log := logger.Default()
+	module := New(generalConfig, projectConfig, log)
+
+	// Registry key takes precedence as the secret name
+	if name := module.imagePullSecretName(); name != "my-registry" {
+		t.Errorf("Expected imagePullSecretName to be 'my-registry', got '%s'", name)
+	}
+
+	// Deployment should reference the registry key as the image pull secret
+	deployment := module.prepareDeployment()
+	if len(deployment.Spec.Template.Spec.ImagePullSecrets) != 1 {
+		t.Fatalf("Expected 1 image pull secret, got %d", len(deployment.Spec.Template.Spec.ImagePullSecrets))
+	}
+	if deployment.Spec.Template.Spec.ImagePullSecrets[0].Name != "my-registry" {
+		t.Errorf("Expected image pull secret name 'my-registry', got '%s'",
+			deployment.Spec.Template.Spec.ImagePullSecrets[0].Name)
+	}
+}
+
+func TestPrepareImagePullSecret_WithRegistryKey_ReturnsNil(t *testing.T) {
+	generalConfig := config.GeneralConfig{
+		Domain:     "example.com",
+		Namespaces: []string{"hobby"},
+	}
+
+	projectConfig := config.PetProject{
+		Name:      "myapp",
+		Namespace: "hobby",
+		Image:     "private.registry/app:latest",
+		Registry:  "my-registry",
+		RegistryCredentials: &config.RegistryCredentials{
+			Server:   "https://registry.example.com",
+			Username: "user",
+			Password: "pass",
+		},
+	}
+
+	log := logger.Default()
+	module := New(generalConfig, projectConfig, log)
+
+	// When Registry key is set, inline secret creation is skipped
+	secret, secretName, err := module.prepareImagePullSecret()
+	if err != nil {
+		t.Fatalf("prepareImagePullSecret() returned error: %v", err)
+	}
+	if secret != nil {
+		t.Error("Expected nil secret when Registry key is set (managed by registry module)")
+	}
+	if secretName != "" {
+		t.Errorf("Expected empty secretName when Registry key is set, got '%s'", secretName)
+	}
+}

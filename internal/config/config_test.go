@@ -737,3 +737,181 @@ func TestSaveConfig_EmptyPath(t *testing.T) {
 		t.Errorf("Expected error message '%s', got '%s'", expectedMsg, err.Error())
 	}
 }
+
+func TestLoadConfig_WithRegistries(t *testing.T) {
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+
+	configContent := `general:
+  domain: example.com
+  namespaces: [infra, hobby]
+registries:
+  my-registry:
+    server: https://registry.example.com
+    username: myuser
+    password: mypassword
+    email: myuser@example.com
+  other-registry:
+    server: https://other.registry.io
+    username: otheruser
+    password: otherpassword
+modules:
+  - name: cloudflare
+    namespace: infra
+pet-projects:
+  - name: myapp
+    namespace: hobby
+    image: nginx:latest
+    registry: my-registry
+    environment:
+      PORT: "8080"
+`
+
+	err := os.WriteFile(configFile, []byte(configContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test config file: %v", err)
+	}
+
+	cfg, err := LoadConfig(configFile)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	if len(cfg.Registries) != 2 {
+		t.Fatalf("Expected 2 registries, got %d", len(cfg.Registries))
+	}
+
+	reg, ok := cfg.Registries["my-registry"]
+	if !ok {
+		t.Fatal("Expected 'my-registry' to exist in registries")
+	}
+	if reg.Server != "https://registry.example.com" {
+		t.Errorf("Expected server 'https://registry.example.com', got '%s'", reg.Server)
+	}
+	if reg.Username != "myuser" {
+		t.Errorf("Expected username 'myuser', got '%s'", reg.Username)
+	}
+	if reg.Password != "mypassword" {
+		t.Errorf("Expected password 'mypassword', got '%s'", reg.Password)
+	}
+	if reg.Email != "myuser@example.com" {
+		t.Errorf("Expected email 'myuser@example.com', got '%s'", reg.Email)
+	}
+
+	if cfg.PetProjects[0].Registry != "my-registry" {
+		t.Errorf("Expected pet project registry to be 'my-registry', got '%s'", cfg.PetProjects[0].Registry)
+	}
+}
+
+func TestGetRegistry_Success(t *testing.T) {
+	cfg := &Config{
+		Registries: map[string]RegistryCredentials{
+			"my-registry": {
+				Server:   "https://registry.example.com",
+				Username: "myuser",
+				Password: "mypassword",
+			},
+		},
+	}
+
+	creds, err := cfg.GetRegistry("my-registry")
+	if err != nil {
+		t.Fatalf("GetRegistry failed: %v", err)
+	}
+
+	if creds.Server != "https://registry.example.com" {
+		t.Errorf("Expected server 'https://registry.example.com', got '%s'", creds.Server)
+	}
+	if creds.Username != "myuser" {
+		t.Errorf("Expected username 'myuser', got '%s'", creds.Username)
+	}
+	if creds.Password != "mypassword" {
+		t.Errorf("Expected password 'mypassword', got '%s'", creds.Password)
+	}
+}
+
+func TestGetRegistry_NotFound(t *testing.T) {
+	cfg := &Config{
+		Registries: map[string]RegistryCredentials{
+			"my-registry": {Server: "https://registry.example.com"},
+		},
+	}
+
+	_, err := cfg.GetRegistry("nonexistent")
+	if err == nil {
+		t.Error("Expected error for non-existent registry, got nil")
+	}
+
+	expectedMsg := "registry not found: nonexistent"
+	if err.Error() != expectedMsg {
+		t.Errorf("Expected error message '%s', got '%s'", expectedMsg, err.Error())
+	}
+}
+
+func TestGetRegistry_NilRegistries(t *testing.T) {
+	cfg := &Config{}
+
+	_, err := cfg.GetRegistry("any-registry")
+	if err == nil {
+		t.Error("Expected error for nil registries map, got nil")
+	}
+
+	expectedMsg := "registry not found: any-registry"
+	if err.Error() != expectedMsg {
+		t.Errorf("Expected error message '%s', got '%s'", expectedMsg, err.Error())
+	}
+}
+
+func TestSaveConfig_WithRegistries(t *testing.T) {
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+
+	cfg := &Config{
+		Path: configFile,
+		General: GeneralConfig{
+			Domain:     "example.com",
+			Namespaces: []string{"infra"},
+		},
+		Registries: map[string]RegistryCredentials{
+			"my-registry": {
+				Server:   "https://registry.example.com",
+				Username: "myuser",
+				Password: "mypassword",
+			},
+		},
+		PetProjects: []PetProject{
+			{
+				Name:      "myapp",
+				Namespace: "hobby",
+				Image:     "myimage:latest",
+				Registry:  "my-registry",
+			},
+		},
+	}
+
+	err := cfg.SaveConfig()
+	if err != nil {
+		t.Fatalf("SaveConfig failed: %v", err)
+	}
+
+	loaded, err := LoadConfig(configFile)
+	if err != nil {
+		t.Fatalf("LoadConfig failed after save: %v", err)
+	}
+
+	if len(loaded.Registries) != 1 {
+		t.Fatalf("Expected 1 registry after reload, got %d", len(loaded.Registries))
+	}
+
+	reg, ok := loaded.Registries["my-registry"]
+	if !ok {
+		t.Fatal("Expected 'my-registry' to be present after reload")
+	}
+	if reg.Server != "https://registry.example.com" {
+		t.Errorf("Expected server 'https://registry.example.com', got '%s'", reg.Server)
+	}
+
+	if loaded.PetProjects[0].Registry != "my-registry" {
+		t.Errorf("Expected pet project registry 'my-registry', got '%s'", loaded.PetProjects[0].Registry)
+	}
+}

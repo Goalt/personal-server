@@ -101,13 +101,13 @@ type BackupConfig struct {
 
 // Config represents the application configuration
 type Config struct {
-	Path        string                        `yaml:"-"`
-	General     GeneralConfig                 `yaml:"general"`
-	Backup      BackupConfig                  `yaml:"backup"`
+	Path        string                         `yaml:"-"`
+	General     GeneralConfig                  `yaml:"general"`
+	Backup      BackupConfig                   `yaml:"backup"`
 	Registries  map[string]RegistryCredentials `yaml:"registries,omitempty"`
-	Modules     []Module                      `yaml:"modules"`
-	PetProjects []PetProject                  `yaml:"pet-projects"`
-	Ingresses   []IngressConfig               `yaml:"ingresses,omitempty"`
+	Modules     []Module                       `yaml:"modules"`
+	PetProjects []PetProject                   `yaml:"pet-projects"`
+	Ingresses   []IngressConfig                `yaml:"ingresses,omitempty"`
 }
 
 // LoadConfig loads and parses the configuration file

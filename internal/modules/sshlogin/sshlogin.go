@@ -38,6 +38,14 @@ func (m *SSHLoginModule) Name() string {
 	return "ssh-login-notifier"
 }
 
+func (m *SSHLoginModule) Doc(ctx context.Context) error {
+	m.log.Info("Module: ssh-login-notifier\n\n")
+	m.log.Info("Description:\n  Installs an SSH login notification script on the host system.\n  When a user logs in via SSH, the script sends an alert to Sentry.\n  Unlike other modules, this does not manage Kubernetes resources —\n  it writes a shell hook to ~/.ssh/rc and installs the personal-server binary.\n\n")
+	m.log.Info("Required configuration keys (modules[].secrets):\n  sentry_dsn   Sentry DSN URL for SSH login event reporting\n\n")
+	m.log.Info("Subcommands:\n  generate   (no-op) No Kubernetes manifests are generated\n  apply      Install the SSH login notification hook on the host\n  clean      Remove the SSH login notification hook from the host\n  status     Print the current hook installation status\n  doc        Show this documentation\n  test       Send a test notification to Sentry\n  notify     Send a login notification (args: <user> <ip> <ssh_connection>)\n")
+	return nil
+}
+
 func (m *SSHLoginModule) Generate(ctx context.Context) error {
 	m.log.Info("SSH Login Notifier uses direct host installation.\n")
 	m.log.Info("No Kubernetes manifests to generate.\n")

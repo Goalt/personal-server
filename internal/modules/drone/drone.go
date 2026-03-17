@@ -37,6 +37,14 @@ func (m *DroneModule) Name() string {
 	return "drone"
 }
 
+func (m *DroneModule) Doc(ctx context.Context) error {
+	m.log.Info("Module: drone\n\n")
+	m.log.Info("Description:\n  Deploys Drone CI — a container-native continuous integration server.\n  Integrates with Gitea for source code management.\n  Manages a Secret, Role, RoleBinding, two Deployments (server + runner), and a Service.\n\n")
+	m.log.Info("Required configuration keys (modules[].secrets):\n  drone_gitea_client_id       OAuth2 client ID from Gitea for Drone authentication\n  drone_gitea_client_secret   OAuth2 client secret from Gitea\n  drone_rpc_secret            Shared RPC secret between Drone server and runner\n  drone_server_proto          Protocol used to access Drone (http or https)\n\n")
+	m.log.Info("Subcommands:\n  generate   Write Kubernetes YAML to configs/drone/\n  apply      Create/update resources in the cluster\n  clean      Delete all Drone resources from the cluster\n  status     Print Deployment and Pod status\n  doc        Show this documentation\n")
+	return nil
+}
+
 func (m *DroneModule) Generate(ctx context.Context) error {
 	// Define output directory
 	outputDir := filepath.Join("configs", "drone")

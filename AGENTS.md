@@ -47,6 +47,7 @@ Defined in `internal/modules/module.go`:
 // Required — every module must implement this.
 type Module interface {
     Name()     string
+    Doc(ctx context.Context) error       // print module documentation
     Generate(ctx context.Context) error  // write YAML to configs/<name>/
     Apply(ctx context.Context) error     // kubectl-apply the generated YAML
     Clean(ctx context.Context) error     // remove all K8s resources
@@ -134,6 +135,16 @@ func New(generalConfig config.GeneralConfig, moduleConfig config.Module, log log
 }
 
 func (m *MyServiceModule) Name() string { return "myservice" }
+
+// Doc prints human-readable documentation about the module.
+// Use m.log.Info to describe: what the module deploys, required secrets, and available subcommands.
+func (m *MyServiceModule) Doc(ctx context.Context) error {
+    m.log.Info("Module: myservice\n\n")
+    m.log.Info("Description:\n  Brief description of what this module deploys.\n\n")
+    m.log.Info("Required configuration keys (modules[].secrets):\n  my_password   Password used by the service\n\n")
+    m.log.Info("Subcommands:\n  generate   Write Kubernetes YAML to configs/myservice/\n  apply      Create/update resources in the cluster\n  clean      Delete all resources from the cluster\n  status     Print resource status\n  doc        Show this documentation\n")
+    return nil
+}
 
 // prepare returns the Kubernetes objects for this module.
 // Keep all object construction here so tests can call prepare() directly.
@@ -346,6 +357,7 @@ Create `internal/modules/myservice/myservice_test.go`. A complete test file incl
 | Test function | What it validates |
 |---|---|
 | `TestMyServiceModule_Name` | `Name()` returns the correct string |
+| `TestMyServiceModule_Doc` | `Doc()` returns nil without error |
 | `TestMyServiceModule_Prepare` | `prepare()` returns non-nil objects for multiple namespaces |
 | `TestMyServiceModule_PreparePVC` | PVC name, labels, access mode, storage size |
 | `TestMyServiceModule_PrepareService` | Service name, labels, annotations, ports, selector |
@@ -374,6 +386,17 @@ func TestMyServiceModule_Name(t *testing.T) {
     m := &MyServiceModule{}
     if m.Name() != "myservice" {
         t.Errorf("Name() = %s, want myservice", m.Name())
+    }
+}
+
+func TestMyServiceModule_Doc(t *testing.T) {
+    m := &MyServiceModule{
+        GeneralConfig: config.GeneralConfig{Domain: "example.com"},
+        ModuleConfig:  config.Module{Name: "myservice", Namespace: "infra"},
+        log:           logger.Default(),
+    }
+    if err := m.Doc(context.Background()); err != nil {
+        t.Errorf("Doc() returned unexpected error: %v", err)
     }
 }
 
@@ -536,6 +559,7 @@ Use this checklist when creating a new module:
 
 - [ ] `internal/modules/<name>/<name>.go` created
 - [ ] `Name()` returns the correct, unique CLI command name
+- [ ] `Doc()` prints module description, required secrets, and available subcommands
 - [ ] `Generate()` writes YAML to `configs/<name>/`
 - [ ] `Apply()` creates all Kubernetes resources
 - [ ] `Clean()` removes all Kubernetes resources
@@ -545,6 +569,7 @@ Use this checklist when creating a new module:
 - [ ] `config.example.yaml` updated with a sample entry including all required `secrets` keys
 - [ ] `internal/modules/<name>/<name>_test.go` created
   - [ ] `TestXxx_Name` passes
+  - [ ] `TestXxx_Doc` passes (returns nil)
   - [ ] `TestXxx_Prepare` covers multiple namespaces
   - [ ] `TestXxx_PrepareXxx` tests for each Kubernetes object (PVC, Service, Deployment, …)
   - [ ] `TestGenerate` compares output against `testdata/` fixtures

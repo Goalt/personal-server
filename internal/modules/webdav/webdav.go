@@ -39,6 +39,14 @@ func (m *WebdavModule) Name() string {
 	return "webdav"
 }
 
+func (m *WebdavModule) Doc(ctx context.Context) error {
+	m.log.Info("Module: webdav\n\n")
+	m.log.Info("Description:\n  Deploys a WebDAV server used as backup storage for personal-server.\n  Manages a ConfigMap, Secret, PersistentVolumeClaim, Service, and Deployment.\n  The backup system uses WebDAV to store and retrieve encrypted backup archives.\n\n")
+	m.log.Info("Required configuration keys (modules[].secrets):\n  webdav_username   Username for WebDAV authentication\n  webdav_password   Password for WebDAV authentication\n\n")
+	m.log.Info("Subcommands:\n  generate   Write Kubernetes YAML to configs/webdav/\n  apply      Create/update resources in the cluster\n  clean      Delete all WebDAV resources from the cluster\n  status     Print Deployment and Pod status\n  doc        Show this documentation\n  backup     Archive the WebDAV data volume to the destination directory\n  restore    Restore the WebDAV data volume from a backup archive\n")
+	return nil
+}
+
 func (m *WebdavModule) Generate(ctx context.Context) error {
 	// Define output directory
 	outputDir := filepath.Join("configs", "webdav")

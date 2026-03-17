@@ -7,6 +7,11 @@ type Module interface {
 	// Name returns the name of the module
 	Name() string
 
+	// Doc prints human-readable documentation about the module: what it deploys,
+	// which configuration keys and secrets it requires, and which optional
+	// subcommands it exposes.
+	Doc(ctx context.Context) error
+
 	// Generate generates the Kubernetes configurations for the module
 	Generate(ctx context.Context) error
 

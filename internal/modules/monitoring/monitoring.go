@@ -36,6 +36,14 @@ func (m *MonitoringModule) Name() string {
 	return "monitoring"
 }
 
+func (m *MonitoringModule) Doc(ctx context.Context) error {
+	m.log.Info("Module: monitoring\n\n")
+	m.log.Info("Description:\n  Deploys a monitoring agent (personal-server-monitoring) that reports errors\n  to Sentry. Manages a ServiceAccount, ClusterRole, ClusterRoleBinding, Secret,\n  and Deployment.\n\n")
+	m.log.Info("Required configuration keys (modules[].secrets):\n  sentry_dsn   Sentry DSN URL for error reporting and alerting\n\n")
+	m.log.Info("Subcommands:\n  generate   Write Kubernetes YAML to configs/monitoring/\n  apply      Create/update resources in the cluster\n  clean      Delete all monitoring resources from the cluster\n  status     Print Deployment and Pod status\n  doc        Show this documentation\n")
+	return nil
+}
+
 func (m *MonitoringModule) Generate(ctx context.Context) error {
 	// Define output directory
 	outputDir := filepath.Join("configs", "monitoring")

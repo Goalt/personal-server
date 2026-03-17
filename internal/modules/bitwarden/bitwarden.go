@@ -40,6 +40,14 @@ func (m *BitwardenModule) Name() string {
 	return "bitwarden"
 }
 
+func (m *BitwardenModule) Doc(ctx context.Context) error {
+	m.log.Info("Module: bitwarden\n\n")
+	m.log.Info("Description:\n  Deploys Vaultwarden (Bitwarden-compatible) password manager.\n  Manages a Deployment, Service, and PersistentVolumeClaim.\n\n")
+	m.log.Info("Required configuration keys (modules[].secrets):\n  (none — no secrets required)\n\n")
+	m.log.Info("Subcommands:\n  generate   Write Kubernetes YAML to configs/bitwarden/\n  apply      Create/update resources in the cluster\n  clean      Delete all Bitwarden resources from the cluster\n  status     Print Deployment and Pod status\n  doc        Show this documentation\n  backup     Archive /data volume to the destination directory\n  restore    Restore /data volume from a backup archive\n")
+	return nil
+}
+
 func (m *BitwardenModule) Generate(ctx context.Context) error {
 	// Define output directory
 	outputDir := filepath.Join("configs", "bitwarden")

@@ -39,6 +39,14 @@ func (m *PetProjectModule) Name() string {
 	return m.ProjectConfig.Name
 }
 
+func (m *PetProjectModule) Doc(ctx context.Context) error {
+	m.log.Info("Module: %s (pet-project)\n\n", m.ProjectConfig.Name)
+	m.log.Info("Description:\n  Deploys a custom containerized application defined in the pet-projects[]\n  section of the configuration. Manages a Deployment and optionally a Service.\n\n")
+	m.log.Info("Configuration (pet-projects[] entry):\n  name            Module command name (must be unique)\n  namespace       Kubernetes namespace\n  image           Container image to deploy\n  registry        (optional) Named registry credentials key for pulling private images\n  environment     (optional) Map of environment variables\n  prometheusPort  (optional) Port for Prometheus scraping (default: 8080)\n  service         (optional) Kubernetes Service definition with ports[]\n\n")
+	m.log.Info("Subcommands:\n  generate   Write Kubernetes YAML to configs/pet-projects/%s/\n  apply      Create/update resources in the cluster\n  clean      Delete all resources from the cluster\n  status     Print Deployment and Pod status\n  doc        Show this documentation\n  rollout    Manage rollouts (restart, status, history, undo)\n", m.ProjectConfig.Name)
+	return nil
+}
+
 func (m *PetProjectModule) Generate(ctx context.Context) error {
 	// Define output directory
 	outputDir := filepath.Join("configs", "pet-projects", m.ProjectConfig.Name)

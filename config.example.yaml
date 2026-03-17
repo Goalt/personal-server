@@ -97,6 +97,12 @@ modules:
     namespace: infra
     secrets:
       sentry_dsn: https://public@sentry.example.com/1
+  - name: xray
+    namespace: infra
+    secrets:
+      xray_uuid: a2fb4a5d-c720-4f71-b256-9a43d6d534c8  # generate with: xray uuid
+      xray_path: /vpn-secret-path                       # secret WebSocket path for the Ingress
+      # xray_image: ghcr.io/xtls/xray-core:latest       # optional: pin to a specific version
 pet-projects:
   - name: myapp
     namespace: hobby

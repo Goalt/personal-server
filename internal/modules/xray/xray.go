@@ -34,11 +34,11 @@ type xrayConfig struct {
 }
 
 type xrayInbound struct {
-	Port           int                  `json:"port"`
-	Listen         string               `json:"listen"`
-	Protocol       string               `json:"protocol"`
-	Settings       xrayInboundSettings  `json:"settings"`
-	StreamSettings xrayStreamSettings   `json:"streamSettings"`
+	Port           int                 `json:"port"`
+	Listen         string              `json:"listen"`
+	Protocol       string              `json:"protocol"`
+	Settings       xrayInboundSettings `json:"settings"`
+	StreamSettings xrayStreamSettings  `json:"streamSettings"`
 }
 
 type xrayInboundSettings struct {
@@ -252,10 +252,10 @@ func (m *XrayModule) prepare() (*corev1.ConfigMap, *appsv1.Deployment, *corev1.S
 			Labels:    labels,
 			Annotations: map[string]string{
 				"managed-by": "personal-server",
-				"nginx.ingress.kubernetes.io/proxy-read-timeout":  "3600",
-				"nginx.ingress.kubernetes.io/proxy-send-timeout":  "3600",
-				"nginx.ingress.kubernetes.io/proxy-body-size":     "0",
-				"nginx.ingress.kubernetes.io/proxy-http-version":  "1.1",
+				"nginx.ingress.kubernetes.io/proxy-read-timeout":    "3600",
+				"nginx.ingress.kubernetes.io/proxy-send-timeout":    "3600",
+				"nginx.ingress.kubernetes.io/proxy-body-size":       "0",
+				"nginx.ingress.kubernetes.io/proxy-http-version":    "1.1",
 				"nginx.ingress.kubernetes.io/configuration-snippet": "proxy_set_header Upgrade $http_upgrade;\nproxy_set_header Connection \"upgrade\";\n",
 			},
 		},

@@ -4,6 +4,7 @@ import (
 	"github.com/Goalt/personal-server/internal/config"
 	"github.com/Goalt/personal-server/internal/logger"
 	"github.com/Goalt/personal-server/internal/modules/bitwarden"
+	"github.com/Goalt/personal-server/internal/modules/bugsink"
 	"github.com/Goalt/personal-server/internal/modules/cloudflare"
 	"github.com/Goalt/personal-server/internal/modules/drone"
 	"github.com/Goalt/personal-server/internal/modules/gitea"
@@ -40,6 +41,9 @@ func DefaultRegistry(log logger.Logger) *Registry {
 	})
 	r.Register("bitwarden", func(g config.GeneralConfig, m config.Module, log logger.Logger) Module {
 		return bitwarden.New(g, m, log)
+	})
+	r.Register("bugsink", func(g config.GeneralConfig, m config.Module, log logger.Logger) Module {
+		return bugsink.New(g, m, log)
 	})
 	r.Register("webdav", func(g config.GeneralConfig, m config.Module, log logger.Logger) Module {
 		return webdav.New(g, m, log)

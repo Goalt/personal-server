@@ -21,6 +21,12 @@ modules:
       cloudflare_api_token: your_cloudflare_api_token
   - name: bitwarden
     namespace: infra
+  - name: bugsink
+    namespace: infra
+    secrets:
+      bugsink_secret_key: your_random_secret_key_of_at_least_50_chars
+      bugsink_admin_user: admin
+      bugsink_admin_password: secret_password
   - name: webdav
     namespace: infra
     secrets:

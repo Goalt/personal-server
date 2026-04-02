@@ -227,17 +227,52 @@ func TestPetProjectE2E(t *testing.T) {
 		}
 	})
 
-	// Test 4: Test rollout restart
+	// Test 4: Test rollout restart – verify that image and env vars are updated
 	t.Run("RolloutRestart", func(t *testing.T) {
+		ctx := context.Background()
+		deploymentName := "pet-test-pet-project"
+
+		// Patch the deployment with a stale image to simulate an out-of-date cluster state
+		deployment, err := client.AppsV1().Deployments(testNamespace).Get(ctx, deploymentName, metav1.GetOptions{})
+		if err != nil {
+			t.Fatalf("failed to get deployment before rollout: %v", err)
+		}
+		if len(deployment.Spec.Template.Spec.Containers) == 0 {
+			t.Fatal("deployment has no containers")
+		}
+		deployment.Spec.Template.Spec.Containers[0].Image = "nginx:stale"
+		if _, err = client.AppsV1().Deployments(testNamespace).Update(ctx, deployment, metav1.UpdateOptions{}); err != nil {
+			t.Fatalf("failed to patch deployment with stale image: %v", err)
+		}
+
+		// Run rollout restart
 		output, err := runCommand(t, fullBinaryPath, "-config", fullConfigPath, "test-pet-project", "rollout", "restart")
 		if err != nil {
 			t.Fatalf("failed to rollout restart petproject: %v", err)
 		}
 		t.Logf("Rollout restart output:\n%s", output)
 
-		// Verify the command succeeded
-		if !strings.Contains(output, "completed successfully") && !strings.Contains(output, "restarted") {
-			t.Logf("Warning: rollout restart output doesn't indicate success")
+		if !strings.Contains(output, "completed successfully") {
+			t.Errorf("rollout restart output doesn't indicate success")
+		}
+
+		// Verify the deployment image was restored to what the config specifies (nginx:latest)
+		updated, err := client.AppsV1().Deployments(testNamespace).Get(ctx, deploymentName, metav1.GetOptions{})
+		if err != nil {
+			t.Fatalf("failed to get deployment after rollout: %v", err)
+		}
+		if len(updated.Spec.Template.Spec.Containers) == 0 {
+			t.Fatal("deployment has no containers after rollout")
+		}
+		gotImage := updated.Spec.Template.Spec.Containers[0].Image
+		wantImage := "nginx:latest"
+		if gotImage != wantImage {
+			t.Errorf("container image after rollout = %q, want %q", gotImage, wantImage)
+		}
+
+		// Verify that the restart annotation was stamped
+		if updated.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] == "" {
+			t.Error("restartedAt annotation was not set after rollout restart")
 		}
 	})
 

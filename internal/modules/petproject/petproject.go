@@ -531,7 +531,10 @@ func (m *PetProjectModule) Status(ctx context.Context) error {
 	return nil
 }
 
-// Rollout performs kubectl rollout operations on the pet project deployment
+// Rollout performs rollout operations on the pet project deployment.
+// The "restart" operation updates the deployment image, environment variables, and
+// image pull secret from the current configuration before triggering a pod restart.
+// Other operations (status, history, undo) are delegated to kubectl.
 func (m *PetProjectModule) Rollout(ctx context.Context, args []string) error {
 	deploymentName := fmt.Sprintf("pet-%s", m.ProjectConfig.Name)
 
@@ -552,54 +555,110 @@ func (m *PetProjectModule) Rollout(ctx context.Context, args []string) error {
 		return fmt.Errorf("unknown rollout operation: %s\nAvailable rollout commands: restart, status, history, undo", operation)
 	}
 
+	m.log.Info("🔄 Executing rollout %s for pet project '%s'...\n", operation, m.ProjectConfig.Name)
+
+	if operation == "restart" {
+		return m.rolloutRestart(ctx, deploymentName)
+	}
+
+	// For status, history, undo delegate to kubectl
 	kubectlCmd := "kubectl"
 	if _, err := os.Stat("/snap/bin/microk8s"); err == nil {
 		kubectlCmd = "/snap/bin/microk8s kubectl"
 	}
 
-	m.log.Info("🔄 Executing rollout %s for pet project '%s'...\n", operation, m.ProjectConfig.Name)
-
-	// Build kubectl rollout command
 	cmdStr := fmt.Sprintf("%s rollout %s deployment/%s -n %s", kubectlCmd, operation, deploymentName, m.ProjectConfig.Namespace)
 	cmdParts := strings.Fields(cmdStr)
 	cmd := exec.CommandContext(ctx, cmdParts[0], cmdParts[1:]...)
 
-	// Capture output for status, history operations
-	if operation == "status" || operation == "history" {
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("rollout %s failed: %w\nOutput: %s", operation, err, string(output))
-		}
-		m.log.Info("%s", string(output))
-		m.log.Success("✅ Rollout %s completed successfully\n", operation)
-	} else if operation == "restart" {
-		// For restart, retry on conflict errors (the object has been modified)
-		const maxRetries = 3
-		var lastErr error
-		for attempt := 0; attempt < maxRetries; attempt++ {
-			cmd = exec.CommandContext(ctx, cmdParts[0], cmdParts[1:]...)
-			output, err := cmd.CombinedOutput()
-			if err == nil {
-				m.log.Success("✅ Rollout %s completed successfully\n", operation)
-				break
-			}
-			outputStr := string(output)
-			lastErr = fmt.Errorf("rollout %s failed: %w\nOutput: %s", operation, err, outputStr)
-			if !strings.Contains(outputStr, "the object has been modified") {
-				return lastErr
-			}
-			time.Sleep(time.Duration(attempt+1) * time.Second)
-		}
-		if lastErr != nil {
-			return lastErr
-		}
-	} else {
-		// For undo, just execute
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("rollout %s failed: %w", operation, err)
-		}
-		m.log.Success("✅ Rollout %s completed successfully\n", operation)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("rollout %s failed: %w\nOutput: %s", operation, err, string(output))
+	}
+	m.log.Info("%s", string(output))
+	m.log.Success("✅ Rollout %s completed successfully\n", operation)
+
+	return nil
+}
+
+// rolloutRestart updates the deployment image, environment variables, and image pull
+// secret from the current configuration, then triggers a rollout by patching the
+// pod template's restart annotation.
+func (m *PetProjectModule) rolloutRestart(ctx context.Context, deploymentName string) error {
+	clientset, err := k8s.CreateKubernetesClient()
+	if err != nil {
+		return fmt.Errorf("failed to create Kubernetes client: %w", err)
 	}
 
+	return m.rolloutRestartWithClient(ctx, clientset, deploymentName)
+}
+
+// rolloutRestartWithClient is the testable core of rolloutRestart, accepting an
+// injectable Kubernetes client.
+func (m *PetProjectModule) rolloutRestartWithClient(ctx context.Context, clientset k8s.KubernetesClient, deploymentName string) error {
+	// Update image pull secret if this module manages one
+	secret, secretName, err := m.prepareImagePullSecret()
+	if err != nil {
+		return err
+	}
+	if secret != nil {
+		m.log.Progress("Updating ImagePullSecret: %s\n", secretName)
+		_, err = clientset.CoreV1().Secrets(m.ProjectConfig.Namespace).Update(ctx, secret, metav1.UpdateOptions{})
+		if errors.IsNotFound(err) {
+			_, err = clientset.CoreV1().Secrets(m.ProjectConfig.Namespace).Create(ctx, secret, metav1.CreateOptions{})
+		}
+		if err != nil {
+			return fmt.Errorf("failed to update ImagePullSecret: %w", err)
+		}
+		m.log.Success("Updated ImagePullSecret: %s\n", secretName)
+	}
+
+	// Fetch the existing deployment
+	deployment, err := clientset.AppsV1().Deployments(m.ProjectConfig.Namespace).Get(ctx, deploymentName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get deployment '%s': %w", deploymentName, err)
+	}
+
+	// Build the desired pod spec from current config
+	desired := m.prepareDeployment()
+
+	// Update only the primary container (identified by name) so that injected
+	// sidecars or operator-managed containers are preserved.
+	primaryName := m.ProjectConfig.Name
+	if desired.Spec.Template.Spec.Containers != nil {
+		desiredPrimary := desired.Spec.Template.Spec.Containers[0]
+		updated := false
+		for i := range deployment.Spec.Template.Spec.Containers {
+			if deployment.Spec.Template.Spec.Containers[i].Name == primaryName {
+				deployment.Spec.Template.Spec.Containers[i].Image = desiredPrimary.Image
+				deployment.Spec.Template.Spec.Containers[i].Env = desiredPrimary.Env
+				deployment.Spec.Template.Spec.Containers[i].ImagePullPolicy = desiredPrimary.ImagePullPolicy
+				updated = true
+				break
+			}
+		}
+		if !updated {
+			// Primary container not found – append it so the deployment becomes consistent
+			deployment.Spec.Template.Spec.Containers = append(deployment.Spec.Template.Spec.Containers, desiredPrimary)
+		}
+	}
+	deployment.Spec.Template.Spec.ImagePullSecrets = desired.Spec.Template.Spec.ImagePullSecrets
+
+	// Merge pod-template annotations: preserve existing, then apply config-derived ones,
+	// and finally stamp the restart timestamp to guarantee a rollout.
+	if deployment.Spec.Template.Annotations == nil {
+		deployment.Spec.Template.Annotations = make(map[string]string)
+	}
+	for k, v := range desired.Spec.Template.Annotations {
+		deployment.Spec.Template.Annotations[k] = v
+	}
+	deployment.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.RFC3339)
+
+	// Persist the updated deployment; Kubernetes will roll out the changes
+	if _, err = clientset.AppsV1().Deployments(m.ProjectConfig.Namespace).Update(ctx, deployment, metav1.UpdateOptions{}); err != nil {
+		return fmt.Errorf("failed to update deployment '%s': %w", deploymentName, err)
+	}
+
+	m.log.Success("✅ Rollout restart completed successfully\n")
 	return nil
 }

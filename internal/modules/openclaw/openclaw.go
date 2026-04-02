@@ -258,6 +258,11 @@ func (m *OpenClawModule) prepare() (*corev1.PersistentVolumeClaim, *corev1.Persi
 	}
 
 	// Prepare Deployment
+	image := m.ModuleConfig.Image
+	if image == "" {
+		image = "openclaw/openclaw:latest"
+	}
+
 	replicas := int32(1)
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -287,8 +292,8 @@ func (m *OpenClawModule) prepare() (*corev1.PersistentVolumeClaim, *corev1.Persi
 					Containers: []corev1.Container{
 						{
 							Name:            "openclaw",
-							Image:           "openclaw/openclaw:latest",
-							ImagePullPolicy: k8s.DefaultImagePullPolicy("openclaw/openclaw:latest"),
+							Image:           image,
+							ImagePullPolicy: k8s.DefaultImagePullPolicy(image),
 							Ports: []corev1.ContainerPort{
 								{
 									ContainerPort: 5000,

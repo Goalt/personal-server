@@ -21,6 +21,10 @@ modules:
       cloudflare_api_token: your_cloudflare_api_token
   - name: bitwarden
     namespace: infra
+  - name: openclaw
+    namespace: infra
+    # Optional: override the container image (defaults to openclaw/openclaw:latest)
+    # image: myregistry.example.com/openclaw:v1.2.3
   - name: webdav
     namespace: infra
     secrets:

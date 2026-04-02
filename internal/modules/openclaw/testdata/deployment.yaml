@@ -19,14 +19,16 @@ spec:
                 app: openclaw
         spec:
             containers:
-                - image: openclaw/openclaw:latest
-                  imagePullPolicy: Always
+                - env:
+                    - name: OPENCLAW_GATEWAY_TOKEN
+                  image: ghcr.io/openclaw/openclaw:2026.4.2
+                  imagePullPolicy: IfNotPresent
                   name: openclaw
                   ports:
-                    - containerPort: 5000
+                    - containerPort: 18789
                   resources: {}
                   volumeMounts:
-                    - mountPath: /config
+                    - mountPath: /home/node/.openclaw
                       name: openclaw-config
                     - mountPath: /data
                       name: openclaw-data

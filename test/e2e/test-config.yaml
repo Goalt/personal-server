@@ -72,6 +72,9 @@ modules:
   - name: hobby-pod
     namespace: e2e-test-infra
 
+  - name: openclaw
+    namespace: e2e-test-infra
+
 pet-projects:
   - name: test-pet-project
     namespace: e2e-test-infra

@@ -613,52 +613,68 @@ func (m *PetProjectModule) rolloutRestartWithClient(ctx context.Context, clients
 		m.log.Success("Updated ImagePullSecret: %s\n", secretName)
 	}
 
-	// Fetch the existing deployment
-	deployment, err := clientset.AppsV1().Deployments(m.ProjectConfig.Namespace).Get(ctx, deploymentName, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get deployment '%s': %w", deploymentName, err)
-	}
-
 	// Build the desired pod spec from current config
 	desired := m.prepareDeployment()
-
-	// Update only the primary container (identified by name) so that injected
-	// sidecars or operator-managed containers are preserved.
 	primaryName := m.ProjectConfig.Name
-	if desired.Spec.Template.Spec.Containers != nil {
-		desiredPrimary := desired.Spec.Template.Spec.Containers[0]
-		updated := false
-		for i := range deployment.Spec.Template.Spec.Containers {
-			if deployment.Spec.Template.Spec.Containers[i].Name == primaryName {
-				deployment.Spec.Template.Spec.Containers[i].Image = desiredPrimary.Image
-				deployment.Spec.Template.Spec.Containers[i].Env = desiredPrimary.Env
-				deployment.Spec.Template.Spec.Containers[i].ImagePullPolicy = desiredPrimary.ImagePullPolicy
-				updated = true
-				break
+
+	// Retry the Get+Update cycle on resource-version conflict (the object has been
+	// modified between our Get and Update by a controller).
+	const maxRetries = 5
+	var lastErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			time.Sleep(time.Duration(attempt) * time.Second)
+		}
+
+		// Fetch the existing deployment with the latest resource version
+		deployment, getErr := clientset.AppsV1().Deployments(m.ProjectConfig.Namespace).Get(ctx, deploymentName, metav1.GetOptions{})
+		if getErr != nil {
+			return fmt.Errorf("failed to get deployment '%s': %w", deploymentName, getErr)
+		}
+
+		// Update only the primary container (identified by name) so that injected
+		// sidecars or operator-managed containers are preserved.
+		if desired.Spec.Template.Spec.Containers != nil {
+			desiredPrimary := desired.Spec.Template.Spec.Containers[0]
+			updated := false
+			for i := range deployment.Spec.Template.Spec.Containers {
+				if deployment.Spec.Template.Spec.Containers[i].Name == primaryName {
+					deployment.Spec.Template.Spec.Containers[i].Image = desiredPrimary.Image
+					deployment.Spec.Template.Spec.Containers[i].Env = desiredPrimary.Env
+					deployment.Spec.Template.Spec.Containers[i].ImagePullPolicy = desiredPrimary.ImagePullPolicy
+					updated = true
+					break
+				}
+			}
+			if !updated {
+				// Primary container not found – append it so the deployment becomes consistent
+				deployment.Spec.Template.Spec.Containers = append(deployment.Spec.Template.Spec.Containers, desiredPrimary)
 			}
 		}
-		if !updated {
-			// Primary container not found – append it so the deployment becomes consistent
-			deployment.Spec.Template.Spec.Containers = append(deployment.Spec.Template.Spec.Containers, desiredPrimary)
+		deployment.Spec.Template.Spec.ImagePullSecrets = desired.Spec.Template.Spec.ImagePullSecrets
+
+		// Merge pod-template annotations: preserve existing, then apply config-derived ones,
+		// and finally stamp the restart timestamp to guarantee a rollout.
+		if deployment.Spec.Template.Annotations == nil {
+			deployment.Spec.Template.Annotations = make(map[string]string)
 		}
-	}
-	deployment.Spec.Template.Spec.ImagePullSecrets = desired.Spec.Template.Spec.ImagePullSecrets
+		for k, v := range desired.Spec.Template.Annotations {
+			deployment.Spec.Template.Annotations[k] = v
+		}
+		deployment.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.RFC3339)
 
-	// Merge pod-template annotations: preserve existing, then apply config-derived ones,
-	// and finally stamp the restart timestamp to guarantee a rollout.
-	if deployment.Spec.Template.Annotations == nil {
-		deployment.Spec.Template.Annotations = make(map[string]string)
-	}
-	for k, v := range desired.Spec.Template.Annotations {
-		deployment.Spec.Template.Annotations[k] = v
-	}
-	deployment.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.RFC3339)
+		// Persist the updated deployment; Kubernetes will roll out the changes
+		if _, updateErr := clientset.AppsV1().Deployments(m.ProjectConfig.Namespace).Update(ctx, deployment, metav1.UpdateOptions{}); updateErr != nil {
+			if errors.IsConflict(updateErr) {
+				lastErr = fmt.Errorf("failed to update deployment '%s': %w", deploymentName, updateErr)
+				m.log.Info("Deployment '%s' was modified concurrently, retrying (%d/%d)...\n", deploymentName, attempt+1, maxRetries)
+				continue
+			}
+			return fmt.Errorf("failed to update deployment '%s': %w", deploymentName, updateErr)
+		}
 
-	// Persist the updated deployment; Kubernetes will roll out the changes
-	if _, err = clientset.AppsV1().Deployments(m.ProjectConfig.Namespace).Update(ctx, deployment, metav1.UpdateOptions{}); err != nil {
-		return fmt.Errorf("failed to update deployment '%s': %w", deploymentName, err)
+		m.log.Success("✅ Rollout restart completed successfully\n")
+		return nil
 	}
-
-	m.log.Success("✅ Rollout restart completed successfully\n")
-	return nil
+	return lastErr
 }

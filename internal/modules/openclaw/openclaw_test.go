@@ -377,6 +377,51 @@ func TestOpenClawModule_PrepareDeploymentContainer(t *testing.T) {
 	}
 }
 
+func TestOpenClawModule_PrepareWithCustomImage(t *testing.T) {
+	tests := []struct {
+		name          string
+		configImage   string
+		expectedImage string
+	}{
+		{
+			name:          "default image when not set",
+			configImage:   "",
+			expectedImage: "openclaw/openclaw:latest",
+		},
+		{
+			name:          "custom image from config",
+			configImage:   "myregistry.example.com/openclaw:v1.2.3",
+			expectedImage: "myregistry.example.com/openclaw:v1.2.3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			module := &OpenClawModule{
+				GeneralConfig: config.GeneralConfig{
+					Domain: "example.com",
+				},
+				ModuleConfig: config.Module{
+					Name:      "openclaw",
+					Namespace: "test-namespace",
+					Image:     tt.configImage,
+				},
+			}
+
+			_, _, _, deployment := module.prepare()
+
+			if len(deployment.Spec.Template.Spec.Containers) != 1 {
+				t.Fatalf("Container count = %d, want 1", len(deployment.Spec.Template.Spec.Containers))
+			}
+
+			container := deployment.Spec.Template.Spec.Containers[0]
+			if container.Image != tt.expectedImage {
+				t.Errorf("Container image = %s, want %s", container.Image, tt.expectedImage)
+			}
+		})
+	}
+}
+
 func TestOpenClawModule_PrepareDeploymentVolumes(t *testing.T) {
 	module := &OpenClawModule{
 		GeneralConfig: config.GeneralConfig{

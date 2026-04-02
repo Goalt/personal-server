@@ -572,8 +572,29 @@ func (m *PetProjectModule) Rollout(ctx context.Context, args []string) error {
 		}
 		m.log.Info("%s", string(output))
 		m.log.Success("✅ Rollout %s completed successfully\n", operation)
+	} else if operation == "restart" {
+		// For restart, retry on conflict errors (the object has been modified)
+		const maxRetries = 3
+		var lastErr error
+		for attempt := 0; attempt < maxRetries; attempt++ {
+			cmd = exec.CommandContext(ctx, cmdParts[0], cmdParts[1:]...)
+			output, err := cmd.CombinedOutput()
+			if err == nil {
+				m.log.Success("✅ Rollout %s completed successfully\n", operation)
+				break
+			}
+			outputStr := string(output)
+			lastErr = fmt.Errorf("rollout %s failed: %w\nOutput: %s", operation, err, outputStr)
+			if !strings.Contains(outputStr, "the object has been modified") {
+				return lastErr
+			}
+			time.Sleep(time.Duration(attempt+1) * time.Second)
+		}
+		if lastErr != nil {
+			return lastErr
+		}
 	} else {
-		// For restart and undo, just execute
+		// For undo, just execute
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("rollout %s failed: %w", operation, err)
 		}

@@ -42,7 +42,7 @@ func (m *OpenClawModule) Name() string {
 func (m *OpenClawModule) Doc(ctx context.Context) error {
 	m.log.Info("Module: openclaw\n\n")
 	m.log.Info("Description:\n  Deploys the OpenClaw application.\n  Manages two PersistentVolumeClaims (data and assets), a Service, and a Deployment.\n\n")
-	m.log.Info("Required configuration keys (modules[].secrets):\n  (none — no secrets required)\n\n")
+	m.log.Info("Required configuration keys (modules[].secrets):\n  dashboard_token   Gateway token for OpenClaw (OPENCLAW_GATEWAY_TOKEN)\n\n")
 	m.log.Info("Subcommands:\n  generate   Write Kubernetes YAML to configs/openclaw/\n  apply      Create/update resources in the cluster\n  clean      Delete all OpenClaw resources from the cluster\n  status     Print Deployment and Pod status\n  doc        Show this documentation\n  backup     Archive data and assets volumes to the destination directory\n  restore    Restore volumes from a backup archive\n")
 	return nil
 }
@@ -247,8 +247,8 @@ func (m *OpenClawModule) prepare() (*corev1.PersistentVolumeClaim, *corev1.Persi
 			Ports: []corev1.ServicePort{
 				{
 					Name:       "http",
-					Port:       5000,
-					TargetPort: intstr.FromInt(5000),
+					Port:       18789,
+					TargetPort: intstr.FromInt(18789),
 				},
 			},
 			Selector: map[string]string{
@@ -260,8 +260,10 @@ func (m *OpenClawModule) prepare() (*corev1.PersistentVolumeClaim, *corev1.Persi
 	// Prepare Deployment
 	image := m.ModuleConfig.Image
 	if image == "" {
-		image = "openclaw/openclaw:latest"
+		image = "ghcr.io/openclaw/openclaw:2026.4.2"
 	}
+
+	gatewayToken := m.ModuleConfig.Secrets["dashboard_token"]
 
 	replicas := int32(1)
 	deployment := &appsv1.Deployment{
@@ -294,15 +296,21 @@ func (m *OpenClawModule) prepare() (*corev1.PersistentVolumeClaim, *corev1.Persi
 							Name:            "openclaw",
 							Image:           image,
 							ImagePullPolicy: k8s.DefaultImagePullPolicy(image),
+							Env: []corev1.EnvVar{
+								{
+									Name:  "OPENCLAW_GATEWAY_TOKEN",
+									Value: gatewayToken,
+								},
+							},
 							Ports: []corev1.ContainerPort{
 								{
-									ContainerPort: 5000,
+									ContainerPort: 18789,
 								},
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "openclaw-config",
-									MountPath: "/config",
+									MountPath: "/home/node/.openclaw",
 								},
 								{
 									Name:      "openclaw-data",

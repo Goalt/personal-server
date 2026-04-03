@@ -23,7 +23,9 @@ modules:
     namespace: infra
   - name: openclaw
     namespace: infra
-    # Optional: override the container image (defaults to openclaw/openclaw:latest)
+    secrets:
+      dashboard_token: your_dashboard_token   # required: gateway token for OpenClaw
+    # Optional: override the container image (defaults to ghcr.io/openclaw/openclaw:2026.4.2)
     # image: myregistry.example.com/openclaw:v1.2.3
   - name: webdav
     namespace: infra

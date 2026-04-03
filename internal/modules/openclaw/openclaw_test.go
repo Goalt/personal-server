@@ -214,21 +214,21 @@ func TestOpenClawModule_PrepareService(t *testing.T) {
 		t.Errorf("Service ports count = %d, want 1", len(service.Spec.Ports))
 	}
 
-	// Verify port 5000
-	port5000Found := false
+	// Verify port 18789
+	port18789Found := false
 	for _, port := range service.Spec.Ports {
-		if port.Port == 5000 {
-			port5000Found = true
+		if port.Port == 18789 {
+			port18789Found = true
 			if port.Name != "http" {
-				t.Errorf("Port 5000 name = %s, want http", port.Name)
+				t.Errorf("Port 18789 name = %s, want http", port.Name)
 			}
-			if port.TargetPort.IntVal != 5000 {
-				t.Errorf("Port 5000 targetPort = %d, want 5000", port.TargetPort.IntVal)
+			if port.TargetPort.IntVal != 18789 {
+				t.Errorf("Port 18789 targetPort = %d, want 18789", port.TargetPort.IntVal)
 			}
 		}
 	}
-	if !port5000Found {
-		t.Error("Service missing port 5000")
+	if !port18789Found {
+		t.Error("Service missing port 18789")
 	}
 
 	// Test selector
@@ -329,14 +329,14 @@ func TestOpenClawModule_PrepareDeploymentContainer(t *testing.T) {
 	}
 
 	// Test container image
-	expectedImage := "openclaw/openclaw:latest"
+	expectedImage := "ghcr.io/openclaw/openclaw:2026.4.2"
 	if container.Image != expectedImage {
 		t.Errorf("Container image = %s, want %s", container.Image, expectedImage)
 	}
 
 	// Test image pull policy
-	if container.ImagePullPolicy != corev1.PullAlways {
-		t.Errorf("Container ImagePullPolicy = %s, want Always", container.ImagePullPolicy)
+	if container.ImagePullPolicy != corev1.PullIfNotPresent {
+		t.Errorf("Container ImagePullPolicy = %s, want IfNotPresent", container.ImagePullPolicy)
 	}
 
 	// Test container ports
@@ -344,14 +344,14 @@ func TestOpenClawModule_PrepareDeploymentContainer(t *testing.T) {
 		t.Errorf("Container ports count = %d, want 1", len(container.Ports))
 	}
 
-	port5000Found := false
+	port18789Found := false
 	for _, port := range container.Ports {
-		if port.ContainerPort == 5000 {
-			port5000Found = true
+		if port.ContainerPort == 18789 {
+			port18789Found = true
 		}
 	}
-	if !port5000Found {
-		t.Error("Container missing port 5000")
+	if !port18789Found {
+		t.Error("Container missing port 18789")
 	}
 
 	// Test volume mounts
@@ -362,7 +362,7 @@ func TestOpenClawModule_PrepareDeploymentContainer(t *testing.T) {
 	configMountFound := false
 	dataMountFound := false
 	for _, vm := range container.VolumeMounts {
-		if vm.Name == "openclaw-config" && vm.MountPath == "/config" {
+		if vm.Name == "openclaw-config" && vm.MountPath == "/home/node/.openclaw" {
 			configMountFound = true
 		}
 		if vm.Name == "openclaw-data" && vm.MountPath == "/data" {
@@ -370,10 +370,21 @@ func TestOpenClawModule_PrepareDeploymentContainer(t *testing.T) {
 		}
 	}
 	if !configMountFound {
-		t.Error("Container missing config volume mount at /config")
+		t.Error("Container missing config volume mount at /home/node/.openclaw")
 	}
 	if !dataMountFound {
 		t.Error("Container missing data volume mount at /data")
+	}
+
+	// Test env vars
+	gatewayTokenFound := false
+	for _, env := range container.Env {
+		if env.Name == "OPENCLAW_GATEWAY_TOKEN" {
+			gatewayTokenFound = true
+		}
+	}
+	if !gatewayTokenFound {
+		t.Error("Container missing OPENCLAW_GATEWAY_TOKEN env var")
 	}
 }
 
@@ -386,7 +397,7 @@ func TestOpenClawModule_PrepareWithCustomImage(t *testing.T) {
 		{
 			name:          "default image when not set",
 			configImage:   "",
-			expectedImage: "openclaw/openclaw:latest",
+			expectedImage: "ghcr.io/openclaw/openclaw:2026.4.2",
 		},
 		{
 			name:          "custom image from config",
@@ -419,6 +430,42 @@ func TestOpenClawModule_PrepareWithCustomImage(t *testing.T) {
 				t.Errorf("Container image = %s, want %s", container.Image, tt.expectedImage)
 			}
 		})
+	}
+}
+
+func TestOpenClawModule_PrepareGatewayToken(t *testing.T) {
+	module := &OpenClawModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		ModuleConfig: config.Module{
+			Name:      "openclaw",
+			Namespace: "test-namespace",
+			Secrets: map[string]string{
+				"dashboard_token": "my-secret-token",
+			},
+		},
+	}
+
+	_, _, _, deployment := module.prepare()
+
+	if len(deployment.Spec.Template.Spec.Containers) != 1 {
+		t.Fatalf("Container count = %d, want 1", len(deployment.Spec.Template.Spec.Containers))
+	}
+
+	container := deployment.Spec.Template.Spec.Containers[0]
+
+	tokenFound := false
+	for _, env := range container.Env {
+		if env.Name == "OPENCLAW_GATEWAY_TOKEN" {
+			tokenFound = true
+			if env.Value != "my-secret-token" {
+				t.Errorf("OPENCLAW_GATEWAY_TOKEN = %s, want my-secret-token", env.Value)
+			}
+		}
+	}
+	if !tokenFound {
+		t.Error("Container missing OPENCLAW_GATEWAY_TOKEN env var")
 	}
 }
 

@@ -481,8 +481,8 @@ func TestOpenClawModule_PrepareWithExtraEnvs(t *testing.T) {
 				"dashboard_token": "my-secret-token",
 			},
 			Envs: map[string]string{
-				"EXTRA_VAR":    "extra-value",
-				"ANOTHER_VAR":  "another-value",
+				"EXTRA_VAR":   "extra-value",
+				"ANOTHER_VAR": "another-value",
 			},
 		},
 	}

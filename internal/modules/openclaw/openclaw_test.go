@@ -469,6 +469,62 @@ func TestOpenClawModule_PrepareGatewayToken(t *testing.T) {
 	}
 }
 
+func TestOpenClawModule_PrepareWithExtraEnvs(t *testing.T) {
+	module := &OpenClawModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		ModuleConfig: config.Module{
+			Name:      "openclaw",
+			Namespace: "test-namespace",
+			Secrets: map[string]string{
+				"dashboard_token": "my-secret-token",
+			},
+			Envs: map[string]string{
+				"EXTRA_VAR":   "extra-value",
+				"ANOTHER_VAR": "another-value",
+			},
+		},
+	}
+
+	_, _, _, deployment := module.prepare()
+
+	if len(deployment.Spec.Template.Spec.Containers) != 1 {
+		t.Fatalf("Container count = %d, want 1", len(deployment.Spec.Template.Spec.Containers))
+	}
+
+	container := deployment.Spec.Template.Spec.Containers[0]
+
+	envMap := make(map[string]string)
+	for _, env := range container.Env {
+		envMap[env.Name] = env.Value
+	}
+
+	if envMap["OPENCLAW_GATEWAY_TOKEN"] != "my-secret-token" {
+		t.Errorf("OPENCLAW_GATEWAY_TOKEN = %s, want my-secret-token", envMap["OPENCLAW_GATEWAY_TOKEN"])
+	}
+	if envMap["EXTRA_VAR"] != "extra-value" {
+		t.Errorf("EXTRA_VAR = %s, want extra-value", envMap["EXTRA_VAR"])
+	}
+	if envMap["ANOTHER_VAR"] != "another-value" {
+		t.Errorf("ANOTHER_VAR = %s, want another-value", envMap["ANOTHER_VAR"])
+	}
+
+	// Verify envs appear after OPENCLAW_GATEWAY_TOKEN (sorted alphabetically)
+	if len(container.Env) != 3 {
+		t.Errorf("Env count = %d, want 3", len(container.Env))
+	}
+	if container.Env[0].Name != "OPENCLAW_GATEWAY_TOKEN" {
+		t.Errorf("First env = %s, want OPENCLAW_GATEWAY_TOKEN", container.Env[0].Name)
+	}
+	if container.Env[1].Name != "ANOTHER_VAR" {
+		t.Errorf("Second env = %s, want ANOTHER_VAR", container.Env[1].Name)
+	}
+	if container.Env[2].Name != "EXTRA_VAR" {
+		t.Errorf("Third env = %s, want EXTRA_VAR", container.Env[2].Name)
+	}
+}
+
 func TestOpenClawModule_PrepareDeploymentVolumes(t *testing.T) {
 	module := &OpenClawModule{
 		GeneralConfig: config.GeneralConfig{

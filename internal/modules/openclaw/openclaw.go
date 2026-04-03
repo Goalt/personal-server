@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -265,6 +266,26 @@ func (m *OpenClawModule) prepare() (*corev1.PersistentVolumeClaim, *corev1.Persi
 
 	gatewayToken := m.ModuleConfig.Secrets["dashboard_token"]
 
+	envVars := []corev1.EnvVar{
+		{
+			Name:  "OPENCLAW_GATEWAY_TOKEN",
+			Value: gatewayToken,
+		},
+	}
+	if len(m.ModuleConfig.Envs) > 0 {
+		keys := make([]string, 0, len(m.ModuleConfig.Envs))
+		for k := range m.ModuleConfig.Envs {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  k,
+				Value: m.ModuleConfig.Envs[k],
+			})
+		}
+	}
+
 	replicas := int32(1)
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -296,12 +317,7 @@ func (m *OpenClawModule) prepare() (*corev1.PersistentVolumeClaim, *corev1.Persi
 							Name:            "openclaw",
 							Image:           image,
 							ImagePullPolicy: k8s.DefaultImagePullPolicy(image),
-							Env: []corev1.EnvVar{
-								{
-									Name:  "OPENCLAW_GATEWAY_TOKEN",
-									Value: gatewayToken,
-								},
-							},
+							Env:             envVars,
 							Ports: []corev1.ContainerPort{
 								{
 									ContainerPort: 18789,

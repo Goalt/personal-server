@@ -13,6 +13,7 @@ type Module struct {
 	Namespace string            `yaml:"namespace"`
 	Image     string            `yaml:"image,omitempty"`
 	Secrets   map[string]string `yaml:"secrets"`
+	Envs      map[string]string `yaml:"envs,omitempty"`
 }
 
 // ServicePort represents a service port configuration

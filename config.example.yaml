@@ -27,6 +27,10 @@ modules:
       dashboard_token: your_dashboard_token   # required: gateway token for OpenClaw
     # Optional: override the container image (defaults to ghcr.io/openclaw/openclaw:2026.4.2)
     # image: myregistry.example.com/openclaw:v1.2.3
+    # Optional: pass extra environment variables to the container
+    # envs:
+    #   MY_CUSTOM_VAR: my-value
+    #   ANOTHER_VAR: another-value
   - name: webdav
     namespace: infra
     secrets:

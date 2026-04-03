@@ -334,6 +334,11 @@ func (m *OpenClawModule) prepare() (*corev1.PersistentVolumeClaim, *corev1.Persi
 								},
 							},
 						},
+						{
+							Name:            "browser",
+							Image:           "ghcr.io/browserless/chrome:latest",
+							ImagePullPolicy: corev1.PullAlways,
+						},
 					},
 					Volumes: []corev1.Volume{
 						{

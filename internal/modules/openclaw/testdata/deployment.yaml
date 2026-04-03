@@ -32,6 +32,10 @@ spec:
                       name: openclaw-config
                     - mountPath: /data
                       name: openclaw-data
+                - image: ghcr.io/browserless/chrome:latest
+                  imagePullPolicy: Always
+                  name: browser
+                  resources: {}
             restartPolicy: Always
             volumes:
                 - name: openclaw-config

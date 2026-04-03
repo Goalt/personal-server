@@ -525,7 +525,6 @@ func TestOpenClawModule_PrepareWithExtraEnvs(t *testing.T) {
 	}
 }
 
-
 func TestOpenClawModule_PrepareDeploymentVolumes(t *testing.T) {
 	module := &OpenClawModule{
 		GeneralConfig: config.GeneralConfig{

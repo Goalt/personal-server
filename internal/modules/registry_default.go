@@ -23,6 +23,7 @@ import (
 	"github.com/Goalt/personal-server/internal/modules/sshlogin"
 	"github.com/Goalt/personal-server/internal/modules/webdav"
 	"github.com/Goalt/personal-server/internal/modules/workpod"
+	"github.com/Goalt/personal-server/internal/modules/xray"
 )
 
 // DefaultRegistry returns a registry with all built-in modules
@@ -82,6 +83,9 @@ func DefaultRegistry(log logger.Logger) *Registry {
 	})
 	r.Register("openclaw", func(g config.GeneralConfig, m config.Module, log logger.Logger) Module {
 		return openclaw.New(g, m, log)
+	})
+	r.Register("xray", func(g config.GeneralConfig, m config.Module, log logger.Logger) Module {
+		return xray.New(g, m, log)
 	})
 
 	// Register default pet project factory

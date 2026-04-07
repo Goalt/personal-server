@@ -1,0 +1,40 @@
+apiVersion: v1
+data:
+    config.json: |-
+        {
+          "inbounds": [
+            {
+              "port": 10000,
+              "listen": "0.0.0.0",
+              "protocol": "vless",
+              "settings": {
+                "clients": [
+                  {
+                    "id": "a2fb4a5d-c720-4f71-b256-9a43d6d534c8",
+                    "level": 0
+                  }
+                ],
+                "decryption": "none"
+              },
+              "streamSettings": {
+                "network": "ws",
+                "wsSettings": {
+                  "path": "/vpn-secret-path"
+                }
+              }
+            }
+          ],
+          "outbounds": [
+            {
+              "protocol": "freedom"
+            }
+          ]
+        }
+kind: ConfigMap
+metadata:
+    creationTimestamp: null
+    labels:
+        app: xray
+        managed-by: personal-server
+    name: xray-config
+    namespace: infra

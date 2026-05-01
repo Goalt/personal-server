@@ -22,7 +22,7 @@ spec:
                 - env:
                     - name: WEBSOCKET_ENABLED
                       value: "true"
-                  image: vaultwarden/server:1.32.0
+                  image: vaultwarden/server:1.35.8
                   imagePullPolicy: IfNotPresent
                   name: bitwarden
                   ports:

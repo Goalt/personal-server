@@ -308,7 +308,7 @@ func TestBitwardenModule_PrepareDeploymentContainer(t *testing.T) {
 	}
 
 	// Test container image
-	expectedImage := "vaultwarden/server:1.32.0"
+	expectedImage := "vaultwarden/server:1.35.8"
 	if container.Image != expectedImage {
 		t.Errorf("Container image = %s, want %s", container.Image, expectedImage)
 	}

@@ -233,6 +233,11 @@ func (a *App) handleModuleCommand(ctx context.Context, args []string, module mod
 			return runner.CodeServeWeb(ctx)
 		}
 		return fmt.Errorf("module '%s' does not support code-serve-web", module.Name())
+	case "code-serve-web-token":
+		if printer, ok := module.(modules.CodeServeWebTokenPrinter); ok {
+			return printer.CodeServeWebToken(ctx)
+		}
+		return fmt.Errorf("module '%s' does not support code-serve-web-token", module.Name())
 	default:
 		return fmt.Errorf("unknown subcommand: %s\nAvailable subcommands: %s", subcommand, availableSubcommands)
 	}
@@ -285,6 +290,9 @@ func moduleSubcommands(module modules.Module) []string {
 	}
 	if _, ok := module.(modules.CodeServeWebRunner); ok {
 		subcommands = append(subcommands, "code-serve-web")
+	}
+	if _, ok := module.(modules.CodeServeWebTokenPrinter); ok {
+		subcommands = append(subcommands, "code-serve-web-token")
 	}
 
 	return subcommands

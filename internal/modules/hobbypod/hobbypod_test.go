@@ -428,6 +428,54 @@ func TestHobbyPodModule_ImplementsCodeServeWebRunner(t *testing.T) {
 	}
 }
 
+func TestHobbyPodModule_ImplementsCodeServeWebTokenPrinter(t *testing.T) {
+	module := &HobbyPodModule{}
+	if _, ok := interface{}(module).(interface {
+		CodeServeWebToken(ctx context.Context) error
+	}); !ok {
+		t.Error("HobbyPodModule does not implement CodeServeWebTokenPrinter interface")
+	}
+}
+
+func TestHobbyPodModule_codeServeWebURL(t *testing.T) {
+	tests := []struct {
+		name   string
+		domain string
+		token  string
+		want   string
+	}{
+		{
+			name:   "with domain",
+			domain: "ykonkov.com",
+			token:  "abc123",
+			want:   "https://hobbypod.ykonkov.com/?tkn=abc123",
+		},
+		{
+			name:   "with whitespace domain trimmed",
+			domain: "  example.com  ",
+			token:  "tok",
+			want:   "https://hobbypod.example.com/?tkn=tok",
+		},
+		{
+			name:   "empty domain falls back to localhost",
+			domain: "",
+			token:  "abc123",
+			want:   "http://localhost:20000/?tkn=abc123",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			module := &HobbyPodModule{
+				GeneralConfig: config.GeneralConfig{Domain: tt.domain},
+			}
+			if got := module.codeServeWebURL(tt.token); got != tt.want {
+				t.Errorf("codeServeWebURL() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 //go:embed testdata/deployment.yaml
 var expectedDeploymentYAML string
 

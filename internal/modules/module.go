@@ -60,3 +60,9 @@ type Rollouter interface {
 type CodeServeWebRunner interface {
 	CodeServeWeb(ctx context.Context) error
 }
+
+// CodeServeWebTokenPrinter defines the interface for modules that can print the
+// connection token of an already running code serve-web instance.
+type CodeServeWebTokenPrinter interface {
+	CodeServeWebToken(ctx context.Context) error
+}

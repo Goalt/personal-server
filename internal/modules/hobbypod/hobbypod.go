@@ -43,8 +43,8 @@ func (m *HobbyPodModule) Doc(ctx context.Context) error {
 	m.log.Info("Module: hobby-pod\n\n")
 	m.log.Info("Description:\n  Deploys a personal hobby development pod with a persistent workspace.\n  Manages a PersistentVolumeClaim, Service, and Deployment.\n  Supports VS Code remote tunnels via the code-serve-web subcommand.\n\n")
 	m.log.Info("Optional configuration keys (modules[].secrets):\n  image_tag   Custom container image tag (default: ghcr.io/goalt/work-config:latest)\n\n")
-	m.log.Info("Subcommands:\n  generate        Write Kubernetes YAML to configs/hobbypod/\n  apply           Create/update resources in the cluster\n  clean           Delete all hobby-pod resources from the cluster\n  status          Print Deployment and Pod status\n  doc             Show this documentation\n  backup          Archive the workspace volume to the destination directory\n  restore         Restore the workspace volume from a backup archive\n  code-serve-web  Start VS Code serve-web inside the running pod and print the connection token and access URL to stdout\n")
-	m.log.Info("code-serve-web output:\n  After starting, the connection token and access URL are printed directly to stdout.\n  Example output:\n    Connection token: <token>\n    Access URL:       http://localhost:20000/?tkn=<token>\n  The token is never written to log files.\n  Use kubectl port-forward to access the web interface from your local machine.\n")
+	m.log.Info("Subcommands:\n  generate              Write Kubernetes YAML to configs/hobbypod/\n  apply                 Create/update resources in the cluster\n  clean                 Delete all hobby-pod resources from the cluster\n  status                Print Deployment and Pod status\n  doc                   Show this documentation\n  backup                Archive the workspace volume to the destination directory\n  restore               Restore the workspace volume from a backup archive\n  code-serve-web        Start VS Code serve-web inside the running pod and print the connection token and access URL to stdout\n  code-serve-web-token  Print the connection token and access URL of a previously started code serve-web instance\n")
+	m.log.Info("code-serve-web output:\n  After starting, the connection token and access URL are printed directly to stdout.\n  The token is also persisted inside the pod at %s so it can be retrieved later\n  with the code-serve-web-token subcommand. The token is never written to log files.\n  Access URL format: https://hobbypod.<domain>/?tkn=<token> (falls back to http://localhost:20000\n  when no domain is configured).\n", codeServeWebTokenPath)
 	return nil
 }
 
@@ -695,6 +695,21 @@ func (m *HobbyPodModule) Restore(ctx context.Context, args []string) error {
 	return nil
 }
 
+// codeServeWebTokenPath is the location inside the pod where the connection
+// token for code serve-web is persisted. It is intentionally placed under the
+// same directory used by the VS Code CLI so that it survives pod restarts on
+// the workspace volume and can be retrieved later with the
+// code-serve-web-token subcommand.
+const codeServeWebTokenPath = "/root/.vscode/cli/code-serve-token"
+
+func (m *HobbyPodModule) codeServeWebURL(token string) string {
+	domain := strings.TrimSpace(m.GeneralConfig.Domain)
+	if domain == "" {
+		return fmt.Sprintf("http://localhost:20000/?tkn=%s", token)
+	}
+	return fmt.Sprintf("https://hobbypod.%s/?tkn=%s", domain, token)
+}
+
 func (m *HobbyPodModule) CodeServeWeb(ctx context.Context) error {
 	token, err := k8s.GenerateConnectionToken()
 	if err != nil {
@@ -708,7 +723,16 @@ func (m *HobbyPodModule) CodeServeWeb(ctx context.Context) error {
 		kubectlArgs = append(kubectlArgs, "kubectl")
 	}
 
-	shellCmd := fmt.Sprintf("nohup code serve-web --host 0.0.0.0 --port 20000 --connection-token %s > /dev/null 2>&1 &", token)
+	// Persist the token inside the pod so that it can be retrieved later via
+	// the code-serve-web-token subcommand, then start the server.
+	shellCmd := fmt.Sprintf(
+		"mkdir -p %s && printf %%s %s > %s && chmod 600 %s && nohup code serve-web --host 0.0.0.0 --port 20000 --connection-token %s > /dev/null 2>&1 &",
+		filepath.Dir(codeServeWebTokenPath),
+		token,
+		codeServeWebTokenPath,
+		codeServeWebTokenPath,
+		token,
+	)
 	kubectlArgs = append(kubectlArgs, "exec", "-n", m.ModuleConfig.Namespace, "deployment/hobby-pod", "--", "sh", "-c", shellCmd)
 	cmd := exec.CommandContext(ctx, kubectlBin, kubectlArgs...)
 	cmd.Stdout = os.Stdout
@@ -720,7 +744,42 @@ func (m *HobbyPodModule) CodeServeWeb(ctx context.Context) error {
 
 	m.log.Success("code serve-web started successfully\n")
 	fmt.Fprintf(os.Stdout, "\nConnection token: %s\n", token)
-	fmt.Fprintf(os.Stdout, "Access URL:       http://localhost:20000/?tkn=%s\n\n", token)
-	fmt.Fprintf(os.Stdout, "Tip: if not already forwarded, run:\n  kubectl port-forward -n %s deployment/hobby-pod 20000:20000\n", m.ModuleConfig.Namespace)
+	fmt.Fprintf(os.Stdout, "Access URL:       %s\n", m.codeServeWebURL(token))
+	fmt.Fprintf(os.Stdout, "Token file (in pod): %s\n\n", codeServeWebTokenPath)
+	fmt.Fprintf(os.Stdout, "Retrieve the token later with:\n  personal-server hobby-pod code-serve-web-token\n")
+	return nil
+}
+
+// CodeServeWebToken reads the connection token that was stored inside the pod
+// by a previous code-serve-web run and prints it (along with the access URL)
+// directly to stdout. The token is intentionally not routed through the
+// logger to avoid accidental persistence in log files.
+func (m *HobbyPodModule) CodeServeWebToken(ctx context.Context) error {
+	kubectlBin := "kubectl"
+	var kubectlArgs []string
+	if _, err := os.Stat("/snap/bin/microk8s"); err == nil {
+		kubectlBin = "/snap/bin/microk8s"
+		kubectlArgs = append(kubectlArgs, "kubectl")
+	}
+
+	kubectlArgs = append(kubectlArgs,
+		"exec", "-n", m.ModuleConfig.Namespace, "deployment/hobby-pod",
+		"--", "cat", codeServeWebTokenPath,
+	)
+	cmd := exec.CommandContext(ctx, kubectlBin, kubectlArgs...)
+	cmd.Stderr = os.Stderr
+
+	out, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to read code serve-web token from pod (was code-serve-web ever started?): %w", err)
+	}
+
+	token := strings.TrimSpace(string(out))
+	if token == "" {
+		return fmt.Errorf("code serve-web token file %s is empty", codeServeWebTokenPath)
+	}
+
+	fmt.Fprintf(os.Stdout, "Connection token: %s\n", token)
+	fmt.Fprintf(os.Stdout, "Access URL:       %s\n", m.codeServeWebURL(token))
 	return nil
 }

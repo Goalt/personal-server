@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -91,4 +93,31 @@ func testBackupCommand(t *testing.T, moduleName string) bool {
 	}
 	t.Logf("Backup output:\n%s", output)
 	return true
+}
+
+// waitForPodRunning waits until at least one pod matching labelSelector in
+// namespace ns reaches the Running phase, or until timeout is exceeded.
+// Fails the test if no pod becomes Running in time.
+func waitForPodRunning(t *testing.T, client *kubernetes.Clientset, ns, labelSelector string, timeout time.Duration) {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		pods, err := client.CoreV1().Pods(ns).List(ctx, metav1.ListOptions{
+			LabelSelector: labelSelector,
+		})
+		if err == nil {
+			for _, pod := range pods.Items {
+				if pod.Status.Phase == corev1.PodRunning {
+					t.Logf("Pod %s is running", pod.Name)
+					return
+				}
+			}
+		}
+		time.Sleep(2 * time.Second)
+	}
+	t.Fatalf("no pod with selector %q in namespace %q became Running within %s", labelSelector, ns, timeout)
 }

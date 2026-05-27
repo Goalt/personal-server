@@ -265,7 +265,51 @@ modules:
 		testBackupCommand(t, "hobby-pod")
 	})
 
-	// Test 7: Clean up hobbypod resources
+	// Test 7: Start code-serve-web and verify the token is printed to stdout
+	// and persisted inside the pod so that it can later be retrieved via
+	// the code-serve-web-token subcommand.
+	t.Run("CodeServeWeb", func(t *testing.T) {
+		// Wait for the pod to be running before we exec into it.
+		waitForPodRunning(t, client, testNamespace, "app=hobby-pod", 60*time.Second)
+
+		output, err := runCommand(t, fullBinaryPath, "-config", fullConfigPath, "hobby-pod", "code-serve-web")
+		if err != nil {
+			t.Fatalf("failed to run code-serve-web: %v\noutput:\n%s", err, output)
+		}
+		t.Logf("code-serve-web output:\n%s", output)
+
+		// The connection token and the access URL (built from the configured
+		// domain) must be printed to stdout.
+		if !strings.Contains(output, "Connection token:") {
+			t.Errorf("code-serve-web output does not contain 'Connection token:'")
+		}
+		if !strings.Contains(output, "https://hobbypod.e2e-test.local/?tkn=") {
+			t.Errorf("code-serve-web output does not contain access URL with configured domain, got:\n%s", output)
+		}
+		if !strings.Contains(output, "/root/.vscode/cli/code-serve-token") {
+			t.Errorf("code-serve-web output does not mention token file path, got:\n%s", output)
+		}
+	})
+
+	// Test 8: code-serve-web-token reads back the previously persisted token.
+	t.Run("CodeServeWebToken", func(t *testing.T) {
+		waitForPodRunning(t, client, testNamespace, "app=hobby-pod", 60*time.Second)
+
+		output, err := runCommand(t, fullBinaryPath, "-config", fullConfigPath, "hobby-pod", "code-serve-web-token")
+		if err != nil {
+			t.Fatalf("failed to run code-serve-web-token: %v\noutput:\n%s", err, output)
+		}
+		t.Logf("code-serve-web-token output:\n%s", output)
+
+		if !strings.Contains(output, "Connection token:") {
+			t.Errorf("code-serve-web-token output does not contain 'Connection token:'")
+		}
+		if !strings.Contains(output, "https://hobbypod.e2e-test.local/?tkn=") {
+			t.Errorf("code-serve-web-token output does not contain access URL with configured domain, got:\n%s", output)
+		}
+	})
+
+	// Test 9: Clean up hobbypod resources
 	t.Run("Clean", func(t *testing.T) {
 		output, err := runCommand(t, fullBinaryPath, "-config", fullConfigPath, "hobby-pod", "clean")
 		if err != nil {

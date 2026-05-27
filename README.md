@@ -407,7 +407,7 @@ personal-server <module> rollout <restart|status|history|undo>
 
 ### hobby-pod and work-pod: VS Code Web Interface
 
-The `hobby-pod` and `work-pod` modules support starting a VS Code web interface inside the running pod via the `code-serve-web` subcommand.
+The `hobby-pod` and `work-pod` modules support starting a VS Code web interface inside the running pod via the `code-serve-web` subcommand, and retrieving the connection token afterwards via `code-serve-web-token`.
 
 #### Starting code serve-web
 
@@ -419,30 +419,46 @@ personal-server hobby-pod code-serve-web
 personal-server workpod code-serve-web
 ```
 
-When the command succeeds, the **connection token and access URL are printed directly to stdout**:
+When the command succeeds, the **connection token and access URL are printed directly to stdout**. The access URL is built from the `general.domain` value in your configuration: `https://hobbypod.<domain>/` for the hobby pod and `https://workpod.<domain>/` for the work pod. If no domain is configured, the URL falls back to `http://localhost:20000/`.
+
+Example output (with `general.domain: ykonkov.com`):
 
 ```
 ✅ code serve-web started successfully
 
 Connection token: <token>
-Access URL:       http://localhost:20000/?tkn=<token>
+Access URL:       https://hobbypod.ykonkov.com/?tkn=<token>
+Token file (in pod): /root/.vscode/cli/code-serve-token
 
-Tip: if not already forwarded, run:
-  kubectl port-forward -n <namespace> deployment/hobby-pod 20000:20000
+Retrieve the token later with:
+  personal-server hobby-pod code-serve-web-token
 ```
 
-> **Security note:** The token is printed only to stdout and is never written to log files. Keep it confidential — anyone with this token can access your VS Code web interface.
+The token is also written to `/root/.vscode/cli/code-serve-token` inside the pod (on the persistent workspace volume) so it survives pod restarts and can be retrieved later.
+
+#### Retrieving the token later
+
+If you lose the original output, you can fetch the most recently issued token (and its access URL) without restarting `code serve-web`:
+
+```bash
+personal-server hobby-pod code-serve-web-token
+personal-server workpod code-serve-web-token
+```
+
+This reads `/root/.vscode/cli/code-serve-token` from the pod and prints the same `Connection token` / `Access URL` lines to stdout.
+
+> **Security note:** The token is printed only to stdout and is never written to log files. The in-pod token file is created with `0600` permissions. Keep the token confidential — anyone with it can access your VS Code web interface.
 
 #### Accessing the web interface
 
-1. Run the `code-serve-web` command to start the server and obtain the token and URL.
-2. If needed, open a port-forward in a separate terminal:
+1. Run `code-serve-web` once to start the server (and persist the token in the pod).
+2. Make sure the pod is reachable on its configured hostname (e.g. via an ingress that routes `hobbypod.<domain>` / `workpod.<domain>` to the pod's port `20000`). If you only need local access, you can port-forward instead:
    ```bash
    kubectl port-forward -n <namespace> deployment/hobby-pod 20000:20000
    # or for work-pod:
    kubectl port-forward -n <namespace> deployment/work-pod 20000:20000
    ```
-3. Open the printed URL in your browser to access the VS Code web interface.
+3. Open the printed URL in your browser. Use `code-serve-web-token` later if you need the token again.
 
 ### Pet Projects
 

@@ -114,8 +114,19 @@ type Config struct {
 // LoadConfig loads and parses the configuration file
 func LoadConfig(configFile string) (*Config, error) {
 	// Check if config file exists
-	if _, err := os.Stat(configFile); os.IsNotExist(err) {
+	info, err := os.Stat(configFile)
+	if os.IsNotExist(err) {
 		return nil, fmt.Errorf("config file not found: %s", configFile)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error stating config file: %v", err)
+	}
+
+	// Verify config file permissions. The config file may contain secrets
+	// (passwords, tokens, credentials), so it must not be accessible to
+	// group or other users. Only 0600 and 0400 are accepted.
+	if err := checkConfigPermissions(configFile, info.Mode().Perm()); err != nil {
+		return nil, err
 	}
 
 	// Read config file

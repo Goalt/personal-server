@@ -23,7 +23,7 @@ modules:
     namespace: infra
 `
 
-	err := os.WriteFile(configFile, []byte(configContent), 0644)
+	err := os.WriteFile(configFile, []byte(configContent), 0600)
 	if err != nil {
 		t.Fatalf("Failed to create test config file: %v", err)
 	}
@@ -113,7 +113,7 @@ modules:
     namespace
 `
 
-	err := os.WriteFile(configFile, []byte(invalidYAML), 0644)
+	err := os.WriteFile(configFile, []byte(invalidYAML), 0600)
 	if err != nil {
 		t.Fatalf("Failed to create invalid config file: %v", err)
 	}
@@ -135,7 +135,7 @@ func TestLoadConfig_EmptyFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "empty.yaml")
 
-	err := os.WriteFile(configFile, []byte(""), 0644)
+	err := os.WriteFile(configFile, []byte(""), 0600)
 	if err != nil {
 		t.Fatalf("Failed to create empty config file: %v", err)
 	}
@@ -177,7 +177,7 @@ modules:
       postgres_db: testdb
 `
 
-	err := os.WriteFile(configFile, []byte(configContent), 0644)
+	err := os.WriteFile(configFile, []byte(configContent), 0600)
 	if err != nil {
 		t.Fatalf("Failed to create test config file: %v", err)
 	}
@@ -372,7 +372,7 @@ pet-projects:
       NODE_ENV: "development"
 `
 
-	err := os.WriteFile(configFile, []byte(configContent), 0644)
+	err := os.WriteFile(configFile, []byte(configContent), 0600)
 	if err != nil {
 		t.Fatalf("Failed to create test config file: %v", err)
 	}
@@ -555,7 +555,7 @@ pet-projects:
       NODE_ENV: "development"
 `
 
-	err := os.WriteFile(configFile, []byte(configContent), 0644)
+	err := os.WriteFile(configFile, []byte(configContent), 0600)
 	if err != nil {
 		t.Fatalf("Failed to create test config file: %v", err)
 	}
@@ -767,7 +767,7 @@ pet-projects:
       PORT: "8080"
 `
 
-	err := os.WriteFile(configFile, []byte(configContent), 0644)
+	err := os.WriteFile(configFile, []byte(configContent), 0600)
 	if err != nil {
 		t.Fatalf("Failed to create test config file: %v", err)
 	}

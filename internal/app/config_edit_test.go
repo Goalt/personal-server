@@ -22,7 +22,7 @@ modules:
     namespace: infra
     image: ghcr.io/goalt/work-config:old-tag
 `
-	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(configFile, []byte(configContent), 0600); err != nil {
 		t.Fatalf("Failed to create test config: %v", err)
 	}
 
@@ -67,7 +67,7 @@ modules:
   - name: prometheus
     namespace: infra
 `
-	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(configFile, []byte(configContent), 0600); err != nil {
 		t.Fatalf("Failed to create test config: %v", err)
 	}
 
@@ -128,7 +128,7 @@ modules:
   - name: cloudflare
     namespace: infra
 `
-	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(configFile, []byte(configContent), 0600); err != nil {
 		t.Fatalf("Failed to create test config: %v", err)
 	}
 

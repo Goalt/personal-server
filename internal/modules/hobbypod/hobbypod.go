@@ -109,57 +109,62 @@ func (m *HobbyPodModule) Apply(ctx context.Context) error {
 	m.log.Info("Applying hobby-pod Kubernetes configurations...\n")
 	m.log.Info("Target namespace: %s\n\n", m.ModuleConfig.Namespace)
 
-	// Check if resources already exist
-	m.log.Info("Checking for existing resources...\n")
-	_, err = clientset.CoreV1().PersistentVolumeClaims(m.ModuleConfig.Namespace).Get(ctx, "hobby-storage-pvc", metav1.GetOptions{})
-	if err == nil {
-		return fmt.Errorf("PersistentVolumeClaim 'hobby-storage-pvc' already exists in namespace '%s'", m.ModuleConfig.Namespace)
-	} else if !errors.IsNotFound(err) {
-		return fmt.Errorf("failed to check PersistentVolumeClaim existence: %w", err)
-	}
-
-	_, err = clientset.AppsV1().Deployments(m.ModuleConfig.Namespace).Get(ctx, "hobby-pod", metav1.GetOptions{})
-	if err == nil {
-		return fmt.Errorf("deployment 'hobby-pod' already exists in namespace '%s'", m.ModuleConfig.Namespace)
-	} else if !errors.IsNotFound(err) {
-		return fmt.Errorf("failed to check deployment existence: %w", err)
-	}
-
-	_, err = clientset.CoreV1().Services(m.ModuleConfig.Namespace).Get(ctx, "hobby-pod", metav1.GetOptions{})
-	if err == nil {
-		return fmt.Errorf("service 'hobby-pod' already exists in namespace '%s'", m.ModuleConfig.Namespace)
-	} else if !errors.IsNotFound(err) {
-		return fmt.Errorf("failed to check service existence: %w", err)
-	}
-
-	m.log.Info("No existing resources found, proceeding with creation...\n\n")
-
 	// Prepare Kubernetes objects
 	pvc, service, deployment := m.prepare()
 
-	// Apply PVC
+	// Apply PVC (create if not exists, skip if exists since PVCs are immutable)
 	m.log.Progress("Applying PersistentVolumeClaim: hobby-storage-pvc\n")
-	createdPVC, err := clientset.CoreV1().PersistentVolumeClaims(m.ModuleConfig.Namespace).Create(ctx, pvc, metav1.CreateOptions{})
+	_, err = clientset.CoreV1().PersistentVolumeClaims(m.ModuleConfig.Namespace).Get(ctx, "hobby-storage-pvc", metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to create PersistentVolumeClaim: %w", err)
+		if !errors.IsNotFound(err) {
+			return fmt.Errorf("failed to check PersistentVolumeClaim existence: %w", err)
+		}
+		createdPVC, err := clientset.CoreV1().PersistentVolumeClaims(m.ModuleConfig.Namespace).Create(ctx, pvc, metav1.CreateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to create PersistentVolumeClaim: %w", err)
+		}
+		m.log.Success("Created PersistentVolumeClaim: %s\n", createdPVC.Name)
+	} else {
+		m.log.Success("PersistentVolumeClaim already exists: hobby-storage-pvc\n")
 	}
-	m.log.Success("Created PersistentVolumeClaim: %s\n", createdPVC.Name)
 
-	// Apply Service
+	// Apply Service (create if not exists, skip if exists)
 	m.log.Progress("Applying Service: hobby-pod\n")
-	createdService, err := clientset.CoreV1().Services(m.ModuleConfig.Namespace).Create(ctx, service, metav1.CreateOptions{})
+	_, err = clientset.CoreV1().Services(m.ModuleConfig.Namespace).Get(ctx, "hobby-pod", metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to create Service: %w", err)
+		if !errors.IsNotFound(err) {
+			return fmt.Errorf("failed to check Service existence: %w", err)
+		}
+		createdService, err := clientset.CoreV1().Services(m.ModuleConfig.Namespace).Create(ctx, service, metav1.CreateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to create Service: %w", err)
+		}
+		m.log.Success("Created Service: %s\n", createdService.Name)
+	} else {
+		m.log.Success("Service already exists: hobby-pod\n")
 	}
-	m.log.Success("Created Service: %s\n", createdService.Name)
 
-	// Apply Deployment
+	// Apply Deployment (create or update)
 	m.log.Progress("Applying Deployment: hobby-pod\n")
-	createdDeployment, err := clientset.AppsV1().Deployments(m.ModuleConfig.Namespace).Create(ctx, deployment, metav1.CreateOptions{})
+	existingDeployment, err := clientset.AppsV1().Deployments(m.ModuleConfig.Namespace).Get(ctx, "hobby-pod", metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to create Deployment: %w", err)
+		if !errors.IsNotFound(err) {
+			return fmt.Errorf("failed to check Deployment existence: %w", err)
+		}
+		createdDeployment, err := clientset.AppsV1().Deployments(m.ModuleConfig.Namespace).Create(ctx, deployment, metav1.CreateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to create Deployment: %w", err)
+		}
+		m.log.Success("Created Deployment: %s\n", createdDeployment.Name)
+	} else {
+		// Update the existing deployment with new spec
+		existingDeployment.Spec = deployment.Spec
+		updatedDeployment, err := clientset.AppsV1().Deployments(m.ModuleConfig.Namespace).Update(ctx, existingDeployment, metav1.UpdateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to update Deployment: %w", err)
+		}
+		m.log.Success("Updated Deployment: %s\n", updatedDeployment.Name)
 	}
-	m.log.Success("Created Deployment: %s\n", createdDeployment.Name)
 
 	m.log.Info("\nCompleted: 3/3 resources applied successfully\n")
 	return nil

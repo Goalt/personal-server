@@ -102,7 +102,9 @@ Tests the complete lifecycle of the `workpod` module:
 2. **Apply**: Deploys the work pod to the cluster
 3. **Status**: Checks the status of the work pod deployment
 4. **Backup**: Tests the backup functionality (may not complete if pod is not ready)
-5. **Clean**: Removes work pod resources from the cluster
+5. **CodeServeWeb**: Runs the `code-serve-web` subcommand and verifies the connection token, the access URL built from the configured domain (`https://workpod.<domain>/?tkn=<token>`), and the in-pod token file path are printed to stdout
+6. **CodeServeWebToken**: Runs the `code-serve-web-token` subcommand and verifies it reads back the persisted token along with the access URL
+7. **Clean**: Removes work pod resources from the cluster
 
 ### Hobbypod E2E Test
 
@@ -112,7 +114,9 @@ Tests the complete lifecycle of the `hobbypod` module:
 2. **Apply**: Deploys the hobby pod to the cluster
 3. **Status**: Checks the status of the hobby pod deployment
 4. **Backup**: Tests the backup functionality (may not complete if pod is not ready)
-5. **Clean**: Removes hobby pod resources from the cluster
+5. **CodeServeWeb**: Runs the `code-serve-web` subcommand and verifies the connection token, the access URL built from the configured domain (`https://hobbypod.<domain>/?tkn=<token>`), and the in-pod token file path are printed to stdout
+6. **CodeServeWebToken**: Runs the `code-serve-web-token` subcommand and verifies it reads back the persisted token along with the access URL
+7. **Clean**: Removes hobby pod resources from the cluster
 
 ### PetProject E2E Test
 

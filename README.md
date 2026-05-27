@@ -405,6 +405,45 @@ personal-server <module> rollout <restart|status|history|undo>
 - **registry**: Kubernetes docker-registry secret management for configured registries
 - **ingress**: HTTP routing and ingress management with TLS support, plus TCP/UDP service exposure
 
+### hobby-pod and work-pod: VS Code Web Interface
+
+The `hobby-pod` and `work-pod` modules support starting a VS Code web interface inside the running pod via the `code-serve-web` subcommand.
+
+#### Starting code serve-web
+
+```bash
+# Start VS Code web interface in hobby-pod
+personal-server hobby-pod code-serve-web
+
+# Start VS Code web interface in work-pod
+personal-server workpod code-serve-web
+```
+
+When the command succeeds, the **connection token and access URL are printed directly to stdout**:
+
+```
+✅ code serve-web started successfully
+
+Connection token: <token>
+Access URL:       http://localhost:20000/?tkn=<token>
+
+Tip: if not already forwarded, run:
+  kubectl port-forward -n <namespace> deployment/hobby-pod 20000:20000
+```
+
+> **Security note:** The token is printed only to stdout and is never written to log files. Keep it confidential — anyone with this token can access your VS Code web interface.
+
+#### Accessing the web interface
+
+1. Run the `code-serve-web` command to start the server and obtain the token and URL.
+2. If needed, open a port-forward in a separate terminal:
+   ```bash
+   kubectl port-forward -n <namespace> deployment/hobby-pod 20000:20000
+   # or for work-pod:
+   kubectl port-forward -n <namespace> deployment/work-pod 20000:20000
+   ```
+3. Open the printed URL in your browser to access the VS Code web interface.
+
 ### Pet Projects
 
 Pet projects allow you to deploy custom containerized applications easily. Just define them in the `pet-projects` section of your config:

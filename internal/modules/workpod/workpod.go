@@ -43,7 +43,8 @@ func (m *WorkPodModule) Doc(ctx context.Context) error {
 	m.log.Info("Module: workpod\n\n")
 	m.log.Info("Description:\n  Deploys a personal work development pod with a persistent workspace.\n  Manages a PersistentVolumeClaim, Service, and Deployment.\n  Supports VS Code remote tunnels via the code-serve-web subcommand.\n\n")
 	m.log.Info("Optional configuration keys (modules[].secrets):\n  image_tag   Custom container image tag (default: ghcr.io/goalt/work-config:latest)\n\n")
-	m.log.Info("Subcommands:\n  generate        Write Kubernetes YAML to configs/workpod/\n  apply           Create/update resources in the cluster\n  clean           Delete all work-pod resources from the cluster\n  status          Print Deployment and Pod status\n  doc             Show this documentation\n  backup          Archive the workspace volume to the destination directory\n  restore         Restore the workspace volume from a backup archive\n  code-serve-web  Start a VS Code remote tunnel inside the running pod\n")
+	m.log.Info("Subcommands:\n  generate        Write Kubernetes YAML to configs/workpod/\n  apply           Create/update resources in the cluster\n  clean           Delete all work-pod resources from the cluster\n  status          Print Deployment and Pod status\n  doc             Show this documentation\n  backup          Archive the workspace volume to the destination directory\n  restore         Restore the workspace volume from a backup archive\n  code-serve-web  Start VS Code serve-web inside the running pod and print the connection token and access URL to stdout\n")
+	m.log.Info("code-serve-web output:\n  After starting, the connection token and access URL are printed directly to stdout.\n  Example output:\n    Connection token: <token>\n    Access URL:       http://localhost:20000/?tkn=<token>\n  The token is never written to log files.\n  Use kubectl port-forward to access the web interface from your local machine.\n")
 	return nil
 }
 
@@ -703,6 +704,8 @@ func (m *WorkPodModule) CodeServeWeb(ctx context.Context) error {
 	}
 
 	m.log.Success("code serve-web started successfully\n")
-	m.log.Info("Connection token: %s\n", token)
+	fmt.Fprintf(os.Stdout, "\nConnection token: %s\n", token)
+	fmt.Fprintf(os.Stdout, "Access URL:       http://localhost:20000/?tkn=%s\n\n", token)
+	fmt.Fprintf(os.Stdout, "Tip: if not already forwarded, run:\n  kubectl port-forward -n %s deployment/work-pod 20000:20000\n", m.ModuleConfig.Namespace)
 	return nil
 }

@@ -207,7 +207,7 @@ modules:
       image_tag: ghcr.io/goalt/work-config:sha-934489d
 `
 		tmpConfigFile := filepath.Join(t.TempDir(), "custom-config.yaml")
-		if err := os.WriteFile(tmpConfigFile, []byte(customConfig), 0644); err != nil {
+		if err := os.WriteFile(tmpConfigFile, []byte(customConfig), 0600); err != nil {
 			t.Fatalf("failed to write custom config: %v", err)
 		}
 

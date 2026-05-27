@@ -156,7 +156,97 @@ func TestHobbypodE2E(t *testing.T) {
 		}
 	})
 
-	// Test 3: Check status
+	// Test 3: Apply again (should succeed and update deployment with same image)
+	t.Run("ApplyUpdate", func(t *testing.T) {
+		output, err := runCommand(t, fullBinaryPath, "-config", fullConfigPath, "hobby-pod", "apply")
+		if err != nil {
+			t.Fatalf("failed to apply hobbypod configs on second apply: %v", err)
+		}
+		t.Logf("Second apply output:\n%s", output)
+
+		// Verify output mentions update or already exists
+		if !strings.Contains(output, "Updated Deployment") && !strings.Contains(output, "already exists") {
+			t.Logf("Warning: second apply output does not mention update or existing resources")
+		}
+
+		// Wait a moment for resources to stabilize
+		time.Sleep(2 * time.Second)
+
+		ctx := context.Background()
+
+		// Verify deployment still exists and is healthy
+		deployment, err := client.AppsV1().Deployments(testNamespace).Get(ctx, "hobby-pod", metav1.GetOptions{})
+		if err != nil {
+			t.Errorf("deployment hobby-pod was not found after second apply: %v", err)
+		} else {
+			t.Logf("Verified deployment still exists after second apply: %s", deployment.Name)
+		}
+	})
+
+	// Test 4: Apply with custom image tag (simulates updating image_tag in config)
+	t.Run("ApplyCustomImageTag", func(t *testing.T) {
+		// Create a temporary config file with a custom image tag
+		customConfig := `general:
+  domain: e2e-test.local
+  namespaces:
+    - e2e-test-infra
+    - e2e-test-hobby
+
+backup:
+  webdav_host: https://webdav.example.com
+  webdav_username: test
+  webdav_password: test
+  sentry_dsn: ""
+  cron: "*/30 * * * *"
+  passphrase: ""
+
+modules:
+  - name: hobby-pod
+    namespace: e2e-test-infra
+    secrets:
+      image_tag: ghcr.io/goalt/work-config:sha-934489d
+`
+		tmpConfigFile := filepath.Join(t.TempDir(), "custom-config.yaml")
+		if err := os.WriteFile(tmpConfigFile, []byte(customConfig), 0644); err != nil {
+			t.Fatalf("failed to write custom config: %v", err)
+		}
+
+		output, err := runCommand(t, fullBinaryPath, "-config", tmpConfigFile, "hobby-pod", "apply")
+		if err != nil {
+			t.Fatalf("failed to apply hobbypod with custom image tag: %v", err)
+		}
+		t.Logf("Apply with custom image tag output:\n%s", output)
+
+		// Verify the deployment was updated
+		if !strings.Contains(output, "Updated Deployment") {
+			t.Errorf("expected 'Updated Deployment' in output, got:\n%s", output)
+		}
+
+		// Wait for the update to propagate
+		time.Sleep(2 * time.Second)
+
+		ctx := context.Background()
+
+		// Verify the deployment has the new image tag
+		deployment, err := client.AppsV1().Deployments(testNamespace).Get(ctx, "hobby-pod", metav1.GetOptions{})
+		if err != nil {
+			t.Fatalf("failed to get deployment after image tag update: %v", err)
+		}
+
+		containers := deployment.Spec.Template.Spec.Containers
+		if len(containers) == 0 {
+			t.Fatal("deployment has no containers")
+		}
+
+		expectedImage := "ghcr.io/goalt/work-config:sha-934489d"
+		if containers[0].Image != expectedImage {
+			t.Errorf("container image = %s, want %s", containers[0].Image, expectedImage)
+		} else {
+			t.Logf("Verified container image updated to: %s", containers[0].Image)
+		}
+	})
+
+	// Test 5: Check status
 	t.Run("Status", func(t *testing.T) {
 		output, err := runCommand(t, fullBinaryPath, "-config", fullConfigPath, "hobby-pod", "status")
 		if err != nil {
@@ -170,12 +260,12 @@ func TestHobbypodE2E(t *testing.T) {
 		}
 	})
 
-	// Test 4: Test backup command (note: may fail if pod is not ready)
+	// Test 6: Test backup command (note: may fail if pod is not ready)
 	t.Run("Backup", func(t *testing.T) {
 		testBackupCommand(t, "hobby-pod")
 	})
 
-	// Test 5: Clean up hobbypod resources
+	// Test 7: Clean up hobbypod resources
 	t.Run("Clean", func(t *testing.T) {
 		output, err := runCommand(t, fullBinaryPath, "-config", fullConfigPath, "hobby-pod", "clean")
 		if err != nil {

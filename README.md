@@ -402,6 +402,7 @@ personal-server <module> rollout <restart|status|history|undo>
 - **prometheus**: Prometheus monitoring and metrics collection
 - **openclaw**: OpenClaw application deployment
 - **ssh-login-notifier**: SSH login notification service
+- **xray**: VLESS + WebSocket + TLS VPN using xray-core, hidden behind the existing Ingress
 - **registry**: Kubernetes docker-registry secret management for configured registries
 - **ingress**: HTTP routing and ingress management with TLS support, plus TCP/UDP service exposure
 

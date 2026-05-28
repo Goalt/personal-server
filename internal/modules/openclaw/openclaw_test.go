@@ -317,8 +317,8 @@ func TestOpenClawModule_PrepareDeploymentContainer(t *testing.T) {
 	_, _, _, deployment := module.prepare()
 
 	// Verify container count
-	if len(deployment.Spec.Template.Spec.Containers) != 1 {
-		t.Fatalf("Container count = %d, want 1", len(deployment.Spec.Template.Spec.Containers))
+	if len(deployment.Spec.Template.Spec.Containers) != 2 {
+		t.Fatalf("Container count = %d, want 2", len(deployment.Spec.Template.Spec.Containers))
 	}
 
 	container := deployment.Spec.Template.Spec.Containers[0]
@@ -388,6 +388,39 @@ func TestOpenClawModule_PrepareDeploymentContainer(t *testing.T) {
 	}
 }
 
+func TestOpenClawModule_PrepareBrowserContainer(t *testing.T) {
+	module := &OpenClawModule{
+		GeneralConfig: config.GeneralConfig{
+			Domain: "example.com",
+		},
+		ModuleConfig: config.Module{
+			Name:      "openclaw",
+			Namespace: "test-namespace",
+		},
+	}
+
+	_, _, _, deployment := module.prepare()
+
+	if len(deployment.Spec.Template.Spec.Containers) != 2 {
+		t.Fatalf("Container count = %d, want 2", len(deployment.Spec.Template.Spec.Containers))
+	}
+
+	browser := deployment.Spec.Template.Spec.Containers[1]
+
+	if browser.Name != "browser" {
+		t.Errorf("Browser container name = %s, want browser", browser.Name)
+	}
+
+	expectedImage := "ghcr.io/browserless/chrome:latest"
+	if browser.Image != expectedImage {
+		t.Errorf("Browser container image = %s, want %s", browser.Image, expectedImage)
+	}
+
+	if browser.ImagePullPolicy != corev1.PullAlways {
+		t.Errorf("Browser container ImagePullPolicy = %s, want Always", browser.ImagePullPolicy)
+	}
+}
+
 func TestOpenClawModule_PrepareWithCustomImage(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -421,8 +454,8 @@ func TestOpenClawModule_PrepareWithCustomImage(t *testing.T) {
 
 			_, _, _, deployment := module.prepare()
 
-			if len(deployment.Spec.Template.Spec.Containers) != 1 {
-				t.Fatalf("Container count = %d, want 1", len(deployment.Spec.Template.Spec.Containers))
+			if len(deployment.Spec.Template.Spec.Containers) != 2 {
+				t.Fatalf("Container count = %d, want 2", len(deployment.Spec.Template.Spec.Containers))
 			}
 
 			container := deployment.Spec.Template.Spec.Containers[0]
@@ -449,8 +482,8 @@ func TestOpenClawModule_PrepareGatewayToken(t *testing.T) {
 
 	_, _, _, deployment := module.prepare()
 
-	if len(deployment.Spec.Template.Spec.Containers) != 1 {
-		t.Fatalf("Container count = %d, want 1", len(deployment.Spec.Template.Spec.Containers))
+	if len(deployment.Spec.Template.Spec.Containers) != 2 {
+		t.Fatalf("Container count = %d, want 2", len(deployment.Spec.Template.Spec.Containers))
 	}
 
 	container := deployment.Spec.Template.Spec.Containers[0]
@@ -489,8 +522,8 @@ func TestOpenClawModule_PrepareWithExtraEnvs(t *testing.T) {
 
 	_, _, _, deployment := module.prepare()
 
-	if len(deployment.Spec.Template.Spec.Containers) != 1 {
-		t.Fatalf("Container count = %d, want 1", len(deployment.Spec.Template.Spec.Containers))
+	if len(deployment.Spec.Template.Spec.Containers) != 2 {
+		t.Fatalf("Container count = %d, want 2", len(deployment.Spec.Template.Spec.Containers))
 	}
 
 	container := deployment.Spec.Template.Spec.Containers[0]

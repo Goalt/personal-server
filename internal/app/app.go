@@ -108,6 +108,11 @@ func (a *App) Run(ctx context.Context, args []string) error {
 		return a.handleUpdateCommand(ctx)
 	}
 
+	// Handle config example command (doesn't require config)
+	if cmd == "config" && len(cmdArgs) > 1 && cmdArgs[1] == "example" {
+		return a.handleConfigExampleCommand()
+	}
+
 	// Handle backup decrypt command (doesn't require config)
 	if cmd == "backup" {
 		decryptCmd := flag.NewFlagSet("backup", flag.ContinueOnError)
@@ -253,6 +258,7 @@ func (a *App) printUsage() {
 	a.logger.Println("  help                          Show help information")
 	a.logger.Println("  update                        Check for updates and update the CLI to the latest version")
 	a.logger.Println("  config                        Parse and print loaded configuration")
+	a.logger.Println("  config example                Print an example configuration file")
 	a.logger.Println("  config edit <module> image <value>  Edit a module's image in the configuration file")
 	a.logger.Println("  backup                        Trigger a global backup including all modules")
 	a.logger.Println("  backup download <file>        Download a backup archive from WebDAV")

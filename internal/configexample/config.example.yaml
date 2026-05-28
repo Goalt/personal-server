@@ -1,0 +1,164 @@
+general:
+  domain: example.com
+  namespaces: [infra, hobby]
+backup:
+  webdav_host: https://webdav.example.com
+  webdav_username: username
+  webdav_password: password
+  sentry_dsn: https://public@sentry.example.com/1
+  cron: "*/30 * * * *"
+  passphrase: your-gpg-passphrase
+registries:
+  my-registry:
+    server: https://registry.example.com
+    username: myuser
+    password: mypassword
+    namespace: hobby  # Kubernetes namespace where the secret is created
+modules:
+  - name: cloudflare
+    namespace: infra
+    secrets:
+      cloudflare_api_token: your_cloudflare_api_token
+  - name: bitwarden
+    namespace: infra
+  - name: openclaw
+    namespace: infra
+    # Optional: override the container image (defaults to openclaw/openclaw:latest)
+    # image: myregistry.example.com/openclaw:v1.2.3
+  - name: webdav
+    namespace: infra
+    secrets:
+      webdav_username: admin
+      webdav_password: secret_password
+  - name: hobby-pod
+    namespace: infra
+    # Optional configuration:
+    # secrets:
+    #   image_tag: ghcr.io/goalt/work-config:custom-tag  # Custom container image tag
+  - name: work-pod
+    namespace: infra
+    # Optional configuration:
+    # secrets:
+    #   image_tag: ghcr.io/goalt/work-config:custom-tag  # Custom container image tag
+  - name: drone
+    namespace: infra
+    secrets:
+      drone_gitea_client_id: your_client_id
+      drone_gitea_client_secret: your_client_secret
+      drone_rpc_secret: your_rpc_secret
+      drone_server_proto: https
+  - name: monitoring
+    namespace: infra
+    secrets:
+      sentry_dsn: https://public@sentry.example.com/1
+  - name: postgres
+    namespace: infra
+    secrets:
+      admin_postgres_user: postgres
+      admin_postgres_password: secret_password
+  - name: postgres-exporter
+    namespace: infra
+    # Optional configuration - defaults shown below:
+    # secrets:
+    #   data_source_uri: postgres:5432/postgres?sslmode=disable
+    #   data_source_user: postgres
+    #   data_source_pass: postgres
+    #   extend_query_path: ""
+    #   include_databases: postgres
+  - name: pgadmin
+    namespace: infra
+    secrets:
+      pgadmin_default_email: admin@example.com
+      pgadmin_admin_password: secret_password
+  - name: gitea
+    namespace: infra
+    secrets:
+      gitea_db_user: gitea
+      gitea_db_password: secret_password
+  - name: grafana
+    namespace: infra
+    secrets:
+      grafana_admin_user: admin
+      grafana_admin_password: secret_password
+  - name: redis
+    namespace: infra
+    secrets:
+      redis_password: secret_password
+  - name: prometheus
+    namespace: infra
+    # Optional secrets for customization:
+    # secrets:
+    #   prometheus_image: prom/prometheus:v2.48.0  # Customize Prometheus version
+    #   storage_size: 10Gi                         # Customize storage size
+  # To deploy prometheus in an additional namespace, use a unique name with the "prometheus-" prefix:
+  # - name: prometheus-hobby
+  #   namespace: hobby
+  #   # Optional secrets for customization:
+  #   # secrets:
+  #   #   prometheus_image: prom/prometheus:v2.48.0
+  #   #   storage_size: 5Gi
+  - name: ssh-login-notifier
+    namespace: infra
+    secrets:
+      sentry_dsn: https://public@sentry.example.com/1
+pet-projects:
+  - name: myapp
+    namespace: hobby
+    image: nginx:latest
+    registry: my-registry  # Reference a key from the top-level registries section
+    environment:
+      PORT: "8080"
+      ENV: "production"
+    prometheusPort: 8080  # Port for Prometheus scraping (default: 8080)
+    service:
+      ports:
+        - name: http
+          port: 80
+          targetPort: 8080
+  - name: api-service
+    namespace: hobby
+    image: node:18-alpine
+    environment:
+      NODE_ENV: "development"
+      API_PORT: "3000"
+    prometheusPort: 3000  # Port for Prometheus scraping (default: 8080)
+    service:
+      ports:
+        - name: http
+          port: 3000
+          targetPort: 3000
+ingresses:
+  - name: web-ingress
+    namespace: infra
+    rules:
+      - host: gitea.example.com
+        path: /
+        pathType: Prefix
+        serviceName: gitea
+        servicePort: 3000
+      - host: bitwarden.example.com
+        path: /
+        pathType: Prefix
+        serviceName: bitwarden
+        servicePort: 80
+    tls: true
+  - name: tcp-udp-services
+    namespace: infra
+    # TCP services exposed through ingress controller
+    tcpServices:
+      - port: 5432           # External port
+        serviceName: postgres
+        servicePort: 5432    # Internal service port
+      - port: 6379
+        serviceName: redis
+        servicePort: 6379
+      - port: 2222           # Custom SSH port
+        serviceName: gitea
+        servicePort: 22
+        namespace: infra     # Optional: defaults to ingress namespace
+    # UDP services exposed through ingress controller
+    udpServices:
+      - port: 1194           # OpenVPN port
+        serviceName: openvpn
+        servicePort: 1194
+

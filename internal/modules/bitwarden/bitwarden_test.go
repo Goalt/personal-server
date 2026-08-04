@@ -283,91 +283,115 @@ func TestBitwardenModule_PrepareDeployment(t *testing.T) {
 }
 
 func TestBitwardenModule_PrepareDeploymentContainer(t *testing.T) {
-	module := &BitwardenModule{
-		GeneralConfig: config.GeneralConfig{
-			Domain: "example.com",
+	tests := []struct {
+		name          string
+		secrets       map[string]string
+		expectedImage string
+	}{
+		{
+			name:          "no custom image tag",
+			secrets:       nil,
+			expectedImage: "vaultwarden/server:1.35.8",
 		},
-		ModuleConfig: config.Module{
-			Name:      "bitwarden",
-			Namespace: "test-namespace",
+		{
+			name: "custom image tag",
+			secrets: map[string]string{
+				"image_tag": "vaultwarden/server:1.36.0",
+			},
+			expectedImage: "vaultwarden/server:1.36.0",
 		},
 	}
 
-	_, _, deployment := module.prepare()
-
-	// Verify container count
-	if len(deployment.Spec.Template.Spec.Containers) != 1 {
-		t.Fatalf("Container count = %d, want 1", len(deployment.Spec.Template.Spec.Containers))
-	}
-
-	container := deployment.Spec.Template.Spec.Containers[0]
-
-	// Test container name
-	if container.Name != "bitwarden" {
-		t.Errorf("Container name = %s, want bitwarden", container.Name)
-	}
-
-	// Test container image
-	expectedImage := "vaultwarden/server:1.35.8"
-	if container.Image != expectedImage {
-		t.Errorf("Container image = %s, want %s", container.Image, expectedImage)
-	}
-
-	// Test image pull policy
-	if container.ImagePullPolicy != corev1.PullIfNotPresent {
-		t.Errorf("Container ImagePullPolicy = %s, want IfNotPresent", container.ImagePullPolicy)
-	}
-
-	// Test environment variables
-	if len(container.Env) != 1 {
-		t.Errorf("Container env count = %d, want 1", len(container.Env))
-	}
-	websocketEnvFound := false
-	for _, env := range container.Env {
-		if env.Name == "WEBSOCKET_ENABLED" {
-			websocketEnvFound = true
-			if env.Value != "true" {
-				t.Errorf("WEBSOCKET_ENABLED = %s, want true", env.Value)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			module := &BitwardenModule{
+				GeneralConfig: config.GeneralConfig{
+					Domain: "example.com",
+				},
+				ModuleConfig: config.Module{
+					Name:      "bitwarden",
+					Namespace: "test-namespace",
+					Secrets:   tt.secrets,
+				},
 			}
-		}
-	}
-	if !websocketEnvFound {
-		t.Error("Container missing WEBSOCKET_ENABLED env var")
-	}
 
-	// Test container ports
-	if len(container.Ports) != 2 {
-		t.Errorf("Container ports count = %d, want 2", len(container.Ports))
-	}
+			_, _, deployment := module.prepare()
 
-	port80Found := false
-	port3012Found := false
-	for _, port := range container.Ports {
-		if port.ContainerPort == 80 {
-			port80Found = true
-		}
-		if port.ContainerPort == 3012 {
-			port3012Found = true
-		}
-	}
-	if !port80Found {
-		t.Error("Container missing port 80")
-	}
-	if !port3012Found {
-		t.Error("Container missing port 3012")
-	}
+			// Verify container count
+			if len(deployment.Spec.Template.Spec.Containers) != 1 {
+				t.Fatalf("Container count = %d, want 1", len(deployment.Spec.Template.Spec.Containers))
+			}
 
-	// Test volume mounts
-	if len(container.VolumeMounts) != 1 {
-		t.Errorf("Container volume mounts count = %d, want 1", len(container.VolumeMounts))
-	}
+			container := deployment.Spec.Template.Spec.Containers[0]
 
-	volumeMount := container.VolumeMounts[0]
-	if volumeMount.Name != "bitwarden-claim0" {
-		t.Errorf("VolumeMount name = %s, want bitwarden-claim0", volumeMount.Name)
-	}
-	if volumeMount.MountPath != "/data" {
-		t.Errorf("VolumeMount mountPath = %s, want /data", volumeMount.MountPath)
+			// Test container name
+			if container.Name != "bitwarden" {
+				t.Errorf("Container name = %s, want bitwarden", container.Name)
+			}
+
+			// Test container image
+			if container.Image != tt.expectedImage {
+				t.Errorf("Container image = %s, want %s", container.Image, tt.expectedImage)
+			}
+
+			// Test image pull policy
+			expectedPullPolicy := k8s.DefaultImagePullPolicy(tt.expectedImage)
+			if container.ImagePullPolicy != expectedPullPolicy {
+				t.Errorf("Container ImagePullPolicy = %s, want %s", container.ImagePullPolicy, expectedPullPolicy)
+			}
+
+			// Test environment variables
+			if len(container.Env) != 1 {
+				t.Errorf("Container env count = %d, want 1", len(container.Env))
+			}
+			websocketEnvFound := false
+			for _, env := range container.Env {
+				if env.Name == "WEBSOCKET_ENABLED" {
+					websocketEnvFound = true
+					if env.Value != "true" {
+						t.Errorf("WEBSOCKET_ENABLED = %s, want true", env.Value)
+					}
+				}
+			}
+			if !websocketEnvFound {
+				t.Error("Container missing WEBSOCKET_ENABLED env var")
+			}
+
+			// Test container ports
+			if len(container.Ports) != 2 {
+				t.Errorf("Container ports count = %d, want 2", len(container.Ports))
+			}
+
+			port80Found := false
+			port3012Found := false
+			for _, port := range container.Ports {
+				if port.ContainerPort == 80 {
+					port80Found = true
+				}
+				if port.ContainerPort == 3012 {
+					port3012Found = true
+				}
+			}
+			if !port80Found {
+				t.Error("Container missing port 80")
+			}
+			if !port3012Found {
+				t.Error("Container missing port 3012")
+			}
+
+			// Test volume mounts
+			if len(container.VolumeMounts) != 1 {
+				t.Errorf("Container volume mounts count = %d, want 1", len(container.VolumeMounts))
+			}
+
+			volumeMount := container.VolumeMounts[0]
+			if volumeMount.Name != "bitwarden-claim0" {
+				t.Errorf("VolumeMount name = %s, want bitwarden-claim0", volumeMount.Name)
+			}
+			if volumeMount.MountPath != "/data" {
+				t.Errorf("VolumeMount mountPath = %s, want /data", volumeMount.MountPath)
+			}
+		})
 	}
 }
 

@@ -44,6 +44,7 @@ func (m *BitwardenModule) Doc(ctx context.Context) error {
 	m.log.Info("Module: bitwarden\n\n")
 	m.log.Info("Description:\n  Deploys Vaultwarden (Bitwarden-compatible) password manager.\n  Manages a Deployment, Service, and PersistentVolumeClaim.\n\n")
 	m.log.Info("Required configuration keys (modules[].secrets):\n  (none — no secrets required)\n\n")
+	m.log.Info("Optional configuration keys (modules[].secrets):\n  image_tag   Custom container image tag (default: vaultwarden/server:1.35.8)\n\n")
 	m.log.Info("Subcommands:\n  generate   Write Kubernetes YAML to configs/bitwarden/\n  apply      Create/update resources in the cluster\n  clean      Delete all Bitwarden resources from the cluster\n  status     Print Deployment and Pod status\n  doc        Show this documentation\n  backup     Archive /data volume to the destination directory\n  restore    Restore /data volume from a backup archive\n")
 	return nil
 }
@@ -168,6 +169,9 @@ func (m *BitwardenModule) Apply(ctx context.Context) error {
 
 // prepare creates and returns the Kubernetes objects for bitwarden module
 func (m *BitwardenModule) prepare() (*corev1.PersistentVolumeClaim, *corev1.Service, *appsv1.Deployment) {
+	// Get custom image tag or use default
+	imageTag := k8s.GetSecretOrDefault(m.ModuleConfig.Secrets, "image_tag", "vaultwarden/server:1.35.8")
+
 	// Prepare PersistentVolumeClaim
 	storageQuantity := resource.MustParse("100Mi")
 	pvc := &corev1.PersistentVolumeClaim{
@@ -254,8 +258,8 @@ func (m *BitwardenModule) prepare() (*corev1.PersistentVolumeClaim, *corev1.Serv
 					Containers: []corev1.Container{
 						{
 							Name:            "bitwarden",
-							Image:           "vaultwarden/server:1.35.8",
-							ImagePullPolicy: k8s.DefaultImagePullPolicy("vaultwarden/server:1.35.8"),
+							Image:           imageTag,
+							ImagePullPolicy: k8s.DefaultImagePullPolicy(imageTag),
 							Env: []corev1.EnvVar{
 								{
 									Name:  "WEBSOCKET_ENABLED",
